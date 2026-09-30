@@ -1,0 +1,237 @@
+@import "tailwindcss";
+
+/*
+  Sistema de design — Pré-Safra ("Precision Agronomy")
+  Regras: superfícies frias e calmas; a cor existe para dar significado. Primária petrol teal;
+  semânticas seguras para daltonismo (verde-azulado / âmbar / vermelho-rosado / azul);
+  status sempre com texto + ícone/marcador + cor, nunca só cor. Números em tabular-nums.
+*/
+@theme {
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+  --font-display: var(--font-manrope), var(--font-inter), system-ui, sans-serif;
+  --font-mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
+
+  /* Superfícies e texto */
+  --color-canvas: #f5f7f8;
+  --color-surface: #ffffff;
+  --color-subtle: #eef1f3;
+  --color-line: #dde3e7;
+  --color-line-strong: #c3ccd2;
+  --color-ink: #14232b;
+  --color-muted: #5b6b75;
+
+  /* Sidebar e áreas escuras (Login) */
+  --color-night: #0b2e3a;
+  --color-night-raised: #113a49;
+
+  /* Marca: petrol teal */
+  --color-brand: #4fb8cc;
+  --color-primary: #0e6b78;
+  --color-primary-hover: #0b5563;
+  --color-primary-soft: #dcf0f4;
+  --color-primary-faint: #eef8fa;
+  --color-secondary: #4f5bd5;
+
+  /* Status: texto (fg), fundo (bg) e marcador (dot) */
+  --color-finalizado-fg: #007a5e;
+  --color-finalizado-bg: #e3f4ef;
+  --color-finalizado-dot: #009e73;
+  --color-afazer-fg: #9a5b00;
+  --color-afazer-bg: #fff4db;
+  --color-afazer-dot: #e69f00;
+  --color-atrasado-fg: #c4283c;
+  --color-atrasado-bg: #fce8eb;
+  --color-atrasado-dot: #c4283c;
+  --color-info-fg: #0072b2;
+  --color-info-bg: #e1f0f9;
+  --color-inativo-fg: #4b5b65;
+  --color-inativo-bg: #eaeef0;
+  --color-inativo-dot: #93a1aa;
+
+  /* Painel: as quatro situações (finalizado, agendado, atrasado, sem agendamento) */
+  --color-st-fin: #009e73;
+  --color-st-age: #0072b2;
+  --color-st-atr: #c4283c;
+  --color-st-sem: #a9b4bb;
+  --color-st-alerta: #e69f00;
+  --color-on-fin: #0a1418;
+  --color-on-age: #ffffff;
+  --color-on-atr: #ffffff;
+  --color-on-sem: #0a1418;
+
+  --shadow-card: 0 1px 2px rgba(20, 35, 43, 0.05), 0 1px 1px rgba(20, 35, 43, 0.03);
+  --shadow-pop: 0 12px 32px -8px rgba(11, 46, 58, 0.4), 0 2px 6px rgba(11, 46, 58, 0.14);
+}
+
+/* Tema escuro — troca as mesmas variáveis do @theme acima; o restante do CSS e das classes
+   Tailwind não precisa saber qual tema está ativo. Ativado via [data-theme="escuro"] no <html>
+   (ver src/lib/tema.ts e Shell.tsx), lido no layout raiz para não piscar no primeiro render. */
+:root[data-theme="escuro"] {
+  color-scheme: dark;
+
+  --color-canvas: #0c1417;
+  --color-surface: #141e23;
+  --color-subtle: #1b262b;
+  --color-line: #263339;
+  --color-line-strong: #38484f;
+  --color-ink: #eaf1f3;
+  --color-muted: #96a7af;
+
+  --color-night: #081f28;
+  --color-night-raised: #113240;
+
+  --color-brand: #5cc4d6;
+  --color-primary: #4bc2d6;
+  --color-primary-hover: #6fd0e0;
+  --color-primary-soft: #163b45;
+  --color-primary-faint: #112a32;
+  --color-secondary: #8891f2;
+
+  --color-finalizado-fg: #3fddac;
+  --color-finalizado-bg: #0f2e27;
+  --color-finalizado-dot: #34d399;
+  --color-afazer-fg: #f2b83a;
+  --color-afazer-bg: #302408;
+  --color-afazer-dot: #e69f00;
+  --color-atrasado-fg: #ff8a96;
+  --color-atrasado-bg: #3a141a;
+  --color-atrasado-dot: #ff7285;
+  --color-info-fg: #6cbaf0;
+  --color-info-bg: #0f2836;
+  --color-inativo-fg: #a3b3bb;
+  --color-inativo-bg: #1c272c;
+  --color-inativo-dot: #71828a;
+
+  --color-st-fin: #34d399;
+  --color-st-age: #6cbaf0;
+  --color-st-atr: #ff7285;
+  --color-st-sem: #5c6c73;
+  --color-st-alerta: #f2b83a;
+  --color-on-fin: #05140f;
+  --color-on-age: #05141c;
+  --color-on-atr: #2a0a0f;
+  --color-on-sem: #eaf1f3;
+
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 1px 1px rgba(0, 0, 0, 0.3);
+  --shadow-pop: 0 12px 32px -8px rgba(0, 0, 0, 0.65), 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+html {
+  font-size: 16px;
+  color-scheme: light;
+}
+
+body {
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-feature-settings: "cv11" 1;
+}
+
+/* Títulos em Manrope; números sempre tabulares para alinhar colunas e casas decimais */
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+}
+table,
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+@layer components {
+  .card {
+    @apply rounded-xl border border-line bg-surface shadow-card;
+  }
+
+  /* Campos de formulário */
+  .campo {
+    @apply h-10 w-full rounded-lg border border-line-strong bg-surface px-3 text-sm text-ink transition placeholder:text-muted/70 hover:border-muted focus:border-primary focus:outline-2 focus:outline-offset-0 focus:outline-primary/30;
+  }
+  textarea.campo {
+    @apply h-auto py-2.5 leading-relaxed;
+  }
+  .rotulo {
+    @apply mb-1.5 block text-sm font-medium text-ink;
+  }
+  .ajuda {
+    @apply mt-1.5 text-xs text-muted;
+  }
+
+  /* Botões: um estilo primário por tela; o resto é secundário ou discreto */
+  .btn,
+  .btn-primario,
+  .btn-escuro,
+  .btn-contorno,
+  .btn-discreto {
+    @apply inline-flex h-10 cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-lg px-4 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60;
+  }
+  .btn-primario {
+    @apply bg-primary text-white shadow-sm hover:bg-primary-hover;
+  }
+  .btn-escuro {
+    @apply bg-ink text-white hover:bg-ink/85;
+  }
+  .btn-contorno {
+    @apply border border-line-strong bg-surface text-ink hover:bg-subtle;
+  }
+  .btn-discreto {
+    @apply text-muted hover:bg-subtle hover:text-ink;
+  }
+  .btn-sm {
+    @apply h-8 gap-1.5 px-3 text-[13px];
+  }
+}
+
+/* Telão de ideias (/telao): a sugestão nova cai do topo da tela, dá um quique e se acomoda; o
+   brilho da cor do tópico some aos poucos; depois ela flutua devagar. */
+@keyframes telao-cair {
+  0% {
+    opacity: 0;
+    transform: translateY(-80vh) rotate(var(--giro, -4deg)) scale(0.9);
+  }
+  55% {
+    opacity: 1;
+    transform: translateY(2%) rotate(0deg) scale(1.02);
+  }
+  75% {
+    transform: translateY(-1.5%) scale(1);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) rotate(0deg) scale(1);
+  }
+}
+@keyframes telao-brilho {
+  0%,
+  55% {
+    box-shadow:
+      0 0 0 3px var(--brilho),
+      0 0 48px var(--brilho);
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+@keyframes telao-flutuar {
+  from {
+    transform: translateY(-3px);
+  }
+  to {
+    transform: translateY(3px);
+  }
+}

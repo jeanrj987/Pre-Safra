@@ -1,0 +1,983 @@
+[
+  {
+    "pergunta": "Influencias na sobra técnica"
+  },
+  {
+    "pergunta": "Livro Caixa Digital do Produtor Rural (LCDPR)"
+  },
+  {
+    "pergunta": "Subvariedades Integração Bayer"
+  },
+  {
+    "pergunta": "Adicionar romaneio no menu de sincronização Integração Bayer"
+  },
+  {
+    "pergunta": "Alteração de Senha"
+  },
+  {
+    "pergunta": "Produto não lista para Inclusão na NF"
+  },
+  {
+    "pergunta": "Tabela Classificação em Romaneio de Comercialização"
+  },
+  {
+    "pergunta": "1025 - Rejeição: cClassTrib do IBS/CBS nao permitido neste modelo de DFe"
+  },
+  {
+    "pergunta": "Processo de ativação da Ferramenta MDF-e e Ct-e"
+  },
+  {
+    "pergunta": "Identificar usuário que lançou Nota Fiscal"
+  },
+  {
+    "pergunta": "Ajuste de Entidade"
+  },
+  {
+    "pergunta": "Botão da Reforma Tributária"
+  },
+  {
+    "pergunta": "Importação de Notas Fiscais"
+  },
+  {
+    "pergunta": "Nota Fiscal de Débito 04 - Multa e Juros"
+  },
+  {
+    "pergunta": "Cadastro de Usuário"
+  },
+  {
+    "pergunta": "Prazo Vencimento em Dias"
+  },
+  {
+    "pergunta": "Edição do número do Contrato"
+  },
+  {
+    "pergunta": "Pagamento com Juros"
+  },
+  {
+    "pergunta": "Importação de NF-e [XML]"
+  },
+  {
+    "pergunta": "Divergência de peso entre Origem e Destino"
+  },
+  {
+    "pergunta": "Configuração Emissão Nota Débito 04 - Multa e Juros"
+  },
+  {
+    "pergunta": "Caminhão Desistiu de Carregar/Descarregar"
+  },
+  {
+    "pergunta": "Impressão de Duplicata"
+  },
+  {
+    "pergunta": "Qual Nota Fiscal foi referenciada na emissão?"
+  },
+  {
+    "pergunta": "Liberar Contingência de Nota Fiscal Eletrônica"
+  },
+  {
+    "pergunta": "Categorias dos Produtos no Uso e Consumo"
+  },
+  {
+    "pergunta": "Diferença entre Sobra Técnica e Quebra Técnica"
+  },
+  {
+    "pergunta": "Login em Vários Dispositivos com o Mesmo Usuário"
+  },
+  {
+    "pergunta": "Previsão de Estoque Futuro"
+  },
+  {
+    "pergunta": "MDF-e: Falta de informações no fitossanitário"
+  },
+  {
+    "pergunta": "Configuração de Serviços"
+  },
+  {
+    "pergunta": "Configurar CND Empresa"
+  },
+  {
+    "pergunta": "CND nos dados adicionais da NF-e"
+  },
+  {
+    "pergunta": "CST"
+  },
+  {
+    "pergunta": "Venda Direta"
+  },
+  {
+    "pergunta": "CS Comercialização"
+  },
+  {
+    "pergunta": "Não aparece a cultivar no romaneio"
+  },
+  {
+    "pergunta": "Manifestar Operação Não Realizada em Nota Fiscal de Terceiros"
+  },
+  {
+    "pergunta": "Processo de Entrega Futura"
+  },
+  {
+    "pergunta": "Ajuste de Dados Adicionais"
+  },
+  {
+    "pergunta": "Inserir Campo Placa do Veículo em NFe Interestadual"
+  },
+  {
+    "pergunta": "Tipos de Notas Fiscais de Débito e Crédito IBS/CBS"
+  },
+  {
+    "pergunta": "Empréstimo Compensado"
+  },
+  {
+    "pergunta": "Validação Funcional de Base"
+  },
+  {
+    "pergunta": "Configuração IBS/CBS no CT-e"
+  },
+  {
+    "pergunta": "Data emissão e saída de NF-e"
+  },
+  {
+    "pergunta": "Notas Fiscais: Erro de série"
+  },
+  {
+    "pergunta": "Estorno de Romaneio"
+  },
+  {
+    "pergunta": "Vinculos de Notas Fiscais"
+  },
+  {
+    "pergunta": "Ajuste de Cheque"
+  },
+  {
+    "pergunta": "Cadastro de Entidade"
+  },
+  {
+    "pergunta": "Baixa Financeira com Valor NF maior que Valor Antecipação"
+  },
+  {
+    "pergunta": "NF-e - Guia de Trânsito – NT 2024.003"
+  },
+  {
+    "pergunta": "Emissão Receituário Agronômico"
+  },
+  {
+    "pergunta": "Erro CS Web - Fluxo de Caixa"
+  },
+  {
+    "pergunta": "Relatório - Cs Escrita Fiscal"
+  },
+  {
+    "pergunta": "Produto não lista na Pesagem"
+  },
+  {
+    "pergunta": "Pesagens Avulsas"
+  },
+  {
+    "pergunta": "Tabela de Desconto"
+  },
+  {
+    "pergunta": "Horário de Atendimento"
+  },
+  {
+    "pergunta": "Impressão automática de Romaneio"
+  },
+  {
+    "pergunta": "Funcionalidades: Erro ao abrir módulo via F12"
+  },
+  {
+    "pergunta": "Consultas FreeStyle"
+  },
+  {
+    "pergunta": "Programação de Baixa de Contas"
+  },
+  {
+    "pergunta": "Nota Fiscal de Serviço"
+  },
+  {
+    "pergunta": "Atualização de Base"
+  },
+  {
+    "pergunta": "Parametrização dos Tributos"
+  },
+  {
+    "pergunta": "Atualização de Certificado Digital"
+  },
+  {
+    "pergunta": "999 - Falha na Validação dos dados da nota: 677"
+  },
+  {
+    "pergunta": "Inserção de Perguntas no FAQ"
+  },
+  {
+    "pergunta": "Certificado Digital"
+  },
+  {
+    "pergunta": "Financeiro"
+  },
+  {
+    "pergunta": "App sem acesso"
+  },
+  {
+    "pergunta": "Inclusão de Registros Escrita Fiscal"
+  },
+  {
+    "pergunta": "Nota Fiscal de Débito 06 - Pagamento Antecipado"
+  },
+  {
+    "pergunta": "Cadastro de Safra - CS Web"
+  },
+  {
+    "pergunta": "Liberar NF-e do eDoc para CS Agro"
+  },
+  {
+    "pergunta": "Importação de NF"
+  },
+  {
+    "pergunta": "Saldos Comparativos"
+  },
+  {
+    "pergunta": "Transferência de Produto em depósito"
+  },
+  {
+    "pergunta": "CND da Entidade Vencida"
+  },
+  {
+    "pergunta": "Aquisição de Produto em Depósito"
+  },
+  {
+    "pergunta": "Gerar Inventário"
+  },
+  {
+    "pergunta": "Desdobre de Cargas"
+  },
+  {
+    "pergunta": "Tipos de Consumo Integração Bayer"
+  },
+  {
+    "pergunta": "Bloqueio de Quantidade fracionada na Nota"
+  },
+  {
+    "pergunta": "Cadastro de Entidade Estrangeira"
+  },
+  {
+    "pergunta": "Comercializar em Diferentes Unidade de Medida"
+  },
+  {
+    "pergunta": "Notas fiscais de Fixação"
+  },
+  {
+    "pergunta": "Cadastro de Serviços"
+  },
+  {
+    "pergunta": "Soja OGM X Transgênica"
+  },
+  {
+    "pergunta": "Contingência"
+  },
+  {
+    "pergunta": "Vincular Nota Fiscal com um Contrato"
+  },
+  {
+    "pergunta": "Onde localizar os Dados Adicionais na NF-e"
+  },
+  {
+    "pergunta": "Impostos em Contrato"
+  },
+  {
+    "pergunta": "Minimizar Lentidão - Antivírus Kapersky"
+  },
+  {
+    "pergunta": "Emissão NF de Devolução de Combustível"
+  },
+  {
+    "pergunta": "Faturamento em Pedido Compra/Venda"
+  },
+  {
+    "pergunta": "Exclusão de Conta com Baixa"
+  },
+  {
+    "pergunta": "Atendimento via Ligação"
+  },
+  {
+    "pergunta": "Amortização"
+  },
+  {
+    "pergunta": "Desvincular Romaneio da Nota Fiscal"
+  },
+  {
+    "pergunta": "Sem Autorização para Estorno de Romaneios"
+  },
+  {
+    "pergunta": "Resumo de Prestação de Serviços"
+  },
+  {
+    "pergunta": "Emissão Nota Fiscal de Serviço"
+  },
+  {
+    "pergunta": "Erro 422 - NCM não Compatível com a Tributação utilizada"
+  },
+  {
+    "pergunta": "Sincronizar Romaneio Integração Bayer"
+  },
+  {
+    "pergunta": "Reforma Tributária - Novos Impostos – NT 2025.002.v1.30"
+  },
+  {
+    "pergunta": "Erro: 422 - Classificação e Situação Tributária incompatíveis"
+  },
+  {
+    "pergunta": "Inclusão de Conhecimento de Transporte de Terceiros"
+  },
+  {
+    "pergunta": "Atualizar Executável do Servidor"
+  },
+  {
+    "pergunta": "Localização de Baixas"
+  },
+  {
+    "pergunta": "Cadastro de Série e Modelo Fiscal"
+  },
+  {
+    "pergunta": "Desconto de Classificação - Saída"
+  },
+  {
+    "pergunta": "Acompanhamento de Safra"
+  },
+  {
+    "pergunta": "Faturamento após Cancelamento de NF sobre o Pedido"
+  },
+  {
+    "pergunta": "Campos que solicitam Liberação Supervisor"
+  },
+  {
+    "pergunta": "Notas Fiscais: Inscrição Estadual inativa na UF"
+  },
+  {
+    "pergunta": "500 - Nenhuma conexão pôde ser feita porque a máquina de destino as recusou ativamente. (127.0.0.1:37779))"
+  },
+  {
+    "pergunta": "Baixa de Produtos sem Emissão de NF-e"
+  },
+  {
+    "pergunta": "Valor da Integração"
+  },
+  {
+    "pergunta": "Safra Sugerida"
+  },
+  {
+    "pergunta": "Movimentação Contas a Pagar de um Patrimônio"
+  },
+  {
+    "pergunta": "Configurar impressora Cupom"
+  },
+  {
+    "pergunta": "Localizar XML de Notas Emitidas pela Empresa"
+  },
+  {
+    "pergunta": "Remessa Pendente"
+  },
+  {
+    "pergunta": "MDF-e: MDF-e emitido em outro ano não consegue encerrar"
+  },
+  {
+    "pergunta": "Liberação Quinzena: Erro Exportação para exel"
+  },
+  {
+    "pergunta": "Divergência: Origem do Produto não Informado"
+  },
+  {
+    "pergunta": "Lançamento Integração NF-e X CT-e"
+  },
+  {
+    "pergunta": "CS Financeiro: Erro ao baixar"
+  },
+  {
+    "pergunta": "Cadastro de CFOP"
+  },
+  {
+    "pergunta": "Exportação de Produtos entre Safras"
+  },
+  {
+    "pergunta": "Desconhecer NF-e x Operação Não Realizada"
+  },
+  {
+    "pergunta": "Cancelar Registro Integração Bayer"
+  },
+  {
+    "pergunta": "Inclusão de Nota Fiscal Avulsa"
+  },
+  {
+    "pergunta": "Emissão de Nota de Devolução"
+  },
+  {
+    "pergunta": "CS Fazenda"
+  },
+  {
+    "pergunta": "Remover romaneio na integração Bayer"
+  },
+  {
+    "pergunta": "Relatórios do Financeiro"
+  },
+  {
+    "pergunta": "Como incluir um cheque de terceiros na conta"
+  },
+  {
+    "pergunta": "Rastreio das Devoluções de Antecipações"
+  },
+  {
+    "pergunta": "Regime Tributário"
+  },
+  {
+    "pergunta": "Ligação de CST com CFOP Interestadual"
+  },
+  {
+    "pergunta": "Conversão Unidade Tributável da Nota Fiscal"
+  },
+  {
+    "pergunta": "Desconhecer a Nota Fiscal de Terceiros"
+  },
+  {
+    "pergunta": "Liberação de Menu para um Usuário"
+  },
+  {
+    "pergunta": "Provisionamento Contas a Pagar e Receber Sobre Contrato"
+  },
+  {
+    "pergunta": "Rejeição: Outros Motivos"
+  },
+  {
+    "pergunta": "Notas Fiscais: Entidade não contribuinte com I.E"
+  },
+  {
+    "pergunta": "Cadastro da mesma Propriedade em Entidades distintas"
+  },
+  {
+    "pergunta": "Exclusão de Baixas"
+  },
+  {
+    "pergunta": "Relatório de Fornecedores e Produtos"
+  },
+  {
+    "pergunta": "Cadastro de Patrimônio"
+  },
+  {
+    "pergunta": "Instalação CSUpdater - Terminal"
+  },
+  {
+    "pergunta": "Mudanças no FUNRURAL - a partir de 01/04/2026"
+  },
+  {
+    "pergunta": "Conta Corrente de Entidade"
+  },
+  {
+    "pergunta": "Para que serve a Nota Fiscal de Complemento"
+  },
+  {
+    "pergunta": "Inclusão de Registros Livro Caixa"
+  },
+  {
+    "pergunta": "Inclusão de Produto na Confirmação de Negócio"
+  },
+  {
+    "pergunta": "Diferença entre Grau Taxa e Grau Índice nas tabelas de classificação"
+  },
+  {
+    "pergunta": "Prazo de Cancelamento da Nota Fiscal"
+  },
+  {
+    "pergunta": "Nota Fiscal: Erro ao emitir nota sobre uma transferencia de produto em depósito"
+  },
+  {
+    "pergunta": "Instalação de Terminal"
+  },
+  {
+    "pergunta": "Consumo Romaneios Pending List"
+  },
+  {
+    "pergunta": "Nota Fiscal sobre o Romaneio"
+  },
+  {
+    "pergunta": "Duvidas SySGrão"
+  },
+  {
+    "pergunta": "Como Funciona o Caixa Amortização"
+  },
+  {
+    "pergunta": "Exclusão de Entidades"
+  },
+  {
+    "pergunta": "564 - Rejeição: Total do Produto / Serviço difere do somatório dos itens"
+  },
+  {
+    "pergunta": "Lucro Bruto nos Contratos de Vendas"
+  },
+  {
+    "pergunta": "Nota Fiscal: Erro com imposto IPI"
+  },
+  {
+    "pergunta": "Processo de Triangulação"
+  },
+  {
+    "pergunta": "Estoque de Pautas"
+  },
+  {
+    "pergunta": "Exportação de NFe: Demora na exportação"
+  },
+  {
+    "pergunta": "1026 - Rejeição: Alíquota do IBS da UF inválida"
+  },
+  {
+    "pergunta": "Retorno Produtor não possui cadastro na Bayer"
+  },
+  {
+    "pergunta": "Liberação de quinzena: Falha ao calcular quebra técnica"
+  },
+  {
+    "pergunta": "Exclusão de ligação de CST afeta lançamentos anteriores?"
+  },
+  {
+    "pergunta": "Conhecimento de Transporte (CT-e)"
+  },
+  {
+    "pergunta": "Relatórios de Pedidos"
+  },
+  {
+    "pergunta": "Salvar XMLs Terceiros"
+  },
+  {
+    "pergunta": "Produtos que Movimentam Estoque ou Não."
+  },
+  {
+    "pergunta": "Lançamento Integração NF-e X MDF-e"
+  },
+  {
+    "pergunta": "Escrita Fiscal"
+  },
+  {
+    "pergunta": "Processo de Consignação"
+  },
+  {
+    "pergunta": "Importar XML de Diferentes Empresas"
+  },
+  {
+    "pergunta": "Controle de Talhões"
+  },
+  {
+    "pergunta": "Relatórios: Erro ao exportar para exel"
+  },
+  {
+    "pergunta": "Ligação do CFOP com o Plano de Contas Contabéis"
+  },
+  {
+    "pergunta": "Análise Financeira"
+  },
+  {
+    "pergunta": "Cotação Contrato em Dólar"
+  },
+  {
+    "pergunta": "Importação de Conhecimento de Transporte (Cte) de Terceiros"
+  },
+  {
+    "pergunta": "Controlar GTIN dos Produtos"
+  },
+  {
+    "pergunta": "Deposito de Produtos em Armazéns de Terceiros"
+  },
+  {
+    "pergunta": "Fixação Romaneios Pending List"
+  },
+  {
+    "pergunta": "Atualização/Troca de Servidor"
+  },
+  {
+    "pergunta": "Vínculo de cheque na Parcela Incorreta"
+  },
+  {
+    "pergunta": "Rejeição: Unidade Tributável incompatível com o NCM informado."
+  },
+  {
+    "pergunta": "Lançamento de Cheque Terceiros na Conta Corrente"
+  },
+  {
+    "pergunta": "Lançamento NF com Conversão de KG para TON"
+  },
+  {
+    "pergunta": "eDoc: NF-e Distribuição x NF-e Manifestação"
+  },
+  {
+    "pergunta": "Recibo de pagamento: Erro ao imprimir"
+  },
+  {
+    "pergunta": "Cadastro de Exercícios"
+  },
+  {
+    "pergunta": "Configuração de Fitossanitário e Ficha de Emergência no Cliente"
+  },
+  {
+    "pergunta": "Baixa de Antecipação"
+  },
+  {
+    "pergunta": "Como realizar os lançamentos no SPED para realizar a Exportação?"
+  },
+  {
+    "pergunta": "Parametrização Contribuinte no LCDPR"
+  },
+  {
+    "pergunta": "Edoc - \"Rejeição: Consumo Indevido\""
+  },
+  {
+    "pergunta": "Execução Pré-Safra"
+  },
+  {
+    "pergunta": "Destaques ⭐"
+  },
+  {
+    "pergunta": "Analise de sobra técnica"
+  },
+  {
+    "pergunta": "Atalho de Datas"
+  },
+  {
+    "pergunta": "Nota Fiscal de Débito 07 - Perda em estoque"
+  },
+  {
+    "pergunta": "Ordem de Carregamento"
+  },
+  {
+    "pergunta": "Exportação Parâmetros de Cliente"
+  },
+  {
+    "pergunta": "Cadastro Ficha de Emergência"
+  },
+  {
+    "pergunta": "Duplicidade de NFe"
+  },
+  {
+    "pergunta": "O que é a sobra técnica"
+  },
+  {
+    "pergunta": "Alteração Cadastro Transportador"
+  },
+  {
+    "pergunta": "Cadastro do Fitossanitário"
+  },
+  {
+    "pergunta": "Cadastro de Transportadora"
+  },
+  {
+    "pergunta": "Como a sobra técnica é gerada"
+  },
+  {
+    "pergunta": "Caminho de rede não encontrado ao encerrar MDF-e"
+  },
+  {
+    "pergunta": "Nota Fiscal de Débito 03 - Débitos de notas fiscais não processadas na apuração"
+  },
+  {
+    "pergunta": "Data Automática Relatórios"
+  },
+  {
+    "pergunta": "Cadastro de Safra"
+  },
+  {
+    "pergunta": "Depreciação do Patrimônio"
+  },
+  {
+    "pergunta": "Bloqueio de Motorista"
+  },
+  {
+    "pergunta": "Importar Tabela de Classificação"
+  },
+  {
+    "pergunta": "Travar Lançamentos"
+  },
+  {
+    "pergunta": "Baixa de Imobilizado"
+  },
+  {
+    "pergunta": "Exportação Tabelas de Desconto"
+  },
+  {
+    "pergunta": "Inclusão de Defensivos Agrícolas na NF-e – NT 2024.003"
+  },
+  {
+    "pergunta": "Desconto de Entrada e Saída no Armazém"
+  },
+  {
+    "pergunta": "Notas Fiscais: Schemas desatualizados"
+  },
+  {
+    "pergunta": "Contrato finalizou a entrega com Saldo disponível"
+  },
+  {
+    "pergunta": "Nota Fiscal de Débito 01 - Transferência de créditos para Cooperativas"
+  },
+  {
+    "pergunta": "Lançamento Sobra Fisíca Armazém"
+  },
+  {
+    "pergunta": "Falha no Lançamento Romaneios Devolução"
+  },
+  {
+    "pergunta": "Cadastro de Parâmetros do Cliente"
+  },
+  {
+    "pergunta": "Pedidos de Compra ou Venda"
+  },
+  {
+    "pergunta": "Integração Bancária: Rejeição de parcelas a pagar."
+  },
+  {
+    "pergunta": "Consulta Inventário"
+  },
+  {
+    "pergunta": "Tabela de Desconto no Contrato"
+  },
+  {
+    "pergunta": "Cadastro de Transportador"
+  },
+  {
+    "pergunta": "Importar Tabela de Umidade"
+  },
+  {
+    "pergunta": "Cliente não lista na Transferência de Produto em Depósito"
+  },
+  {
+    "pergunta": "Liberação de Armazenagem e Quebra Técnica"
+  },
+  {
+    "pergunta": "Lançamento Pedido Compra/Venda"
+  },
+  {
+    "pergunta": "Lançamentos de Notas Fiscais"
+  },
+  {
+    "pergunta": "Cadastro Aplicação Financeira"
+  },
+  {
+    "pergunta": "Cadastro Conta Corrente"
+  },
+  {
+    "pergunta": "Danfe"
+  },
+  {
+    "pergunta": "Cálculo do Fator Conversão"
+  },
+  {
+    "pergunta": "Estornar Romaneio com Registro de Envio Bayer"
+  },
+  {
+    "pergunta": "Cadastro de Cultivar e Vinculo ao Produto"
+  },
+  {
+    "pergunta": "Importar Cadastro de Entidade"
+  },
+  {
+    "pergunta": "Cadastro de Indexadores"
+  },
+  {
+    "pergunta": "Adequações do MDF-e – NT 2025.001"
+  },
+  {
+    "pergunta": "Problemas ao gerar ou abrir a DANFE (PDF)"
+  },
+  {
+    "pergunta": "Notas Fiscais: Erro ao imprimir Danfe"
+  },
+  {
+    "pergunta": "Renegociação de contas a pagar"
+  },
+  {
+    "pergunta": "Cadastrar Aplicação Financeira na Conta Bancária"
+  },
+  {
+    "pergunta": "1041 - Rejeição: Valor do IBS da UF difere do calculado"
+  },
+  {
+    "pergunta": "Notas Fiscais: Nf não gera financeiro"
+  },
+  {
+    "pergunta": "Programação de Pagamentos de Contas"
+  },
+  {
+    "pergunta": "Tipos de Comissões"
+  },
+  {
+    "pergunta": "Importação e Vínculo do Fito / Ficha de Emergência"
+  },
+  {
+    "pergunta": "Disponibilidade Sefaz"
+  },
+  {
+    "pergunta": "CS Tributação Matriz e Filial"
+  },
+  {
+    "pergunta": "Utilização do Sistema sem Internet"
+  },
+  {
+    "pergunta": "Cadastro de Diagnóstico - Fitossanitário"
+  },
+  {
+    "pergunta": "Inclusão Centro de Custo Analítico"
+  },
+  {
+    "pergunta": "Nomeação dos Modelos de Contrato"
+  },
+  {
+    "pergunta": "Incluir Antecipação de Contas"
+  },
+  {
+    "pergunta": "Conferência Boletim de Depósito x Ficha Física"
+  },
+  {
+    "pergunta": "Relatório Notas Fiscais"
+  },
+  {
+    "pergunta": "Baixa de XML Terceiros"
+  },
+  {
+    "pergunta": "Encerramento do Atendimento"
+  },
+  {
+    "pergunta": "Lançamento Empréstimo a Pagar"
+  },
+  {
+    "pergunta": "Romaneios em Pending List"
+  },
+  {
+    "pergunta": "Alteração no lote de insumos"
+  },
+  {
+    "pergunta": "Instalação CSUpdater"
+  },
+  {
+    "pergunta": "Distribuição na Lavoura"
+  },
+  {
+    "pergunta": "Parametrizar Agente Comercial"
+  },
+  {
+    "pergunta": "Ligação do CST"
+  },
+  {
+    "pergunta": "Armazém Comum X Armazém Participante"
+  },
+  {
+    "pergunta": "Fretes Emitidos"
+  },
+  {
+    "pergunta": "Fiscal"
+  },
+  {
+    "pergunta": "999 - Falha na Validação dos dados da nota: 4645"
+  },
+  {
+    "pergunta": "Conhecimento de Transporte (CT-e) Substituição"
+  },
+  {
+    "pergunta": "Notas Fiscais: Certificado A3"
+  },
+  {
+    "pergunta": "Ficha de emergência e Fitossanitários"
+  },
+  {
+    "pergunta": "Definir Entidade como Funcionário"
+  },
+  {
+    "pergunta": "Títulos vinculados à programação"
+  },
+  {
+    "pergunta": "Média de Talhões"
+  },
+  {
+    "pergunta": "Exportação de Talhões entre Safras"
+  },
+  {
+    "pergunta": "508 - Rejeição: CST Incompatível na operação com não Contribuinte"
+  },
+  {
+    "pergunta": "Treinamento Integração Bayer"
+  },
+  {
+    "pergunta": "Instalação e Configuração de Câmera para Foto Pesagem"
+  },
+  {
+    "pergunta": "Notas Fiscais: Devolução com propriedade diferente"
+  },
+  {
+    "pergunta": "Relatório de Depósitos de entrada por Arrendamento"
+  },
+  {
+    "pergunta": "Minimizar Lentidão - Segurança do Windows"
+  },
+  {
+    "pergunta": "Criando Acesso do CS Web"
+  },
+  {
+    "pergunta": "Nota Fiscal de Débito 05 – Transferência de Crédito de Sucessão"
+  },
+  {
+    "pergunta": "Recibo Financeiro"
+  },
+  {
+    "pergunta": "Instalação SySSupervisor"
+  },
+  {
+    "pergunta": "SYSSupervisor: Não libera a solicitação"
+  },
+  {
+    "pergunta": "Falha na Manifestação do MDF-e"
+  },
+  {
+    "pergunta": "Movimentação de conta corrente: Apresenta um erro ao acessar"
+  },
+  {
+    "pergunta": "Cadastro de uma Nova Vigência"
+  },
+  {
+    "pergunta": "Inutilização de Faixa ou Numeração de Nota Fiscal"
+  },
+  {
+    "pergunta": "Função da Pesagem Rodoviária"
+  },
+  {
+    "pergunta": "Nota Fiscal de Débito 02 - Anulação de Crédito por Saídas Imunes/Isentas"
+  },
+  {
+    "pergunta": "Lançamento de Contas a Pagar"
+  },
+  {
+    "pergunta": "CS Armazéns Gerais"
+  },
+  {
+    "pergunta": "Cadastro de Produtos"
+  },
+  {
+    "pergunta": "Notas de Débito e Crédito IBS/CBS"
+  },
+  {
+    "pergunta": "Amortização Contas a Pagar e Receber Empresas Distintas"
+  },
+  {
+    "pergunta": "Inclusão de Atalhos no Sistema"
+  },
+  {
+    "pergunta": "Lançamento de Pagamento de Tributos"
+  },
+  {
+    "pergunta": "CT-e: Erro ao cancelar"
+  },
+  {
+    "pergunta": "Padrão Compra e Venda - Tabela de Desconto"
+  },
+  {
+    "pergunta": "Importar XML da Própria Empresa"
+  },
+  {
+    "pergunta": "Geral"
+  },
+  {
+    "pergunta": "Gerar Arquivo para Envio"
+  }
+]

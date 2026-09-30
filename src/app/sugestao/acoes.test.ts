@@ -1,0 +1,117 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const banco = vi.hoisted(() => ({
+  count: vi.fn(),
+  findFirst: vi.fn(),
+  create: vi.fn(),
+}));
+
+vi.mock("@/lib/db", () => ({ prisma: { sugestao: banco } }));
+vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+// FAQ fixo: o teste não pode depender do conteúdo real da Base de Conhecimento, que muda a cada backup.
+vi.mock("@/lib/faq", () => ({
+  listarPerguntasFaq: async () => [
+    { pergunta: "Como emitir uma nota fiscal de venda?" },
+    { pergunta: "Como cadastrar um novo produtor rural?" },
+  ],
+}));
+
+import { enviarSugestao } from "./acoes";
+
+const valida = {
+  nome: "  Maria   da Silva ",
+  whatsapp: "(66) 99999-8888",
+  topico: "Nota Fiscal",
+  texto: "Aplicativo de celular para acompanhar a colheita em tempo real",
+  site: "",
+  confirmar: false,
+};
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  banco.count.mockResolvedValue(0);
+  banco.findFirst.mockResolvedValue(null);
+  banco.create.mockResolvedValue({});
+});
+
+describe("enviarSugestao", () => {
+  it("salva uma ideia nova, normalizando nome, WhatsApp e tópico", async () => {
+    expect(await enviarSugestao(valida)).toEqual({ status: "salva", revisar: false });
+    expect(banco.create).toHaveBeenCalledWith({
+      data: {
+        nome: "Maria da Silva",
+        whatsapp: "5566999998888",
+        topico: "Nota Fiscal",
+        topicoNorm: "nota fiscal",
+        texto: valida.texto,
+        possivelDuplicada: false,
+        faqParecida: null,
+      },
+    });
+  });
+
+  it("avisa e NÃO salva quando a ideia já existe no FAQ", async () => {
+    const r = await enviarSugestao({ ...valida, texto: "Como faço para emitir nota fiscal de venda?" });
+    expect(r).toEqual({ status: "faq", pergunta: "Como emitir uma nota fiscal de venda?" });
+    expect(banco.create).not.toHaveBeenCalled();
+  });
+
+  it("salva marcada como possível duplicada quando a pessoa insiste", async () => {
+    const r = await enviarSugestao({
+      ...valida,
+      texto: "Como faço para emitir nota fiscal de venda?",
+      confirmar: true,
+    });
+    expect(r).toEqual({ status: "salva", revisar: true });
+    expect(banco.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        possivelDuplicada: true,
+        faqParecida: "Como emitir uma nota fiscal de venda?",
+      }),
+    });
+  });
+
+  it.each([
+    ["nome vazio", { nome: " " }],
+    ["WhatsApp inválido", { whatsapp: "12345" }],
+    ["assunto vazio", { topico: "" }],
+    ["sugestão curta demais", { texto: "curta" }],
+    ["sugestão longa demais", { texto: "x".repeat(401) }],
+  ])("rejeita %s sem tocar no banco", async (_nome, troca) => {
+    const r = await enviarSugestao({ ...valida, ...troca });
+    expect(r.status).toBe("erro");
+    expect(banco.count).not.toHaveBeenCalled();
+    expect(banco.create).not.toHaveBeenCalled();
+  });
+
+  it("ignora entrada que não é objeto", async () => {
+    expect((await enviarSugestao(null)).status).toBe("erro");
+    expect((await enviarSugestao("texto")).status).toBe("erro");
+  });
+
+  it("finge sucesso e não salva quando a isca de robô vem preenchida", async () => {
+    expect(await enviarSugestao({ ...valida, site: "http://spam" })).toEqual({ status: "salva" });
+    expect(banco.create).not.toHaveBeenCalled();
+  });
+
+  it("limita envios seguidos do mesmo WhatsApp", async () => {
+    banco.count.mockResolvedValue(5);
+    const r = await enviarSugestao(valida);
+    expect(r.status).toBe("erro");
+    expect(banco.create).not.toHaveBeenCalled();
+  });
+
+  it("recusa a mesma sugestão repetida pelo mesmo WhatsApp", async () => {
+    banco.findFirst.mockResolvedValue({ id: 1 });
+    const r = await enviarSugestao(valida);
+    expect(r.status).toBe("erro");
+    expect(banco.create).not.toHaveBeenCalled();
+  });
+
+  it("devolve erro amigável se o banco falhar", async () => {
+    banco.create.mockRejectedValue(new Error("tabela não existe"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const r = await enviarSugestao(valida);
+    expect(r).toEqual({ status: "erro", mensagem: expect.stringContaining("Não foi possível salvar") });
+  });
+});

@@ -1,0 +1,13 @@
+# Anotações — Pré-Safra Tracker
+
+## Ideias / To-do
+
+- **Tentativas de contato com o cliente:** pegar informações do Octadesk (Octa) para ter um número de tentativas de contato por cliente.
+
+Fazer um forms para o pessoal abrir o QR code e ir para o forms e deixar na tela uma forma de nuvem de ideias para ir caindo na tela as sugestões que o pessoal for deixando. Lembrando a sugestão precisa ter o nome da pessoa e um tópico (assunto), depois a gente entra em contato com a pessoa para entender melhor. A sugestão da pessoa tinha que Validar o que já tem no FAQ e quando ela for confirmar dar uma mensagem do tipo “ótimo, isso ainda não tem no faq e salvar” ou então “isso já tem no faq, de outra sugestão”
+
+- **Reativar clientes só para administradores:** hoje qualquer pessoa da equipe reativa um cliente inativo (botão "Reativar" na linha e na barra de seleção, tela de Inativos). Deve passar a ser permitido só a usuários administradores. O sistema ainda não tem usuários: o login é uma senha única da equipe (`APP_PASSWORD`, cookie assinado em `src/lib/auth.ts`). Antes de implementar, decidir como identificar o administrador (ex.: uma segunda senha `ADMIN_PASSWORD` com cookie de perfil próprio, ou cadastro de usuários). A regra precisa valer também no servidor (ações `inativarLote` e `inativarUm` em `src/app/page.tsx`), não só esconder o botão.
+
+- **Painel só para administradores:** somente o admin deve ter acesso ao painel (`/painel`); usuário comum não pode visualizá-lo. Depende da mesma decisão de perfis da nota acima (como identificar o administrador). A regra precisa valer no servidor (na página `src/app/painel/page.tsx`, com algo como `exigirAdmin()`), não só esconder o link de navegação. Ainda a decidir: o Modo TV (`/tv?token=...`) continua acessível por token, já que hoje ele é aberto sem login?
+
+- **Definir responsável só para administradores:** somente o admin deve poder definir (ou alterar) o responsável pela realização do Pré-Safra de um cliente; usuário comum não. Depende da mesma decisão de perfis das notas acima. A regra precisa valer no servidor, nas ações que gravam o campo `responsavel` (hoje: a ação `definirResponsavel` em `src/app/page.tsx`, usada pelo select `src/app/CampoResponsavel.tsx` em cada linha da lista, e a ação de salvar em `src/app/registro/[id]/page.tsx`, que tem o select "responsavel" no formulário), não só esconder ou desabilitar o campo. Decidido: o usuário comum continua **vendo** o responsável, só sem poder editar (mostrar como texto, em vez do select). Confirmado também: o campo fica vazio até o admin preencher — já é o comportamento atual, já que `src/app/novo/page.tsx` cria o registro sem `responsavel` (só `clienteNomeManual` e `anoSafra`).

@@ -1,0 +1,128 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Usuario {
+  id            Int      @id @default(autoincrement())
+  nome          String
+  email         String   @unique
+  // Formato "scrypt:N:r:p:saltHex:hashHex" — ver src/lib/senha.ts
+  senhaHash     String
+  admin         Boolean  @default(false)
+  // Conta restrita ao Painel (ex.: TV da sala) — não vê Clientes, Novo cliente nem Admin,
+  // mesmo sem ser admin. Ver exigirAcessoPainel()/exigirAcessoCompleto() em src/lib/auth.ts.
+  somentePainel Boolean  @default(false)
+  ativo         Boolean  @default(true)
+  criadoEm      DateTime @default(now())
+  atualizadoEm  DateTime @updatedAt
+}
+
+// Um período de Pré-Safra por cultura (ex.: "Soja 2026", "Milho 2026"), com início/prazo
+// próprios. Substitui o antigo campo PreSafra.anoSafra (só um ano, sem distinguir cultura).
+model Safra {
+  id           Int        @id @default(autoincrement())
+  nome         String     @unique
+  cultura      String?
+  inicio       DateTime   @db.Date
+  prazo        DateTime   @db.Date
+  // Aparece no seletor de safra enquanto true; admin arquiva (false) em vez de apagar
+  ativa        Boolean    @default(true)
+  criadoEm     DateTime   @default(now())
+  atualizadoEm DateTime   @updatedAt
+  preSafras    PreSafra[]
+}
+
+model Cliente {
+  id           Int        @id @default(autoincrement())
+  nome         String     @unique
+  cidade       String?
+  uf           String?
+  // Região de atendimento (ex.: "Norte MT a PA/RR"), vinda da planilha de clientes
+  regiao       String?
+  consultor    String?
+  // Dupla de atendentes da região (ex.: "Maria e Jean")
+  atendente    String?
+  gerente      String?
+  criadoEm     DateTime   @default(now())
+  atualizadoEm DateTime   @updatedAt
+  preSafras    PreSafra[]
+}
+
+enum Formato {
+  Online
+  Presencial
+}
+
+model PreSafra {
+  id                    Int         @id @default(autoincrement())
+  clienteId             Int?
+  cliente               Cliente?    @relation(fields: [clienteId], references: [id], onDelete: SetNull)
+  // Preenchido só quando o cliente ainda não existe na base
+  clienteNomeManual     String?
+  safraId               Int
+  safra                 Safra       @relation(fields: [safraId], references: [id])
+  responsavel           String?
+  dataPrevista          DateTime?   @db.Date
+  formato               Formato?
+  configuradoSistema    Boolean     @default(false)
+  melhoriasApresentadas Boolean     @default(false)
+  // Cliente que não fará o Pré-Safra: sai da lista principal, mas pode ser reativado
+  inativo               Boolean     @default(false)
+  observacoes           String?
+  // LEGADO: substituído pelo histórico em Conclusao. Só o script migrar-conclusoes lê este campo;
+  // depois de rodá-lo, o campo pode ser removido do schema.
+  observacaoConclusao   String?
+  // Por que o cliente foi inativado (ex.: não fará o Pré-Safra este ano)
+  motivoInativacao      String?
+  criadoEm              DateTime    @default(now())
+  atualizadoEm          DateTime    @updatedAt
+  conclusoes            Conclusao[]
+
+  @@unique([clienteId, safraId])
+  @@index([safraId])
+}
+
+// Sugestão de tema para o FAQ, enviada pelo público via QR code (rota pública /sugestao).
+// A equipe entra em contato pelo WhatsApp depois para entender melhor a ideia.
+model Sugestao {
+  id                Int      @id @default(autoincrement())
+  nome              String
+  // Só dígitos, com DDI: "5566999998888" (ver src/lib/whatsapp.ts)
+  whatsapp          String
+  topico            String
+  // Tópico sem acento/maiúscula: agrupa "Nota Fiscal" e "nota fiscal" e define a cor no telão
+  topicoNorm        String
+  texto             String
+  // true quando o sistema achou uma pergunta parecida no FAQ, mas a pessoa insistiu em enviar
+  possivelDuplicada Boolean  @default(false)
+  faqParecida       String?
+  // Escondida do telão pelo admin (moderação); continua na lista do admin
+  oculta            Boolean  @default(false)
+  criadoEm          DateTime @default(now())
+
+  @@index([criadoEm])
+  @@index([whatsapp, criadoEm])
+}
+
+// Uma finalização do Pré-Safra, guardada como entrada de histórico (nunca é sobrescrita).
+// Cada nova finalização cria uma entrada; ao reabrir, o motivo é gravado na entrada aberta.
+model Conclusao {
+  id               Int       @id @default(autoincrement())
+  preSafraId       Int
+  preSafra         PreSafra  @relation(fields: [preSafraId], references: [id], onDelete: Cascade)
+  observacao       String?
+  // Nulo só nas entradas migradas do formato antigo, que não guardava o autor
+  autor            String?
+  criadoEm         DateTime  @default(now())
+  // Preenchidos quando o cliente é reaberto; nulo enquanto a finalização estiver valendo
+  reabertoEm       DateTime?
+  reabertoPor      String?
+  motivoReabertura String?
+
+  @@index([preSafraId, criadoEm])
+}
