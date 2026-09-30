@@ -103,8 +103,16 @@ export default function Telao({
             <p className="mt-1 text-sm text-white/70 lg:mt-3 lg:text-base">
               Aponte a câmera do celular para o QR code e deixe sua ideia.
             </p>
-            <p className="mt-2 hidden break-all text-xs text-white/50 lg:block">
-              {urlFormulario.replace(/^https?:\/\//, "")}
+            <p className="mt-2 text-xs text-white/60 lg:text-sm">
+              Está no computador?{" "}
+              <a
+                href={urlFormulario}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="break-all font-medium text-white underline underline-offset-2 hover:text-white/80"
+              >
+                Clique aqui para enviar sua ideia
+              </a>
             </p>
           </div>
         </div>
