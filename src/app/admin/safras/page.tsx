@@ -22,13 +22,16 @@ export default async function AdminSafras({
 }) {
   await exigirAdmin();
   const { erro, criada } = await searchParams;
-  const safras = await prisma.safra.findMany({
-    orderBy: { inicio: "asc" },
-    include: { _count: { select: { preSafras: true } } },
-  });
-  const safraAtual = await obterSafraSelecionada();
-  const clientes = await prisma.cliente.findMany({ select: { id: true } });
-  const statusPorCliente = await statusInativoPorCliente();
+  // Consultas independentes: em paralelo, cada uma custa uma ida ao banco (Neon, remoto).
+  const [safras, safraAtual, clientes, statusPorCliente] = await Promise.all([
+    prisma.safra.findMany({
+      orderBy: { inicio: "asc" },
+      include: { _count: { select: { preSafras: true } } },
+    }),
+    obterSafraSelecionada(),
+    prisma.cliente.findMany({ select: { id: true } }),
+    statusInativoPorCliente(),
+  ]);
   const clientesInativos = clientes.filter((c) => statusPorCliente.get(c.id)).length;
 
   async function criarSafra(formData: FormData) {
