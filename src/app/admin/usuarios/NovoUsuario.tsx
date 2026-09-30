@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import BotaoEnviar from "@/app/BotaoEnviar";
+import CampoSenha from "@/app/CampoSenha";
 import Icone from "@/app/Icone";
 import { Janela, RodapeJanela } from "@/app/Finalizar";
 import SeletorPapel from "./SeletorPapel";
@@ -28,13 +29,11 @@ export default function NovoUsuario({ acao }: { acao: (formData: FormData) => Pr
               </label>
               <label className="block">
                 <span className="rotulo">Senha</span>
-                <input
-                  type="password"
+                <CampoSenha
                   name="senha"
                   required
                   minLength={10}
                   autoComplete="new-password"
-                  className="campo"
                 />
               </label>
               <SeletorPapel />

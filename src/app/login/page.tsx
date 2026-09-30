@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { autenticar, iniciarSessao } from "@/lib/auth";
 import BotaoEnviar from "@/app/BotaoEnviar";
+import CampoSenha from "@/app/CampoSenha";
 import Icone from "@/app/Icone";
 
 export default async function Login({ searchParams }: PageProps<"/login">) {
@@ -68,14 +69,12 @@ export default async function Login({ searchParams }: PageProps<"/login">) {
             </label>
             <label className="block">
               <span className="rotulo">Senha</span>
-              <input
-                type="password"
+              <CampoSenha
                 name="senha"
                 required
                 autoComplete="current-password"
                 aria-invalid={erro ? true : undefined}
                 aria-describedby={erro ? "erro-senha" : undefined}
-                className="campo"
               />
             </label>
             {erro && (

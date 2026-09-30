@@ -2,6 +2,7 @@
 import { useState } from "react";
 import BotaoAcao from "@/app/BotaoAcao";
 import BotaoEnviar from "@/app/BotaoEnviar";
+import CampoSenha from "@/app/CampoSenha";
 import { Janela, RodapeJanela } from "@/app/Finalizar";
 
 // Botão "Redefinir senha": abre uma janela para o admin definir uma senha nova para o
@@ -36,14 +37,12 @@ export default function RedefinirSenha({
               </p>
               <label className="block">
                 <span className="rotulo">Senha nova</span>
-                <input
-                  type="password"
+                <CampoSenha
                   name="senha"
                   required
                   minLength={10}
                   autoFocus
                   autoComplete="new-password"
-                  className="campo"
                 />
               </label>
             </div>
