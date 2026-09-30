@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db";
 import { formatarWhatsapp, linkWhatsapp } from "@/lib/whatsapp";
 import { plural } from "@/lib/texto";
 import BotaoAcao from "@/app/BotaoAcao";
-import { BotaoConfirmar } from "@/app/Auto";
+import BotaoExcluir from "@/app/BotaoExcluir";
 import Icone from "@/app/Icone";
 
 export const metadata = { title: "Sugestões · Pré-Safra" };
@@ -109,18 +109,13 @@ export default async function AdminSugestoes() {
                           icone={s.oculta ? "reabrir" : "bloquear"}
                           tom="neutro"
                           rotulo={s.oculta ? "Mostrar no telão" : "Ocultar do telão"}
+                          soIcone
                         />
                       </form>
                       <form action={excluir.bind(null, s.id)}>
-                        <BotaoConfirmar
+                        <BotaoExcluir
                           mensagem={`Excluir a sugestão de ${s.nome}? Isso não pode ser desfeito.`}
-                          type="submit"
-                          title="Excluir"
-                          aria-label="Excluir"
-                          className="grid size-8 cursor-pointer place-items-center rounded-lg text-muted transition hover:bg-atrasado-bg hover:text-atrasado-fg"
-                        >
-                          <Icone nome="x" />
-                        </BotaoConfirmar>
+                        />
                       </form>
                     </div>
                   </td>

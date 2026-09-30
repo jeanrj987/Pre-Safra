@@ -4,6 +4,7 @@ import { exigirAdmin } from "@/lib/auth";
 import { hashSenha } from "@/lib/senha";
 import { prisma } from "@/lib/db";
 import BotaoAcao from "@/app/BotaoAcao";
+import BotaoExcluir from "@/app/BotaoExcluir";
 import Icone from "@/app/Icone";
 import EditarUsuario from "./EditarUsuario";
 import NovoUsuario from "./NovoUsuario";
@@ -97,6 +98,24 @@ export default async function AdminUsuarios({
     revalidatePath("/admin/usuarios");
   }
 
+  // Mesmas proteções do alternarAtivo: não excluir a si mesmo nem o último admin ativo. As
+  // conclusões antigas guardam só o nome do autor (texto), então o histórico não é afetado.
+  async function excluirUsuario(id: number) {
+    "use server";
+    const sessao = await exigirAdmin();
+    if (id === sessao.id) return;
+    const alvo = await prisma.usuario.findUnique({ where: { id } });
+    if (!alvo) return;
+    if (alvo.admin && alvo.ativo) {
+      const outrosAdmins = await prisma.usuario.count({
+        where: { admin: true, ativo: true, id: { not: id } },
+      });
+      if (outrosAdmins === 0) return;
+    }
+    await prisma.usuario.deleteMany({ where: { id } });
+    revalidatePath("/admin/usuarios");
+  }
+
   // Trocar a senha muda o senhaHash, o que já invalida sozinho qualquer sessão antiga dele
   // (a assinatura do cookie inclui o senhaHash — ver src/lib/auth.ts).
   async function redefinirSenha(id: number, formData: FormData) {
@@ -162,6 +181,7 @@ export default async function AdminUsuarios({
                           icone={u.ativo ? "bloquear" : "reabrir"}
                           tom="neutro"
                           rotulo={u.ativo ? "Desativar" : "Reativar"}
+                          soIcone
                         />
                       </form>
                     )}
@@ -173,6 +193,13 @@ export default async function AdminUsuarios({
                       }}
                       salvar={editarUsuario.bind(null, u.id)}
                     />
+                    {u.id !== eu.id && (
+                      <form action={excluirUsuario.bind(null, u.id)} className="inline">
+                        <BotaoExcluir
+                          mensagem={`Excluir o usuário ${u.nome}? Ele perde o acesso ao sistema e isso não pode ser desfeito. Para apenas bloquear o acesso, use Desativar.`}
+                        />
+                      </form>
+                    )}
                   </div>
                 </td>
               </tr>

@@ -23,6 +23,7 @@ export default function RedefinirSenha({
         icone="chave"
         tom="neutro"
         rotulo="Redefinir senha"
+        soIcone
         onClick={() => setAberto(true)}
       />
       {aberto && (
