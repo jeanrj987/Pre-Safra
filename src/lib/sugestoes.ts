@@ -6,7 +6,6 @@ import { normalizar } from "@/lib/texto";
 export const LIMITES = {
   nome: { min: 2, max: 60 },
   topico: { min: 2, max: 40 },
-  texto: { min: 10, max: 400 },
 } as const;
 
 /**

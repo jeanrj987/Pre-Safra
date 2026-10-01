@@ -102,16 +102,10 @@ export default function FormSugestao() {
           value={texto}
           onChange={(e) => mudarTexto(e.target.value)}
           required
-          minLength={LIMITES.texto.min}
-          maxLength={LIMITES.texto.max}
           rows={4}
           placeholder="Que dúvida ou tema deveria ter no FAQ?"
-          aria-describedby="contador-texto"
           className={CAMPO}
         />
-        <span id="contador-texto" className="ajuda num block text-right">
-          {texto.length}/{LIMITES.texto.max}
-        </span>
       </label>
 
       {/* Isca para robôs: pessoas não veem nem alcançam com o teclado */}

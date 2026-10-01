@@ -15,12 +15,10 @@ export type Resultado =
 
 const erro = (mensagem: string): Resultado => ({ status: "erro", mensagem });
 
-const JANELA_LIMITE_MS = 10 * 60 * 1000;
-const MAX_POR_JANELA = 5;
 const UM_DIA_MS = 24 * 60 * 60 * 1000;
 
 // Rota PÚBLICA de propósito (qualquer pessoa com o QR code envia): por isso valida tudo no
-// servidor, ignora o que o cliente disser sobre tamanhos e limita quantas sugestões por WhatsApp.
+// servidor e ignora o que o cliente disser sobre tamanhos.
 export async function enviarSugestao(entrada: unknown): Promise<Resultado> {
   const dados = (typeof entrada === "object" && entrada !== null ? entrada : {}) as Record<
     string,
@@ -45,27 +43,15 @@ export async function enviarSugestao(entrada: unknown): Promise<Resultado> {
   if (topico.length < LIMITES.topico.min || topico.length > LIMITES.topico.max) {
     return erro(`Informe o assunto em até ${LIMITES.topico.max} caracteres.`);
   }
-  if (texto.length < LIMITES.texto.min || texto.length > LIMITES.texto.max) {
-    return erro(
-      `Descreva sua sugestão com ${LIMITES.texto.min} a ${LIMITES.texto.max} caracteres.`,
-    );
-  }
+  // O texto da sugestão não tem mínimo nem máximo de caracteres, só não pode ficar vazio
+  if (!texto) return erro("Descreva sua sugestão.");
 
   try {
-    const agora = Date.now();
-    const [recentes, repetida] = await Promise.all([
-      prisma.sugestao.count({
-        where: { whatsapp, criadoEm: { gte: new Date(agora - JANELA_LIMITE_MS) } },
-      }),
-      prisma.sugestao.findFirst({
-        where: { whatsapp, texto, criadoEm: { gte: new Date(agora - UM_DIA_MS) } },
-        select: { id: true },
-      }),
-    ]);
+    const repetida = await prisma.sugestao.findFirst({
+      where: { whatsapp, texto, criadoEm: { gte: new Date(Date.now() - UM_DIA_MS) } },
+      select: { id: true },
+    });
     if (repetida) return erro("Você já enviou essa mesma sugestão. Obrigado!");
-    if (recentes >= MAX_POR_JANELA) {
-      return erro("Você enviou várias sugestões em pouco tempo. Aguarde alguns minutos.");
-    }
 
     const parecida = acharPerguntaParecida(texto, await listarPerguntasFaq());
     if (parecida && !confirmar) return { status: "faq", pergunta: parecida.item.pergunta };
