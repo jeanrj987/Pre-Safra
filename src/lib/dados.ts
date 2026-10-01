@@ -38,6 +38,8 @@ export interface Linha {
   regiao: string | null;
   consultor: string | null;
   dataPrevista: Date | null;
+  /** Horário agendado ("HH:MM") dentro da data prevista. */
+  horario: string | null;
   formato: string | null;
   observacao: string | null;
   status: StatusPreSafra;
@@ -87,6 +89,7 @@ export async function listarLinhas(safraId: number): Promise<Linha[]> {
         regiao: r.cliente?.regiao ?? null,
         consultor: r.cliente?.consultor ?? null,
         dataPrevista: r.dataPrevista,
+        horario: r.horario,
         formato: r.formato,
         // Inativo mostra o motivo; senão, a observação da finalização em vigor; senão, a geral.
         observacao:
@@ -109,6 +112,7 @@ export async function listarLinhas(safraId: number): Promise<Linha[]> {
         (b.dias ?? 0) - (a.dias ?? 0) ||
         (a.dataPrevista?.getTime() ?? Infinity) -
           (b.dataPrevista?.getTime() ?? Infinity) ||
+        (a.horario ?? "99:99").localeCompare(b.horario ?? "99:99") ||
         a.nome.localeCompare(b.nome, "pt-BR"),
     );
 }

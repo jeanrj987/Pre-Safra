@@ -68,7 +68,9 @@ model PreSafra {
   safra                 Safra       @relation(fields: [safraId], references: [id])
   responsavel           String?
   dataPrevista          DateTime?   @db.Date
-  formato               Formato?
+  // Horário agendado no dia da data prevista, no formato "HH:MM" (grade fixa em src/lib/horarios.ts)
+  horario               String?
+  formato              Formato?
   configuradoSistema    Boolean     @default(false)
   melhoriasApresentadas Boolean     @default(false)
   // Cliente que não fará o Pré-Safra: sai da lista principal, mas pode ser reativado

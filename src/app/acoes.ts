@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { exigirAdmin, exigirLogin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { finalizarPendentes, formatoValido, reabrirIds, type Formato } from "@/lib/acoesPreSafra";
+import { horarioValido } from "@/lib/horarios";
 
 // Server Actions da lista principal (src/app/page.tsx). Extraídas para cá para poder ser
 // importadas/testadas fora do componente de página, que já é grande só com a tabela e os
@@ -108,6 +109,14 @@ export async function definirData(id: number, data: string) {
   const dia = valida ? new Date(`${data}T00:00:00Z`) : null;
   if (data && (!dia || Number.isNaN(dia.getTime()))) return;
   await prisma.preSafra.update({ where: { id }, data: { dataPrevista: dia } });
+  revalidatePath("/");
+}
+
+// Horário agendado editado direto na linha; vazio limpa o horário.
+export async function definirHorario(id: number, horario: string) {
+  await exigirLogin();
+  if (horario && !horarioValido(horario)) return;
+  await prisma.preSafra.update({ where: { id }, data: { horario: horario || null } });
   revalidatePath("/");
 }
 

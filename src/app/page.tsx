@@ -4,6 +4,7 @@ import { CampoBusca, SelectAuto } from "./Auto";
 import { normalizar, plural } from "@/lib/texto";
 import {
   definirData,
+  definirHorario,
   definirResponsavel,
   finalizarComNota,
   inativarComMotivo,
@@ -12,6 +13,7 @@ import {
   reabrirComMotivo,
 } from "./acoes";
 import CampoData from "./CampoData";
+import CampoHorario from "./CampoHorario";
 import CampoResponsavel from "./CampoResponsavel";
 import { exigirAcessoCompleto } from "@/lib/auth";
 import Shell from "./Shell";
@@ -327,7 +329,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
                   <th scope="col" className="hidden px-3 py-2.5 lg:table-cell">Região</th>
                   <th scope="col" className="hidden px-3 py-2.5 lg:table-cell">Consultor</th>
                   <th scope="col" className="hidden px-3 py-2.5 md:table-cell">Responsável</th>
-                  <th scope="col" className="hidden px-3 py-2.5 md:table-cell">Data prevista</th>
+                  <th scope="col" className="hidden px-3 py-2.5 md:table-cell">Data e horário</th>
                   <th scope="col" className="hidden px-3 py-2.5 md:table-cell">Status</th>
                   <th scope="col" className="py-2.5 pl-3 pr-4 text-right sm:pr-5">
                     <span className="sr-only">Ações</span>
@@ -384,6 +386,12 @@ export default async function Home({ searchParams }: PageProps<"/">) {
                             valor={dataParaCampo(l.dataPrevista)}
                             salvar={definirData}
                           />
+                          <CampoHorario
+                            id={l.id}
+                            nome={l.nome}
+                            valor={l.horario ?? ""}
+                            salvar={definirHorario}
+                          />
                           {l.dias ? (
                             <span className="font-medium text-atrasado-fg">
                               {formatarAtraso(l.dias)}
@@ -429,12 +437,20 @@ export default async function Home({ searchParams }: PageProps<"/">) {
                         />
                       </td>
                       <td className="hidden whitespace-nowrap px-3 py-3 align-top tabular-nums md:table-cell">
-                        <CampoData
-                          id={l.id}
-                          nome={l.nome}
-                          valor={dataParaCampo(l.dataPrevista)}
-                          salvar={definirData}
-                        />
+                        <div className="flex items-center gap-1.5">
+                          <CampoData
+                            id={l.id}
+                            nome={l.nome}
+                            valor={dataParaCampo(l.dataPrevista)}
+                            salvar={definirData}
+                          />
+                          <CampoHorario
+                            id={l.id}
+                            nome={l.nome}
+                            valor={l.horario ?? ""}
+                            salvar={definirHorario}
+                          />
+                        </div>
                         {l.dias ? (
                           <div className="mt-1 text-xs font-medium text-atrasado-fg">
                             {formatarAtraso(l.dias)}
