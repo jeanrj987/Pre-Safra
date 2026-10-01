@@ -8,29 +8,14 @@ export const LIMITES = {
   topico: { min: 2, max: 40 },
 } as const;
 
-/**
- * Grades do telão, da mais folgada para a mais apertada. Começa em 4 colunas x 5 linhas e, quando
- * todas as vagas enchem, passa para a próxima: mais vagas com cartões menores.
- */
-export const GRADES_TELAO = [
-  { colunas: 4, linhas: 5 },
-  { colunas: 5, linhas: 6 },
-  { colunas: 6, linhas: 8 },
-  { colunas: 8, linhas: 10 },
-] as const;
+/** Grade de cada página do telão: 5 colunas x 6 linhas, o que ainda se lê bem no projetor. */
+export const GRADE_TELAO = { colunas: 5, linhas: 6 } as const;
 
-const vagasDaGrade = (g: (typeof GRADES_TELAO)[number]) => g.colunas * g.linhas;
+/** Quantas sugestões cabem em uma página do telão. */
+export const VAGAS_NO_TELAO = GRADE_TELAO.colunas * GRADE_TELAO.linhas;
 
-/** Quantas sugestões cabem na tela do telão ao mesmo tempo, na grade mais apertada. */
-export const VAGAS_NO_TELAO = vagasDaGrade(GRADES_TELAO[GRADES_TELAO.length - 1]);
-
-/** Menor grade com pelo menos `vagas` lugares (a última, se nenhuma comportar). */
-export function nivelDaGrade(vagas: number): number {
-  const i = GRADES_TELAO.findIndex((g) => vagasDaGrade(g) >= vagas);
-  return i === -1 ? GRADES_TELAO.length - 1 : i;
-}
-
-export const vagasDoNivel = (nivel: number) => vagasDaGrade(GRADES_TELAO[nivel]);
+/** Quantas sugestões o telão carrega, no máximo, para girar entre as páginas. */
+export const TETO_NO_TELAO = 200;
 
 /** Tira caracteres de controle e espaços repetidos. */
 export const limparTexto = (s: unknown) =>

@@ -1,38 +1,60 @@
 "use client";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import {
-  GRADES_TELAO,
-  nivelDaGrade,
-  vagasDoNivel,
-  type SugestaoTelao,
-} from "@/lib/sugestoes";
+import { GRADE_TELAO, VAGAS_NO_TELAO, type SugestaoTelao } from "@/lib/sugestoes";
 import type { DadosTelao } from "@/lib/telao";
 
 const INTERVALO_MS = 3000;
+// Quanto cada página de ideias fica na tela antes de dar lugar à próxima
+const PAGINA_MS = 12000;
 // Duração da animação telao-sair: o cartão que sai segura a vaga até acabar, e só então o novo cai.
 const SAIDA_MS = 700;
+// Na troca de página os cartões saem e entram um após o outro, em cascata
+const CASCATA_SAIDA_MS = 20;
+const CASCATA_ENTRADA_MS = 60;
+const CASCATA_INICIAL_MS = 90;
 
 type Vagas = (SugestaoTelao | null)[];
+interface Saida {
+  s: SugestaoTelao;
+  atraso: number;
+}
+interface Tela {
+  pagina: number;
+  paginas: number;
+  vagas: Vagas;
+  // Atraso da queda de cada cartão que acabou de entrar (em ms, por id)
+  atrasos: Map<number, number>;
+  // Cartões que estão saindo, por vaga: ficam na tela só durante a animação de saída
+  saindo: Map<number, Saida>;
+}
 
-// Visual dos cartões por nível da grade (só no telão grande, `lg:`): quanto mais cartões, menores.
-const CARTAO_POR_NIVEL = [
-  { caixa: "lg:gap-2 lg:p-4", etiqueta: "lg:text-sm", texto: "lg:text-xl lg:line-clamp-4", nome: "lg:text-base" },
-  { caixa: "lg:gap-1.5 lg:p-3", etiqueta: "lg:text-xs", texto: "lg:text-lg lg:line-clamp-4", nome: "lg:text-sm" },
-  { caixa: "lg:gap-1 lg:p-2.5", etiqueta: "lg:text-[11px]", texto: "lg:text-base lg:line-clamp-3", nome: "lg:text-xs" },
-  { caixa: "lg:gap-0.5 lg:p-2", etiqueta: "lg:text-[10px]", texto: "lg:text-sm lg:line-clamp-2", nome: "lg:text-[11px]" },
-] as const;
+const totalPaginas = (n: number) => Math.max(1, Math.ceil(n / VAGAS_NO_TELAO));
 
-// Cada sugestão ocupa uma vaga fixa da grade: a nova cai numa vaga livre, então o resto da tela
-// não se mexe quando alguém envia uma ideia. Quando todas enchem, a grade cresce (cartões menores)
-// e só na maior delas a nova toma o lugar da mais antiga.
+// Do mais antigo para o mais novo: a página das mais novas é sempre a última
+const ascendente = (sugestoes: SugestaoTelao[]) => [...sugestoes].reverse();
+
+// A última página mostra sempre as mais novas e fica cheia (pode repetir cartões da anterior);
+// as demais mostram as mais antigas, em fatias.
+function montarTela(todas: SugestaoTelao[], pagina: number, cascataMs: number): Tela {
+  const paginas = totalPaginas(todas.length);
+  const alvo = Math.min(pagina, paginas - 1);
+  const inicio = alvo === paginas - 1 ? Math.max(0, todas.length - VAGAS_NO_TELAO) : alvo * VAGAS_NO_TELAO;
+  const fatia = todas.slice(inicio, inicio + VAGAS_NO_TELAO);
+  return {
+    pagina: alvo,
+    paginas,
+    vagas: Array.from({ length: VAGAS_NO_TELAO }, (_, i) => fatia[i] ?? null),
+    atrasos: new Map(fatia.map((s, i) => [s.id, i * cascataMs])),
+    saindo: new Map(),
+  };
+}
+
+// Na página das mais novas cada ideia ocupa uma vaga fixa: a nova cai numa vaga livre ou no lugar
+// da mais antiga da tela, então o resto não se mexe quando alguém envia uma ideia.
 function colocar(vagas: Vagas, novas: SugestaoTelao[]): Vagas {
   const proximas = [...vagas];
   for (const s of novas) {
     let i = proximas.indexOf(null);
-    if (i === -1 && nivelDaGrade(proximas.length) < GRADES_TELAO.length - 1) {
-      i = proximas.length;
-      proximas.push(...Array.from({ length: vagasDoNivel(nivelDaGrade(proximas.length) + 1) - proximas.length }, () => null));
-    }
     if (i === -1) {
       i = 0;
       for (let j = 1; j < proximas.length; j++) {
@@ -44,11 +66,6 @@ function colocar(vagas: Vagas, novas: SugestaoTelao[]): Vagas {
   return proximas;
 }
 
-function vagasIniciais(dados: DadosTelao): Vagas {
-  const vazias: Vagas = Array.from({ length: vagasDoNivel(0) }, () => null);
-  return colocar(vazias, [...dados.sugestoes].reverse());
-}
-
 export default function Telao({
   inicial,
   urlFormulario,
@@ -58,35 +75,120 @@ export default function Telao({
   urlFormulario: string;
   qrSvg: string;
 }) {
-  const [vagas, setVagas] = useState<Vagas>(() => vagasIniciais(inicial));
-  // Espelho de `vagas` para comparar o que saiu sem depender do estado dentro do efeito
-  const vagasRef = useRef(vagas);
-  // Cartões que estão saindo, por vaga: ficam na tela só durante a animação de saída
-  const [saindo, setSaindo] = useState<Map<number, SugestaoTelao>>(() => new Map());
+  const [todasIniciais] = useState(() => ascendente(inicial.sugestoes));
+  const [tela, setTela] = useState<Tela>(() =>
+    montarTela(todasIniciais, totalPaginas(todasIniciais.length) - 1, CASCATA_INICIAL_MS),
+  );
+  // Espelho de `tela` para o efeito comparar o que mudou sem depender do estado
+  const telaRef = useRef(tela);
+  // Ideias que chegaram e ainda não tiveram a vez na tela: brilham até a página delas girar
+  const [novas, setNovas] = useState<Set<number>>(() => new Set());
   const [total, setTotal] = useState(inicial.total);
   const [situacao, setSituacao] = useState<"ok" | "sem-conexao">("ok");
-  // Na carga inicial os cartões caem um após o outro; as que chegam depois caem na hora.
-  // Fixado no primeiro render para o atraso não mudar (e reiniciar a animação) a cada atualização.
-  const [atrasos] = useState(
-    () => new Map(vagas.flatMap((s, i) => (s ? [[s.id, i * 90] as const] : []))),
-  );
 
   useEffect(() => {
     let ativo = true;
+    let todas = todasIniciais;
+    const conhecidas = new Set(todas.map((s) => s.id));
+    let marcadas = new Set<number>();
+    let trocando = false;
+    let rotacao: ReturnType<typeof setTimeout> | undefined;
     const timers = new Set<ReturnType<typeof setTimeout>>();
 
-    function aposSaida(vaga: number, saiu: SugestaoTelao) {
+    function agendar(fn: () => void, ms: number) {
       const t = setTimeout(() => {
         timers.delete(t);
-        setSaindo((atuais) => {
-          // Se outro cartão assumiu a saída desta vaga nesse meio tempo, não mexe
-          if (atuais.get(vaga) !== saiu) return atuais;
-          const proximos = new Map(atuais);
-          proximos.delete(vaga);
-          return proximos;
-        });
-      }, SAIDA_MS);
+        fn();
+      }, ms);
       timers.add(t);
+    }
+
+    function aplicar(t: Tela) {
+      telaRef.current = t;
+      setTela(t);
+    }
+
+    function marcar(ids: Set<number>) {
+      marcadas = ids;
+      setNovas(ids);
+    }
+
+    function aposSaida(vaga: number, saida: Saida) {
+      agendar(() => {
+        const t = telaRef.current;
+        // Se outro cartão assumiu a saída desta vaga nesse meio tempo, não mexe
+        if (t.saindo.get(vaga) !== saida) return;
+        const saindo = new Map(t.saindo);
+        saindo.delete(vaga);
+        aplicar({ ...t, saindo });
+      }, SAIDA_MS + saida.atraso);
+    }
+
+    // Tudo cai e a página `alvo` entra no lugar, como na chegada
+    function irPara(alvo: number) {
+      trocando = true;
+      clearTimeout(rotacao);
+      const t = telaRef.current;
+      const saindo = new Map(t.saindo);
+      const vistas = new Set<number>();
+      t.vagas.forEach((s, i) => {
+        if (!s) return;
+        vistas.add(s.id);
+        saindo.set(i, { s, atraso: i * CASCATA_SAIDA_MS });
+      });
+      aplicar({ ...t, saindo });
+      // O que estava nesta página já foi visto: para de brilhar
+      marcar(new Set([...marcadas].filter((id) => !vistas.has(id))));
+
+      agendar(() => {
+        trocando = false;
+        aplicar(montarTela(todas, alvo, CASCATA_ENTRADA_MS));
+        girarDepois();
+        // Pega o que chegou durante a troca
+        processar();
+      }, SAIDA_MS + VAGAS_NO_TELAO * CASCATA_SAIDA_MS);
+    }
+
+    function girarDepois() {
+      clearTimeout(rotacao);
+      rotacao = setTimeout(() => {
+        const paginas = totalPaginas(todas.length);
+        if (paginas > 1 && !trocando) irPara((telaRef.current.pagina + 1) % paginas);
+        else girarDepois();
+      }, PAGINA_MS);
+    }
+
+    function processar() {
+      if (!ativo || trocando) return;
+      const t = telaRef.current;
+      const visiveis = new Set(todas.map((s) => s.id));
+      const pendentes = todas.filter((s) => !conhecidas.has(s.id));
+      pendentes.forEach((s) => conhecidas.add(s.id));
+      if (pendentes.length > 0) marcar(new Set([...marcadas, ...pendentes.map((s) => s.id)]));
+
+      const paginas = totalPaginas(todas.length);
+      // Ideia nova aparece na hora: se a tela está em outra página, vai para a das mais novas
+      if (pendentes.length > 0 && t.pagina < t.paginas - 1) return irPara(paginas - 1);
+
+      // Some da tela o que o admin escondeu
+      const base = t.vagas.map((s) => (s && visiveis.has(s.id) ? s : null));
+      const proximas = colocar(base, pendentes);
+      const mudou = proximas.some((s, i) => s?.id !== t.vagas[i]?.id);
+      if (!mudou && paginas === t.paginas) return;
+
+      const saidas: [number, Saida][] = [];
+      const saindo = new Map(t.saindo);
+      t.vagas.forEach((s, i) => {
+        if (s && proximas[i]?.id !== s.id) {
+          const saida = { s, atraso: 0 };
+          saindo.set(i, saida);
+          saidas.push([i, saida]);
+        }
+      });
+      // A página das mais novas acompanha o total: se ela era a última, continua sendo
+      const pagina = t.pagina >= t.paginas - 1 ? paginas - 1 : t.pagina;
+      aplicar({ ...t, pagina, paginas, vagas: proximas, saindo });
+      for (const [i, saida] of saidas) aposSaida(i, saida);
     }
 
     async function atualizar() {
@@ -99,46 +201,22 @@ export default function Telao({
 
         setSituacao("ok");
         setTotal(dados.total);
-        const atuais = vagasRef.current;
-        const visiveis = new Set(dados.sugestoes.map((s) => s.id));
-        // Some da tela o que o admin escondeu
-        const base = atuais.map((s) => (s && visiveis.has(s.id) ? s : null));
-        const naTela = new Set(base.flatMap((s) => (s ? [s.id] : [])));
-        const novas = dados.sugestoes.filter((s) => !naTela.has(s.id)).reverse();
-        const mudou = novas.length > 0 || base.some((s, i) => s !== atuais[i]);
-        if (!mudou) return;
-
-        const proximas = colocar(base, novas);
-        vagasRef.current = proximas;
-        setVagas(proximas);
-
-        const saidas: [number, SugestaoTelao][] = [];
-        atuais.forEach((s, i) => {
-          if (s && proximas[i]?.id !== s.id) saidas.push([i, s]);
-        });
-        if (saidas.length > 0) {
-          setSaindo((prev) => {
-            const proximos = new Map(prev);
-            for (const [i, s] of saidas) proximos.set(i, s);
-            return proximos;
-          });
-          for (const [i, s] of saidas) aposSaida(i, s);
-        }
+        todas = ascendente(dados.sugestoes);
+        processar();
       } catch {
         if (ativo) setSituacao("sem-conexao");
       }
     }
 
+    girarDepois();
     const timer = setInterval(atualizar, INTERVALO_MS);
     return () => {
       ativo = false;
       clearInterval(timer);
+      clearTimeout(rotacao);
       timers.forEach(clearTimeout);
     };
-  }, []);
-
-  const nivel = nivelDaGrade(vagas.length);
-  const grade = GRADES_TELAO[nivel];
+  }, [todasIniciais]);
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col overflow-hidden bg-night text-white lg:flex-row">
@@ -189,21 +267,36 @@ export default function Telao({
         </div>
       </aside>
 
-      <main className="relative min-h-0 flex-1 p-3 lg:p-6">
+      <main
+        className="relative min-h-0 flex-1 p-3 [container-type:size] lg:p-6"
+        style={
+          {
+            "--colunas": GRADE_TELAO.colunas,
+            "--linhas": GRADE_TELAO.linhas,
+            // O texto se ajusta à largura e à altura da tela, para a grade inteira caber
+            "--fonte":
+              "clamp(10px, min(calc(100cqw / (var(--colunas) * 13)), calc(100cqh / (var(--linhas) * 9.5))), 36px)",
+          } as CSSProperties
+        }
+      >
         {total === 0 && (
           <p className="absolute inset-0 z-10 grid place-items-center px-8 text-center text-2xl font-medium text-white/60">
             As ideias vão aparecer aqui assim que chegarem.
           </p>
         )}
-        <ul
-          className="grid h-full grid-cols-2 gap-3 overflow-y-auto lg:grid-cols-[repeat(var(--colunas),minmax(0,1fr))] lg:grid-rows-[repeat(var(--linhas),minmax(0,1fr))] lg:gap-4 lg:overflow-visible"
-          style={{ "--colunas": grade.colunas, "--linhas": grade.linhas } as CSSProperties}
-        >
-          {vagas.map((s, i) => {
-            const saiu = saindo.get(i);
-            if (saiu) return <Cartao key={`saindo-${saiu.id}`} s={saiu} atraso={0} nivel={nivel} saindo />;
+        <ul className="grid h-full grid-cols-2 gap-3 overflow-y-auto lg:grid-cols-[repeat(var(--colunas),minmax(0,1fr))] lg:grid-rows-[repeat(var(--linhas),minmax(0,1fr))] lg:gap-4 lg:overflow-visible">
+          {tela.vagas.map((s, i) => {
+            const saiu = tela.saindo.get(i);
+            if (saiu) {
+              return <Cartao key={`saindo-${saiu.s.id}`} s={saiu.s} atraso={saiu.atraso} saindo />;
+            }
             return s ? (
-              <Cartao key={s.id} s={s} atraso={atrasos.get(s.id) ?? 0} nivel={nivel} />
+              <Cartao
+                key={s.id}
+                s={s}
+                atraso={tela.atrasos.get(s.id) ?? 0}
+                destaque={novas.has(s.id)}
+              />
             ) : (
               <li
                 key={`vazia-${i}`}
@@ -213,6 +306,20 @@ export default function Telao({
             );
           })}
         </ul>
+        {tela.paginas > 1 && (
+          <div
+            className="pointer-events-none absolute inset-x-0 bottom-1.5 hidden justify-center gap-2 lg:flex"
+            role="img"
+            aria-label={`Página ${tela.pagina + 1} de ${tela.paginas}`}
+          >
+            {Array.from({ length: tela.paginas }, (_, i) => (
+              <span
+                key={i}
+                className={`size-2 rounded-full ${i === tela.pagina ? "bg-white" : "bg-white/25"}`}
+              />
+            ))}
+          </div>
+        )}
       </main>
     </div>
   );
@@ -221,16 +328,16 @@ export default function Telao({
 function Cartao({
   s,
   atraso,
-  nivel,
+  destaque = false,
   saindo = false,
 }: {
   s: SugestaoTelao;
   atraso: number;
-  nivel: number;
+  destaque?: boolean;
   saindo?: boolean;
 }) {
-  const visual = CARTAO_POR_NIVEL[nivel];
   const cor = `hsl(${s.matiz} 80% 62%)`;
+  const flutuar = `telao-flutuar ${6 + (s.id % 5)}s ease-in-out infinite alternate`;
   return (
     <li
       className="min-h-0"
@@ -243,25 +350,26 @@ function Cartao({
       } as CSSProperties}
     >
       <article
-        className={`flex h-full flex-col justify-between gap-2 overflow-hidden rounded-2xl border p-4 ${visual.caixa}`}
+        className="flex h-full flex-col justify-between gap-2 overflow-hidden rounded-2xl border p-4 lg:gap-[0.3em] lg:p-[0.75em] lg:text-[length:var(--fonte)]"
         style={{
           background: `hsl(${s.matiz} 42% 16%)`,
           borderColor: `hsl(${s.matiz} 60% 38%)`,
-          animation: saindo
-            ? `telao-flutuar ${6 + (s.id % 5)}s ease-in-out infinite alternate`
-            : `telao-brilho 9s ease-out both, telao-flutuar ${6 + (s.id % 5)}s ease-in-out infinite alternate`,
-          animationDelay: saindo ? `${-(s.id % 7)}s` : `${atraso}ms, ${-(s.id % 7)}s`,
+          animation: destaque && !saindo ? `telao-brilho 9s ease-out both, ${flutuar}` : flutuar,
+          animationDelay:
+            destaque && !saindo ? `${atraso}ms, ${-(s.id % 7)}s` : `${-(s.id % 7)}s`,
           "--brilho": cor,
         } as CSSProperties}
       >
         <span
-          className={`w-fit max-w-full truncate rounded-full px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide ${visual.etiqueta}`}
+          className="w-fit max-w-full truncate rounded-full px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide lg:px-[0.8em] lg:py-[0.1em] lg:text-[0.72em]"
           style={{ background: `hsl(${s.matiz} 60% 28%)`, color: `hsl(${s.matiz} 95% 85%)` }}
         >
           {s.topico}
         </span>
-        <p className={`line-clamp-4 text-base font-medium leading-snug ${visual.texto}`}>{s.texto}</p>
-        <p className={`truncate text-sm font-semibold ${visual.nome}`} style={{ color: cor }}>
+        <p className="line-clamp-4 text-base font-medium leading-snug lg:line-clamp-3 lg:text-[1em] lg:leading-[1.2]">
+          {s.texto}
+        </p>
+        <p className="truncate text-sm font-semibold lg:text-[0.85em]" style={{ color: cor }}>
           — {s.nome}
         </p>
       </article>
