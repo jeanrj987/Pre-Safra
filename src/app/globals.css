@@ -216,6 +216,17 @@ table,
     transform: translateY(0) rotate(0deg) scale(1);
   }
 }
+/* O cartão que sai despenca para baixo, gira um pouco e some, segurando a vaga até o novo cair. */
+@keyframes telao-sair {
+  0% {
+    opacity: 1;
+    transform: translateY(0) rotate(0deg) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(40vh) rotate(var(--giro, 4deg)) scale(0.85);
+  }
+}
 @keyframes telao-brilho {
   0%,
   55% {
