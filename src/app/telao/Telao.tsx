@@ -4,22 +4,25 @@ import { GRADE_TELAO, VAGAS_NO_TELAO, type SugestaoTelao } from "@/lib/sugestoes
 import type { DadosTelao } from "@/lib/telao";
 
 const INTERVALO_MS = 3000;
-// Quanto cada página de ideias fica na tela antes de dar lugar à próxima
-const PAGINA_MS = 12000;
 // Duração da animação telao-sair: o cartão que sai segura a vaga até acabar, e só então o novo cai.
 const SAIDA_MS = 700;
 // Na troca de página os cartões saem e entram um após o outro, em cascata
 const CASCATA_SAIDA_MS = 20;
 const CASCATA_ENTRADA_MS = 60;
+// A cada troca de página todas as cores giram esse tanto (ângulo áureo: nunca repete a paleta)
+const GIRO_DE_COR_GRAUS = 137.508;
 
 type Vagas = (SugestaoTelao | null)[];
 interface Saida {
   s: SugestaoTelao;
   atraso: number;
+  deslocamento: number;
 }
 interface Tela {
   pagina: number;
   paginas: number;
+  // Quanto os matizes desta página estão girados (muda a cada troca de página)
+  deslocamento: number;
   vagas: Vagas;
   // Atraso da queda de cada cartão que acabou de entrar (em ms, por id)
   atrasos: Map<number, number>;
@@ -31,13 +34,14 @@ const totalPaginas = (n: number) => Math.max(1, Math.ceil(n / VAGAS_NO_TELAO));
 
 // A primeira página tem as mais novas; as seguintes, as cada vez mais antigas (a última pode ficar
 // incompleta, com vagas vazias).
-function montarTela(todas: SugestaoTelao[], pagina: number): Tela {
+function montarTela(todas: SugestaoTelao[], pagina: number, deslocamento: number): Tela {
   const paginas = totalPaginas(todas.length);
   const alvo = Math.min(pagina, paginas - 1);
   const fatia = todas.slice(alvo * VAGAS_NO_TELAO, (alvo + 1) * VAGAS_NO_TELAO);
   return {
     pagina: alvo,
     paginas,
+    deslocamento,
     vagas: Array.from({ length: VAGAS_NO_TELAO }, (_, i) => fatia[i] ?? null),
     atrasos: new Map(fatia.map((s, i) => [s.id, i * CASCATA_ENTRADA_MS])),
     saindo: new Map(),
@@ -54,7 +58,8 @@ export default function Telao({
   qrSvg: string;
 }) {
   const [todasIniciais] = useState(() => inicial.sugestoes);
-  const [tela, setTela] = useState<Tela>(() => montarTela(todasIniciais, 0));
+  const [paginaMsInicial] = useState(() => inicial.segundosPagina * 1000);
+  const [tela, setTela] = useState<Tela>(() => montarTela(todasIniciais, 0, 0));
   // Espelho de `tela` para o efeito comparar o que mudou sem depender do estado
   const telaRef = useRef(tela);
   // Ideias que chegaram e ainda não tiveram a vez na tela: brilham até a página delas girar
@@ -68,6 +73,10 @@ export default function Telao({
     const conhecidas = new Set(todas.map((s) => s.id));
     let marcadas = new Set<number>();
     let trocando = false;
+    // Giro de cor da página que entra; só avança no giro normal (ideia nova não muda as cores)
+    let deslocamento = 0;
+    // Quanto cada página de ideias fica na tela antes de dar lugar à próxima (ajuste do admin)
+    let paginaMs = paginaMsInicial;
     let rotacao: ReturnType<typeof setTimeout> | undefined;
     const timers = new Set<ReturnType<typeof setTimeout>>();
 
@@ -111,15 +120,18 @@ export default function Telao({
       t.vagas.forEach((s, i) => {
         if (!s) return;
         vistas.add(s.id);
-        saindo.set(i, { s, atraso: i * CASCATA_SAIDA_MS });
+        saindo.set(i, { s, atraso: i * CASCATA_SAIDA_MS, deslocamento: t.deslocamento });
       });
       aplicar({ ...t, saindo });
-      if (giro) marcar(new Set([...marcadas].filter((id) => !vistas.has(id))));
+      if (giro) {
+        marcar(new Set([...marcadas].filter((id) => !vistas.has(id))));
+        deslocamento = (deslocamento + GIRO_DE_COR_GRAUS) % 360;
+      }
 
       agendar(
         () => {
           trocando = false;
-          aplicar(montarTela(todas, alvo));
+          aplicar(montarTela(todas, alvo, deslocamento));
           girarDepois();
           // Pega o que chegou durante a troca
           processar();
@@ -134,7 +146,7 @@ export default function Telao({
         const paginas = totalPaginas(todas.length);
         if (paginas > 1 && !trocando) irPara((telaRef.current.pagina + 1) % paginas, true);
         else girarDepois();
-      }, PAGINA_MS);
+      }, paginaMs);
     }
 
     function processar() {
@@ -159,7 +171,7 @@ export default function Telao({
       const saindo = new Map(t.saindo);
       t.vagas.forEach((s, i) => {
         if (s && !vagas[i]) {
-          const saida = { s, atraso: 0 };
+          const saida = { s, atraso: 0, deslocamento: t.deslocamento };
           saindo.set(i, saida);
           saidas.push([i, saida]);
         }
@@ -179,6 +191,12 @@ export default function Telao({
         setSituacao("ok");
         setTotal(dados.total);
         todas = dados.sugestoes;
+        const novoMs = dados.segundosPagina * 1000;
+        if (novoMs !== paginaMs) {
+          paginaMs = novoMs;
+          // Durante a troca, o giro é reagendado ao fim dela, já com o tempo novo
+          if (!trocando) girarDepois();
+        }
         processar();
       } catch {
         if (ativo) setSituacao("sem-conexao");
@@ -193,7 +211,7 @@ export default function Telao({
       clearTimeout(rotacao);
       timers.forEach(clearTimeout);
     };
-  }, [todasIniciais]);
+  }, [todasIniciais, paginaMsInicial]);
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col overflow-hidden bg-night text-white lg:flex-row">
@@ -265,13 +283,22 @@ export default function Telao({
           {tela.vagas.map((s, i) => {
             const saiu = tela.saindo.get(i);
             if (saiu) {
-              return <Cartao key={`saindo-${saiu.s.id}`} s={saiu.s} atraso={saiu.atraso} saindo />;
+              return (
+                <Cartao
+                  key={`saindo-${saiu.s.id}`}
+                  s={saiu.s}
+                  atraso={saiu.atraso}
+                  deslocamento={saiu.deslocamento}
+                  saindo
+                />
+              );
             }
             return s ? (
               <Cartao
                 key={s.id}
                 s={s}
                 atraso={tela.atrasos.get(s.id) ?? 0}
+                deslocamento={tela.deslocamento}
                 destaque={novas.has(s.id)}
               />
             ) : (
@@ -305,15 +332,18 @@ export default function Telao({
 function Cartao({
   s,
   atraso,
+  deslocamento,
   destaque = false,
   saindo = false,
 }: {
   s: SugestaoTelao;
   atraso: number;
+  deslocamento: number;
   destaque?: boolean;
   saindo?: boolean;
 }) {
-  const cor = `hsl(${s.matiz} 80% 62%)`;
+  const matiz = Math.round((s.matiz + deslocamento) % 360);
+  const cor = `hsl(${matiz} 80% 62%)`;
   const flutuar = `telao-flutuar ${6 + (s.id % 5)}s ease-in-out infinite alternate`;
   return (
     <li
@@ -329,8 +359,8 @@ function Cartao({
       <article
         className="flex h-full flex-col justify-between gap-2 overflow-hidden rounded-2xl border p-4 lg:gap-[0.3em] lg:p-[0.75em] lg:text-[length:var(--fonte)]"
         style={{
-          background: `hsl(${s.matiz} 42% 16%)`,
-          borderColor: `hsl(${s.matiz} 60% 38%)`,
+          background: `hsl(${matiz} 42% 16%)`,
+          borderColor: `hsl(${matiz} 60% 38%)`,
           animation: destaque && !saindo ? `telao-brilho 9s ease-out both, ${flutuar}` : flutuar,
           animationDelay:
             destaque && !saindo ? `${atraso}ms, ${-(s.id % 7)}s` : `${-(s.id % 7)}s`,
@@ -339,7 +369,7 @@ function Cartao({
       >
         <span
           className="w-fit max-w-full truncate rounded-full px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide lg:px-[0.8em] lg:py-[0.1em] lg:text-[0.72em]"
-          style={{ background: `hsl(${s.matiz} 60% 28%)`, color: `hsl(${s.matiz} 95% 85%)` }}
+          style={{ background: `hsl(${matiz} 60% 28%)`, color: `hsl(${matiz} 95% 85%)` }}
         >
           {s.topico}
         </span>

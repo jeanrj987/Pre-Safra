@@ -1,13 +1,20 @@
 import { revalidatePath } from "next/cache";
 import { exigirAdmin } from "@/lib/auth";
+import {
+  gravarSegundosPaginaTelao,
+  lerSegundosPaginaTelao,
+  validarSegundosPagina,
+} from "@/lib/configuracoes";
 import { prisma } from "@/lib/db";
 import { formatarWhatsapp, linkWhatsapp } from "@/lib/whatsapp";
+import { SEGUNDOS_PAGINA_TELAO, VAGAS_NO_TELAO } from "@/lib/sugestoes";
 import { plural } from "@/lib/texto";
 import BotaoAcao from "@/app/BotaoAcao";
 import BotaoExcluir from "@/app/BotaoExcluir";
 import Icone from "@/app/Icone";
 import Paginacao from "@/app/Paginacao";
 import { AcoesLoteSugestoes, CaixaSugestao, CaixaTodas } from "./Selecao";
+import TempoTelao from "./TempoTelao";
 
 export const metadata = { title: "Sugestões · Pré-Safra" };
 
@@ -19,15 +26,21 @@ const dataHora = new Intl.DateTimeFormat("pt-BR", {
 
 const TAMANHO_PAGINA = 25;
 
+// Fica fora do componente de propósito: dentro dele, as Server Actions em lote a capturariam como
+// variável de fora, e o Next não consegue serializar uma função para isso.
+const idsDoFormulario = (formData: FormData) =>
+  formData.getAll("ids").map(Number).filter(Number.isInteger);
+
 export default async function AdminSugestoes({
   searchParams,
 }: {
   searchParams: Promise<{ pagina?: string }>;
 }) {
-  const [, sp, todosIds] = await Promise.all([
+  const [, sp, todosIds, segundosPagina] = await Promise.all([
     exigirAdmin(),
     searchParams,
     prisma.sugestao.findMany({ select: { id: true }, orderBy: { id: "desc" } }),
+    lerSegundosPaginaTelao(),
   ]);
   const total = todosIds.length;
   const totalPaginas = Math.max(1, Math.ceil(total / TAMANHO_PAGINA));
@@ -46,15 +59,21 @@ export default async function AdminSugestoes({
     revalidatePath("/admin/sugestoes");
   }
 
+  async function salvarTempoTelao(formData: FormData) {
+    "use server";
+    await exigirAdmin();
+    const segundos = validarSegundosPagina(formData.get("segundos"));
+    if (segundos === null) return;
+    await gravarSegundosPaginaTelao(segundos);
+    revalidatePath("/admin/sugestoes");
+  }
+
   async function excluir(id: number) {
     "use server";
     await exigirAdmin();
     await prisma.sugestao.deleteMany({ where: { id } });
     revalidatePath("/admin/sugestoes");
   }
-
-  const idsDoFormulario = (formData: FormData) =>
-    formData.getAll("ids").map(Number).filter(Number.isInteger);
 
   async function alterarOcultaLote(oculta: boolean, formData: FormData) {
     "use server";
@@ -95,6 +114,14 @@ export default async function AdminSugestoes({
             Exportar CSV
           </a>
         </div>
+      </div>
+
+      <div className="border-b border-line px-4 py-3 sm:px-5">
+        <TempoTelao segundos={segundosPagina} salvar={salvarTempoTelao} />
+        <p className="mt-1.5 text-xs text-muted">
+          Entre {SEGUNDOS_PAGINA_TELAO.min} e {SEGUNDOS_PAGINA_TELAO.max} segundos. Vale só quando há
+          mais de uma página de ideias (mais de {VAGAS_NO_TELAO}).
+        </p>
       </div>
 
       {total === 0 ? (

@@ -17,6 +17,9 @@ export const VAGAS_NO_TELAO = GRADE_TELAO.colunas * GRADE_TELAO.linhas;
 /** Quantas sugestões o telão carrega, no máximo, para girar entre as páginas. */
 export const TETO_NO_TELAO = 200;
 
+/** Quanto tempo cada página do telão fica na tela, em segundos (o admin ajusta dentro dos limites). */
+export const SEGUNDOS_PAGINA_TELAO = { padrao: 12, min: 3, max: 120 } as const;
+
 /** Tira caracteres de controle e espaços repetidos. */
 export const limparTexto = (s: unknown) =>
   String(s ?? "")
@@ -43,6 +46,30 @@ export function matizDoTopico(topicoNorm: string): number {
   return (h >>> 0) % 360;
 }
 
+const ANGULO_AUREO = 137.508;
+
+/**
+ * Matizes bem espalhados para os tópicos que aparecem juntos no telão. O ângulo áureo afasta cada
+ * tópico novo dos anteriores (o hash puro deixava tópicos diferentes em tons quase iguais), e a
+ * ordem recebida é a de aparição, então os tópicos antigos mantêm a cor quando surgem novos.
+ * Cartões do mesmo tópico variam uns graus (pelo id) para a tela não virar um bloco de uma cor só.
+ */
+export function matizesDoTelao(
+  itens: { id: number; topicoNorm: string }[],
+): Map<number, number> {
+  const base = new Map<string, number>();
+  const cronologico = [...itens].sort((a, b) => a.id - b.id);
+  for (const { topicoNorm } of cronologico) {
+    if (!base.has(topicoNorm)) base.set(topicoNorm, (base.size * ANGULO_AUREO) % 360);
+  }
+  const matizes = new Map<number, number>();
+  for (const { id, topicoNorm } of itens) {
+    const variacao = ((id * 7) % 5 - 2) * 8; // -16, -8, 0, 8 ou 16 graus
+    matizes.set(id, Math.round(((base.get(topicoNorm) ?? 0) + variacao + 360) % 360));
+  }
+  return matizes;
+}
+
 /** O que o telão (tela pública do evento) recebe: nunca inclui sobrenome nem WhatsApp. */
 export interface SugestaoTelao {
   id: number;
@@ -58,12 +85,12 @@ export function paraTelao(s: {
   topico: string;
   topicoNorm: string;
   texto: string;
-}): SugestaoTelao {
+}, matiz: number = matizDoTopico(s.topicoNorm)): SugestaoTelao {
   return {
     id: s.id,
     nome: primeiroNome(s.nome),
     topico: s.topico,
     texto: s.texto,
-    matiz: matizDoTopico(s.topicoNorm),
+    matiz,
   };
 }

@@ -111,6 +111,13 @@ model Sugestao {
   @@index([whatsapp, criadoEm])
 }
 
+// Ajustes globais editáveis pelo admin, um por linha (chave -> valor em texto).
+// Chaves conhecidas e seus limites ficam em src/lib/configuracoes.ts.
+model Configuracao {
+  chave String @id
+  valor String
+}
+
 // Uma finalização do Pré-Safra, guardada como entrada de histórico (nunca é sobrescrita).
 // Cada nova finalização cria uma entrada; ao reabrir, o motivo é gravado na entrada aberta.
 model Conclusao {
