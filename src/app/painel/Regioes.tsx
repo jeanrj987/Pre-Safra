@@ -88,8 +88,8 @@ export default function Regioes({
                 </span>
                 <span className="flex flex-wrap items-baseline gap-x-2">
                   <span className="text-2xl leading-tight font-semibold tracking-tight">{Math.round(pct * 100)}%</span>
-                  <span className="text-[12.5px] text-muted">
-                    finalizado · {plural(n, "cliente", "clientes")}
+                  <span className="text-[12.5px] text-muted capitalize">
+                    finalizado ·{plural(n, "cliente", "clientes")}
                   </span>
                 </span>
                 <span aria-hidden="true" className="flex h-2 gap-0.5 overflow-hidden rounded bg-subtle">
