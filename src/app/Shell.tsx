@@ -5,8 +5,10 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { encerrarSessao, usuarioAtual } from "@/lib/auth";
 import { listarSafrasAtivas, obterSafraSelecionada, selecionarSafraCookie } from "@/lib/safra";
-import { obterTema, salvarTemaCookie } from "@/lib/tema";
+import { COOKIE_TEMA } from "@/lib/tema";
 import Icone, { type NomeIcone } from "./Icone";
+import BotaoSidebar from "./BotaoSidebar";
+import BotaoTema from "./BotaoTema";
 import IndicadorLink from "./IndicadorLink";
 import SeletorSafra from "./SeletorSafra";
 
@@ -62,31 +64,11 @@ export default async function Shell({
     revalidatePath("/", "layout");
   }
 
-  async function alternarSidebar() {
-    "use server";
-    const jar = await cookies();
-    const colapsada = jar.get(COOKIE_SIDEBAR)?.value === "1";
-    jar.set(COOKIE_SIDEBAR, colapsada ? "0" : "1", {
-      sameSite: "lax",
-      path: "/",
-      maxAge: 60 * 60 * 24 * 365,
-    });
-    revalidatePath("/", "layout");
-  }
-
-  async function alternarTema() {
-    "use server";
-    const atual = await obterTema();
-    await salvarTemaCookie(atual === "escuro" ? "claro" : "escuro");
-    revalidatePath("/", "layout");
-  }
-
-  const [usuario, safras, safraAtual, cookieJar, tema] = await Promise.all([
+  const [usuario, safras, safraAtual, cookieJar] = await Promise.all([
     usuarioAtual(),
     listarSafrasAtivas(),
     obterSafraSelecionada(),
     cookies(),
-    obterTema(),
   ]);
   const sidebarColapsada = cookieJar.get(COOKIE_SIDEBAR)?.value === "1";
 
@@ -99,73 +81,67 @@ export default async function Shell({
   const paginaAtual = NAV.find((n) => n.id === ativo);
 
   return (
-    <div className={`min-h-screen ${sidebarColapsada ? "" : "lg:pl-60"}`}>
+    <div
+      data-shell
+      data-colapsada={String(sidebarColapsada)}
+      className="group/shell min-h-screen lg:data-[colapsada=false]:pl-60"
+    >
       {/* Desktop: sidebar fixa (navegação escala na vertical conforme surgem módulos).
-          Escondida via cookie quando a pessoa clica em "Esconder menu" na topbar. */}
-      {!sidebarColapsada && (
-        <aside className="fixed inset-y-0 left-0 z-40 hidden w-60 flex-col bg-night text-white lg:flex">
-          <Link
-            href="/"
-            className="flex h-14 items-center gap-3 border-b border-white/10 px-5"
-            aria-label="Início"
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo-controlsoft.webp" alt="ControlSoft" className="h-6 w-auto" />
-          </Link>
+          Escondida quando a pessoa clica em "Esconder menu" na topbar: o botão troca o atributo
+          data-colapsada no navegador (sem ir ao servidor) e o CSS esconde a sidebar. */}
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-60 flex-col bg-night text-white lg:group-data-[colapsada=false]/shell:flex">
+        <Link
+          href="/"
+          className="flex h-14 items-center gap-3 border-b border-white/10 px-5"
+          aria-label="Início"
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo-controlsoft.webp" alt="ControlSoft" className="h-6 w-auto" />
+        </Link>
 
-          <nav aria-label="Principal" className="flex-1 space-y-1 px-3 py-4">
-            <p className="px-2 pb-1 text-[11px] font-semibold uppercase tracking-wider text-white/40">
-              Pré-Safra
-            </p>
-            {NAV.map((n) => {
-              const atual = ativo === n.id;
-              return (
-                <Link
-                  key={n.id}
-                  href={n.href}
-                  target={n.novaAba ? "_blank" : undefined}
-                  rel={n.novaAba ? "noopener" : undefined}
-                  aria-current={atual ? "page" : undefined}
-                  className={`relative flex h-10 items-center gap-3 rounded-lg px-3 text-sm font-medium transition ${
-                    atual
-                      ? "bg-primary text-white"
-                      : "text-white/70 hover:bg-white/10 hover:text-white"
-                  }`}
-                >
-                  <Icone nome={n.icone} className="size-[18px]" />
-                  {n.rotulo}
-                  {!n.novaAba && <IndicadorLink className="ml-auto" />}
-                </Link>
-              );
-            })}
-          </nav>
+        <nav aria-label="Principal" className="flex-1 space-y-1 px-3 py-4">
+          <p className="px-2 pb-1 text-[11px] font-semibold uppercase tracking-wider text-white/40">
+            Pré-Safra
+          </p>
+          {NAV.map((n) => {
+            const atual = ativo === n.id;
+            return (
+              <Link
+                key={n.id}
+                href={n.href}
+                target={n.novaAba ? "_blank" : undefined}
+                rel={n.novaAba ? "noopener" : undefined}
+                aria-current={atual ? "page" : undefined}
+                className={`relative flex h-10 items-center gap-3 rounded-lg px-3 text-sm font-medium transition ${
+                  atual
+                    ? "bg-primary text-white"
+                    : "text-white/70 hover:bg-white/10 hover:text-white"
+                }`}
+              >
+                <Icone nome={n.icone} className="size-[18px]" />
+                {n.rotulo}
+                {!n.novaAba && <IndicadorLink className="ml-auto" />}
+              </Link>
+            );
+          })}
+        </nav>
 
-          {usuario && (
-            <p className="truncate px-4 pb-1 text-xs text-white/50" title={usuario.email}>
-              {usuario.nome}
-            </p>
-          )}
-          <form action={sair} className="border-t border-white/10 p-3">
-            <button className="flex h-10 w-full cursor-pointer items-center gap-3 rounded-lg px-3 text-sm font-medium text-white/70 transition hover:bg-white/10 hover:text-white">
-              <Icone nome="sair" className="size-[18px]" />
-              Sair
-            </button>
-          </form>
-        </aside>
-      )}
+        {usuario && (
+          <p className="truncate px-4 pb-1 text-xs text-white/50" title={usuario.email}>
+            {usuario.nome}
+          </p>
+        )}
+        <form action={sair} className="border-t border-white/10 p-3">
+          <button className="flex h-10 w-full cursor-pointer items-center gap-3 rounded-lg px-3 text-sm font-medium text-white/70 transition hover:bg-white/10 hover:text-white">
+            <Icone nome="sair" className="size-[18px]" />
+            Sair
+          </button>
+        </form>
+      </aside>
 
       {/* Desktop: topbar fina só com o contexto (onde estou / qual safra) */}
       <header className="sticky top-0 z-30 hidden h-14 items-center gap-3 border-b border-line bg-surface/90 px-4 backdrop-blur lg:flex">
-        <form action={alternarSidebar}>
-          <button
-            type="submit"
-            aria-label={sidebarColapsada ? "Mostrar menu" : "Esconder menu"}
-            title={sidebarColapsada ? "Mostrar menu" : "Esconder menu"}
-            className="grid size-9 cursor-pointer place-items-center rounded-lg text-muted transition hover:bg-subtle hover:text-ink"
-          >
-            <Icone nome="menu" />
-          </button>
-        </form>
+        <BotaoSidebar colapsadaInicial={sidebarColapsada} nomeCookie={COOKIE_SIDEBAR} />
         <span className="h-4 w-px bg-line-strong" aria-hidden="true" />
         <span className="text-sm font-semibold text-ink">{paginaAtual?.rotulo}</span>
         <span className="h-4 w-px bg-line-strong" aria-hidden="true" />
@@ -181,16 +157,10 @@ export default async function Shell({
             Nenhuma safra cadastrada
           </span>
         )}
-        <form action={alternarTema} className="ml-auto">
-          <button
-            type="submit"
-            aria-label={tema === "escuro" ? "Usar tema claro" : "Usar tema escuro"}
-            title={tema === "escuro" ? "Usar tema claro" : "Usar tema escuro"}
-            className="grid size-9 cursor-pointer place-items-center rounded-lg text-muted transition hover:bg-subtle hover:text-ink"
-          >
-            <Icone nome={tema === "escuro" ? "sol" : "lua"} />
-          </button>
-        </form>
+        <BotaoTema
+          nomeCookie={COOKIE_TEMA}
+          className="ml-auto grid size-9 cursor-pointer place-items-center rounded-lg text-muted transition hover:bg-subtle hover:text-ink"
+        />
       </header>
 
       {/* Celular e tablet: barra escura com a navegação em linha */}
@@ -243,16 +213,10 @@ export default async function Shell({
           </nav>
 
           <div className="ml-auto flex items-center gap-1">
-            <form action={alternarTema}>
-              <button
-                type="submit"
-                aria-label={tema === "escuro" ? "Usar tema claro" : "Usar tema escuro"}
-                title={tema === "escuro" ? "Usar tema claro" : "Usar tema escuro"}
-                className="grid size-9 cursor-pointer place-items-center rounded-md text-white/70 transition hover:bg-white/10 hover:text-white"
-              >
-                <Icone nome={tema === "escuro" ? "sol" : "lua"} />
-              </button>
-            </form>
+            <BotaoTema
+              nomeCookie={COOKIE_TEMA}
+              className="grid size-9 cursor-pointer place-items-center rounded-md text-white/70 transition hover:bg-white/10 hover:text-white"
+            />
 
             <form action={sair}>
               <button className="inline-flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-2 text-sm font-medium text-white/70 transition hover:bg-white/10 hover:text-white">
