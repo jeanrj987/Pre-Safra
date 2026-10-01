@@ -84,23 +84,31 @@ export default async function Shell({
     <div
       data-shell
       data-colapsada={String(sidebarColapsada)}
-      className="group/shell min-h-screen lg:data-[colapsada=false]:pl-60"
+      className="group/shell min-h-screen lg:data-[colapsada=false]:pl-60 lg:data-[colapsada=true]:pl-16"
     >
       {/* Desktop: sidebar fixa (navegação escala na vertical conforme surgem módulos).
-          Escondida quando a pessoa clica em "Esconder menu" na topbar: o botão troca o atributo
-          data-colapsada no navegador (sem ir ao servidor) e o CSS esconde a sidebar. */}
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-60 flex-col bg-night text-white lg:group-data-[colapsada=false]/shell:flex">
-        <Link
-          href="/"
-          className="flex h-14 items-center gap-3 border-b border-white/10 px-5"
-          aria-label="Início"
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo-controlsoft.webp" alt="ControlSoft" className="h-6 w-auto" />
-        </Link>
+          Quando a pessoa clica em "Esconder menu" na topbar, o botão troca o atributo
+          data-colapsada no navegador (sem ir ao servidor) e o CSS reduz a sidebar a uma faixa
+          estreita só com os ícones (rótulos escondidos, dicas no hover via title). */}
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-60 flex-col overflow-hidden bg-night text-white lg:flex lg:group-data-[colapsada=true]/shell:w-16">
+        <div className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-white/10 pl-5 pr-3 group-data-[colapsada=true]/shell:justify-center group-data-[colapsada=true]/shell:px-0">
+          <Link
+            href="/"
+            className="flex items-center group-data-[colapsada=true]/shell:hidden"
+            aria-label="Início"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo-controlsoft.webp" alt="ControlSoft" className="h-6 w-auto" />
+          </Link>
+          <BotaoSidebar
+            colapsadaInicial={sidebarColapsada}
+            nomeCookie={COOKIE_SIDEBAR}
+            className="grid size-9 shrink-0 cursor-pointer place-items-center rounded-lg text-white/70 transition hover:bg-white/10 hover:text-white"
+          />
+        </div>
 
         <nav aria-label="Principal" className="flex-1 space-y-1 px-3 py-4">
-          <p className="px-2 pb-1 text-[11px] font-semibold uppercase tracking-wider text-white/40">
+          <p className="px-2 pb-1 text-[11px] font-semibold uppercase tracking-wider text-white/40 group-data-[colapsada=true]/shell:hidden">
             Pré-Safra
           </p>
           {NAV.map((n) => {
@@ -112,37 +120,46 @@ export default async function Shell({
                 target={n.novaAba ? "_blank" : undefined}
                 rel={n.novaAba ? "noopener" : undefined}
                 aria-current={atual ? "page" : undefined}
-                className={`relative flex h-10 items-center gap-3 rounded-lg px-3 text-sm font-medium transition ${
+                aria-label={n.rotulo}
+                title={n.rotulo}
+                className={`relative flex h-10 items-center gap-3 rounded-lg px-3 text-sm font-medium transition group-data-[colapsada=true]/shell:justify-center group-data-[colapsada=true]/shell:px-0 ${
                   atual
                     ? "bg-primary text-white"
                     : "text-white/70 hover:bg-white/10 hover:text-white"
                 }`}
               >
-                <Icone nome={n.icone} className="size-[18px]" />
-                {n.rotulo}
-                {!n.novaAba && <IndicadorLink className="ml-auto" />}
+                <Icone nome={n.icone} className="size-[18px] shrink-0" />
+                <span className="truncate group-data-[colapsada=true]/shell:hidden">{n.rotulo}</span>
+                {!n.novaAba && (
+                  <IndicadorLink className="ml-auto group-data-[colapsada=true]/shell:absolute group-data-[colapsada=true]/shell:right-1 group-data-[colapsada=true]/shell:top-1 group-data-[colapsada=true]/shell:ml-0 group-data-[colapsada=true]/shell:size-2.5" />
+                )}
               </Link>
             );
           })}
         </nav>
 
         {usuario && (
-          <p className="truncate px-4 pb-1 text-xs text-white/50" title={usuario.email}>
+          <p
+            className="truncate px-4 pb-1 text-xs text-white/50 group-data-[colapsada=true]/shell:hidden"
+            title={usuario.email}
+          >
             {usuario.nome}
           </p>
         )}
         <form action={sair} className="border-t border-white/10 p-3">
-          <button className="flex h-10 w-full cursor-pointer items-center gap-3 rounded-lg px-3 text-sm font-medium text-white/70 transition hover:bg-white/10 hover:text-white">
-            <Icone nome="sair" className="size-[18px]" />
-            Sair
+          <button
+            aria-label="Sair"
+            title="Sair"
+            className="flex h-10 w-full cursor-pointer items-center gap-3 rounded-lg px-3 text-sm font-medium text-white/70 transition hover:bg-white/10 hover:text-white group-data-[colapsada=true]/shell:justify-center group-data-[colapsada=true]/shell:px-0"
+          >
+            <Icone nome="sair" className="size-[18px] shrink-0" />
+            <span className="group-data-[colapsada=true]/shell:hidden">Sair</span>
           </button>
         </form>
       </aside>
 
       {/* Desktop: topbar fina só com o contexto (onde estou / qual safra) */}
       <header className="sticky top-0 z-30 hidden h-14 items-center gap-3 border-b border-line bg-surface/90 px-4 backdrop-blur lg:flex">
-        <BotaoSidebar colapsadaInicial={sidebarColapsada} nomeCookie={COOKIE_SIDEBAR} />
-        <span className="h-4 w-px bg-line-strong" aria-hidden="true" />
         <span className="text-sm font-semibold text-ink">{paginaAtual?.rotulo}</span>
         <span className="h-4 w-px bg-line-strong" aria-hidden="true" />
         {safras.length > 0 ? (
@@ -234,8 +251,13 @@ export default async function Shell({
           // O Painel não tem a barra flutuante de ações em lote (fixa, só na lista de clientes),
           // então não precisa do respiro extra embaixo, ganha espaçamento mais compacto entre as
           // seções e usa mais largura (até 1800px) para caber os 4 gráficos numa linha só em
-          // telas bem largas, como a TV da sala.
-          ativo === "painel" ? "max-w-[1800px] space-y-4 pt-4 pb-8" : "max-w-7xl space-y-6 pt-8 pb-28"
+          // telas bem largas, como a TV da sala. A lista de clientes também usa mais largura
+          // (até 1600px) para os nomes não quebrarem de linha na tabela.
+          ativo === "painel"
+            ? "max-w-[1800px] space-y-4 pt-4 pb-8"
+            : ativo === "clientes"
+              ? "max-w-[1600px] space-y-6 pt-8 pb-28"
+              : "max-w-7xl space-y-6 pt-8 pb-28"
         }`}
       >
         {children}

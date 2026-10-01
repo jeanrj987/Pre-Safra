@@ -354,11 +354,12 @@ export default async function Home({ searchParams }: PageProps<"/">) {
                           className="mt-1 size-4 cursor-pointer accent-primary"
                         />
                       </td>
-                      <td className="w-full max-w-0 px-3 py-3 align-top md:w-auto md:max-w-md">
-                        <div className="flex flex-wrap items-center gap-x-2">
+                      <td className="w-full max-w-0 px-3 py-3 align-top md:w-auto md:min-w-64 md:max-w-64 xl:max-w-72">
+                        <div className="flex flex-wrap items-center gap-x-2 md:flex-nowrap">
                           <Link
                             href={`/registro/${l.id}`}
-                            className="font-medium text-ink hover:text-primary hover:underline"
+                            title={l.nome}
+                            className="font-medium text-ink hover:text-primary hover:underline md:min-w-0 md:truncate"
                           >
                             {l.nome}
                           </Link>
@@ -413,16 +414,16 @@ export default async function Home({ searchParams }: PageProps<"/">) {
                           </div>
                         )}
                       </td>
-                      <td className="hidden px-3 py-3 align-top text-muted lg:table-cell">
+                      <td className="hidden whitespace-nowrap px-3 py-3 align-top text-muted lg:table-cell">
                         {l.cidade || "—"}
                       </td>
-                      <td className="hidden px-3 py-3 align-top text-muted lg:table-cell">
+                      <td className="hidden whitespace-nowrap px-3 py-3 align-top text-muted lg:table-cell">
                         {l.uf || "—"}
                       </td>
-                      <td className="hidden px-3 py-3 align-top text-muted lg:table-cell">
+                      <td className="hidden whitespace-nowrap px-3 py-3 align-top text-muted lg:table-cell">
                         {l.regiao || "—"}
                       </td>
-                      <td className="hidden px-3 py-3 align-top text-muted lg:table-cell">
+                      <td className="hidden whitespace-nowrap px-3 py-3 align-top text-muted lg:table-cell">
                         {l.consultor || "—"}
                       </td>
                       <td className="hidden px-3 py-3 align-top text-ink md:table-cell">

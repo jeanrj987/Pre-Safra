@@ -10,9 +10,11 @@ import Icone from "./Icone";
 export default function BotaoSidebar({
   colapsadaInicial,
   nomeCookie,
+  className,
 }: {
   colapsadaInicial: boolean;
   nomeCookie: string;
+  className?: string;
 }) {
   const [colapsada, setColapsada] = useState(colapsadaInicial);
 
@@ -32,7 +34,7 @@ export default function BotaoSidebar({
       onClick={alternar}
       aria-label={rotulo}
       title={rotulo}
-      className="grid size-9 cursor-pointer place-items-center rounded-lg text-muted transition hover:bg-subtle hover:text-ink"
+      className={className}
     >
       <Icone nome="menu" />
     </button>
