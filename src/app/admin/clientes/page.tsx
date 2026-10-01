@@ -24,24 +24,27 @@ export default async function AdminClientes({
 }: {
   searchParams: Promise<{ semRegiao?: string; q?: string; pagina?: string }>;
 }) {
-  await exigirAdmin();
-  const sp = await searchParams;
-  const soSemRegiao = sp.semRegiao === "1";
-  const q = (sp.q ?? "").trim();
-
+  // Login (já checado também no layout do admin) e dados em paralelo, para não somar
+  // round-trips ao banco a cada troca de aba.
   const [
+    ,
+    sp,
     clientes,
     cidadesConhecidas,
     regioesConhecidas,
     duplasConhecidas,
     consultoresConhecidos,
   ] = await Promise.all([
+    exigirAdmin(),
+    searchParams,
     prisma.cliente.findMany({ orderBy: { nome: "asc" } }),
     listarCidadesConhecidas(),
     listarRegioesConhecidas(),
     listarDuplasConhecidas(),
     listarConsultoresConhecidos(),
   ]);
+  const soSemRegiao = sp.semRegiao === "1";
+  const q = (sp.q ?? "").trim();
   const listas = {
     cidades: cidadesConhecidas,
     ufs: UFS_BRASIL,

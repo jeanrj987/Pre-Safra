@@ -7,6 +7,7 @@ import { encerrarSessao, usuarioAtual } from "@/lib/auth";
 import { listarSafrasAtivas, obterSafraSelecionada, selecionarSafraCookie } from "@/lib/safra";
 import { obterTema, salvarTemaCookie } from "@/lib/tema";
 import Icone, { type NomeIcone } from "./Icone";
+import IndicadorLink from "./IndicadorLink";
 import SeletorSafra from "./SeletorSafra";
 
 type Pagina = "clientes" | "painel" | "novo" | "admin" | "telao";
@@ -133,6 +134,7 @@ export default async function Shell({
                 >
                   <Icone nome={n.icone} className="size-[18px]" />
                   {n.rotulo}
+                  {!n.novaAba && <IndicadorLink className="ml-auto" />}
                 </Link>
               );
             })}
@@ -231,6 +233,7 @@ export default async function Shell({
                   }`}
                 >
                   {n.rotulo}
+                  {!n.novaAba && <IndicadorLink className="ml-1.5" />}
                   {atual && (
                     <span className="absolute inset-x-3 bottom-0 hidden h-0.5 rounded-full bg-brand sm:block" />
                   )}

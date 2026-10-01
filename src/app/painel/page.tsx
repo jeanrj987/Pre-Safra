@@ -9,9 +9,9 @@ import { diaHoje } from "@/lib/status";
 export const metadata = { title: "Painel · Pré-Safra" };
 
 export default async function PaginaPainel() {
-  await exigirAcessoPainel();
-
-  const safra = await obterSafraSelecionada();
+  // Login e safra em paralelo: cada ida ao banco custa um round-trip, então sequenciar à toa
+  // soma latência a cada navegação.
+  const [, safra] = await Promise.all([exigirAcessoPainel(), obterSafraSelecionada()]);
   if (!safra) {
     return (
       <Shell ativo="painel">

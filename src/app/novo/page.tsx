@@ -31,17 +31,25 @@ export default async function Novo({
     ignoradas?: string;
   }>;
 }) {
-  const usuario = await exigirAcessoCompleto();
-  const { erroImportacao, importados, atualizados, presafras, ignoradas } = await searchParams;
-
-  const [nomes, cidadesConhecidas, regioesConhecidas, duplasConhecidas, consultoresConhecidos] =
-    await Promise.all([
-      listarNomesResponsaveis(),
-      listarCidadesConhecidas(),
-      listarRegioesConhecidas(),
-      listarDuplasConhecidas(),
-      listarConsultoresConhecidos(),
-    ]);
+  // Login e listas do formulário em paralelo (uma ida ao banco a menos por navegação); se o
+  // login falhar, o redirect acontece antes de qualquer coisa ser renderizada.
+  const [
+    usuario,
+    { erroImportacao, importados, atualizados, presafras, ignoradas },
+    nomes,
+    cidadesConhecidas,
+    regioesConhecidas,
+    duplasConhecidas,
+    consultoresConhecidos,
+  ] = await Promise.all([
+    exigirAcessoCompleto(),
+    searchParams,
+    listarNomesResponsaveis(),
+    listarCidadesConhecidas(),
+    listarRegioesConhecidas(),
+    listarDuplasConhecidas(),
+    listarConsultoresConhecidos(),
+  ]);
 
   async function criar(formData: FormData) {
     "use server";
