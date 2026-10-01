@@ -11,7 +11,6 @@ const SAIDA_MS = 700;
 // Na troca de página os cartões saem e entram um após o outro, em cascata
 const CASCATA_SAIDA_MS = 20;
 const CASCATA_ENTRADA_MS = 60;
-const CASCATA_INICIAL_MS = 90;
 
 type Vagas = (SugestaoTelao | null)[];
 interface Saida {
@@ -30,40 +29,19 @@ interface Tela {
 
 const totalPaginas = (n: number) => Math.max(1, Math.ceil(n / VAGAS_NO_TELAO));
 
-// Do mais antigo para o mais novo: a página das mais novas é sempre a última
-const ascendente = (sugestoes: SugestaoTelao[]) => [...sugestoes].reverse();
-
-// A última página mostra sempre as mais novas e fica cheia (pode repetir cartões da anterior);
-// as demais mostram as mais antigas, em fatias.
-function montarTela(todas: SugestaoTelao[], pagina: number, cascataMs: number): Tela {
+// A primeira página tem as mais novas; as seguintes, as cada vez mais antigas (a última pode ficar
+// incompleta, com vagas vazias).
+function montarTela(todas: SugestaoTelao[], pagina: number): Tela {
   const paginas = totalPaginas(todas.length);
   const alvo = Math.min(pagina, paginas - 1);
-  const inicio = alvo === paginas - 1 ? Math.max(0, todas.length - VAGAS_NO_TELAO) : alvo * VAGAS_NO_TELAO;
-  const fatia = todas.slice(inicio, inicio + VAGAS_NO_TELAO);
+  const fatia = todas.slice(alvo * VAGAS_NO_TELAO, (alvo + 1) * VAGAS_NO_TELAO);
   return {
     pagina: alvo,
     paginas,
     vagas: Array.from({ length: VAGAS_NO_TELAO }, (_, i) => fatia[i] ?? null),
-    atrasos: new Map(fatia.map((s, i) => [s.id, i * cascataMs])),
+    atrasos: new Map(fatia.map((s, i) => [s.id, i * CASCATA_ENTRADA_MS])),
     saindo: new Map(),
   };
-}
-
-// Na página das mais novas cada ideia ocupa uma vaga fixa: a nova cai numa vaga livre ou no lugar
-// da mais antiga da tela, então o resto não se mexe quando alguém envia uma ideia.
-function colocar(vagas: Vagas, novas: SugestaoTelao[]): Vagas {
-  const proximas = [...vagas];
-  for (const s of novas) {
-    let i = proximas.indexOf(null);
-    if (i === -1) {
-      i = 0;
-      for (let j = 1; j < proximas.length; j++) {
-        if (proximas[j]!.id < proximas[i]!.id) i = j;
-      }
-    }
-    proximas[i] = s;
-  }
-  return proximas;
 }
 
 export default function Telao({
@@ -75,10 +53,8 @@ export default function Telao({
   urlFormulario: string;
   qrSvg: string;
 }) {
-  const [todasIniciais] = useState(() => ascendente(inicial.sugestoes));
-  const [tela, setTela] = useState<Tela>(() =>
-    montarTela(todasIniciais, totalPaginas(todasIniciais.length) - 1, CASCATA_INICIAL_MS),
-  );
+  const [todasIniciais] = useState(() => inicial.sugestoes);
+  const [tela, setTela] = useState<Tela>(() => montarTela(todasIniciais, 0));
   // Espelho de `tela` para o efeito comparar o que mudou sem depender do estado
   const telaRef = useRef(tela);
   // Ideias que chegaram e ainda não tiveram a vez na tela: brilham até a página delas girar
@@ -124,8 +100,9 @@ export default function Telao({
       }, SAIDA_MS + saida.atraso);
     }
 
-    // Tudo cai e a página `alvo` entra no lugar, como na chegada
-    function irPara(alvo: number) {
+    // Tudo cai e a página `alvo` entra no lugar. Quando é o giro normal, o que estava na página que
+    // sai já foi visto e para de brilhar; quando chega ideia nova, as que ainda brilham continuam.
+    function irPara(alvo: number, giro: boolean) {
       trocando = true;
       clearTimeout(rotacao);
       const t = telaRef.current;
@@ -137,23 +114,25 @@ export default function Telao({
         saindo.set(i, { s, atraso: i * CASCATA_SAIDA_MS });
       });
       aplicar({ ...t, saindo });
-      // O que estava nesta página já foi visto: para de brilhar
-      marcar(new Set([...marcadas].filter((id) => !vistas.has(id))));
+      if (giro) marcar(new Set([...marcadas].filter((id) => !vistas.has(id))));
 
-      agendar(() => {
-        trocando = false;
-        aplicar(montarTela(todas, alvo, CASCATA_ENTRADA_MS));
-        girarDepois();
-        // Pega o que chegou durante a troca
-        processar();
-      }, SAIDA_MS + VAGAS_NO_TELAO * CASCATA_SAIDA_MS);
+      agendar(
+        () => {
+          trocando = false;
+          aplicar(montarTela(todas, alvo));
+          girarDepois();
+          // Pega o que chegou durante a troca
+          processar();
+        },
+        vistas.size > 0 ? SAIDA_MS + VAGAS_NO_TELAO * CASCATA_SAIDA_MS : 0,
+      );
     }
 
     function girarDepois() {
       clearTimeout(rotacao);
       rotacao = setTimeout(() => {
         const paginas = totalPaginas(todas.length);
-        if (paginas > 1 && !trocando) irPara((telaRef.current.pagina + 1) % paginas);
+        if (paginas > 1 && !trocando) irPara((telaRef.current.pagina + 1) % paginas, true);
         else girarDepois();
       }, PAGINA_MS);
     }
@@ -161,33 +140,31 @@ export default function Telao({
     function processar() {
       if (!ativo || trocando) return;
       const t = telaRef.current;
-      const visiveis = new Set(todas.map((s) => s.id));
       const pendentes = todas.filter((s) => !conhecidas.has(s.id));
       pendentes.forEach((s) => conhecidas.add(s.id));
-      if (pendentes.length > 0) marcar(new Set([...marcadas, ...pendentes.map((s) => s.id)]));
-
-      const paginas = totalPaginas(todas.length);
-      // Ideia nova aparece na hora: se a tela está em outra página, vai para a das mais novas
-      if (pendentes.length > 0 && t.pagina < t.paginas - 1) return irPara(paginas - 1);
+      // Ideia nova: a tela volta para a primeira página, as recém-chegadas brilham
+      if (pendentes.length > 0) {
+        marcar(new Set([...marcadas, ...pendentes.map((s) => s.id)]));
+        return irPara(0, false);
+      }
 
       // Some da tela o que o admin escondeu
-      const base = t.vagas.map((s) => (s && visiveis.has(s.id) ? s : null));
-      const proximas = colocar(base, pendentes);
-      const mudou = proximas.some((s, i) => s?.id !== t.vagas[i]?.id);
-      if (!mudou && paginas === t.paginas) return;
+      const visiveis = new Set(todas.map((s) => s.id));
+      const vagas = t.vagas.map((s) => (s && visiveis.has(s.id) ? s : null));
+      const paginas = totalPaginas(todas.length);
+      const escondidas = vagas.some((s, i) => s !== t.vagas[i]);
+      if (!escondidas && paginas === t.paginas) return;
 
       const saidas: [number, Saida][] = [];
       const saindo = new Map(t.saindo);
       t.vagas.forEach((s, i) => {
-        if (s && proximas[i]?.id !== s.id) {
+        if (s && !vagas[i]) {
           const saida = { s, atraso: 0 };
           saindo.set(i, saida);
           saidas.push([i, saida]);
         }
       });
-      // A página das mais novas acompanha o total: se ela era a última, continua sendo
-      const pagina = t.pagina >= t.paginas - 1 ? paginas - 1 : t.pagina;
-      aplicar({ ...t, pagina, paginas, vagas: proximas, saindo });
+      aplicar({ ...t, paginas, vagas, saindo });
       for (const [i, saida] of saidas) aposSaida(i, saida);
     }
 
@@ -201,7 +178,7 @@ export default function Telao({
 
         setSituacao("ok");
         setTotal(dados.total);
-        todas = ascendente(dados.sugestoes);
+        todas = dados.sugestoes;
         processar();
       } catch {
         if (ativo) setSituacao("sem-conexao");

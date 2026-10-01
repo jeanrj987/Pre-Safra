@@ -52,3 +52,6 @@ next-env.d.ts
 # listas de clientes (dados internos; nao versionar)
 /Clientes.txt
 /Planilhas/
+
+# vault do Obsidian (documentação interna; nao versionar)
+/Vault/
