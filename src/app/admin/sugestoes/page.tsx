@@ -6,6 +6,8 @@ import { plural } from "@/lib/texto";
 import BotaoAcao from "@/app/BotaoAcao";
 import BotaoExcluir from "@/app/BotaoExcluir";
 import Icone from "@/app/Icone";
+import Paginacao from "@/app/Paginacao";
+import { AcoesLoteSugestoes, CaixaSugestao, CaixaTodas } from "./Selecao";
 
 export const metadata = { title: "Sugestões · Pré-Safra" };
 
@@ -15,9 +17,27 @@ const dataHora = new Intl.DateTimeFormat("pt-BR", {
   timeZone: "America/Sao_Paulo",
 });
 
-export default async function AdminSugestoes() {
-  await exigirAdmin();
-  const sugestoes = await prisma.sugestao.findMany({ orderBy: { id: "desc" } });
+const TAMANHO_PAGINA = 25;
+
+export default async function AdminSugestoes({
+  searchParams,
+}: {
+  searchParams: Promise<{ pagina?: string }>;
+}) {
+  const [, sp, todosIds] = await Promise.all([
+    exigirAdmin(),
+    searchParams,
+    prisma.sugestao.findMany({ select: { id: true }, orderBy: { id: "desc" } }),
+  ]);
+  const total = todosIds.length;
+  const totalPaginas = Math.max(1, Math.ceil(total / TAMANHO_PAGINA));
+  const paginaAtual = Math.min(Math.max(Number(sp.pagina) || 1, 1), totalPaginas);
+  const sugestoes = await prisma.sugestao.findMany({
+    orderBy: { id: "desc" },
+    skip: (paginaAtual - 1) * TAMANHO_PAGINA,
+    take: TAMANHO_PAGINA,
+  });
+  const hrefPagina = (n: number) => (n > 1 ? `/admin/sugestoes?pagina=${n}` : "/admin/sugestoes");
 
   async function alternarOculta(id: number, oculta: boolean) {
     "use server";
@@ -33,12 +53,41 @@ export default async function AdminSugestoes() {
     revalidatePath("/admin/sugestoes");
   }
 
+  const idsDoFormulario = (formData: FormData) =>
+    formData.getAll("ids").map(Number).filter(Number.isInteger);
+
+  async function alterarOcultaLote(oculta: boolean, formData: FormData) {
+    "use server";
+    await exigirAdmin();
+    await prisma.sugestao.updateMany({
+      where: { id: { in: idsDoFormulario(formData) } },
+      data: { oculta },
+    });
+    revalidatePath("/admin/sugestoes");
+  }
+
+  async function excluirLote(formData: FormData) {
+    "use server";
+    await exigirAdmin();
+    await prisma.sugestao.deleteMany({ where: { id: { in: idsDoFormulario(formData) } } });
+    revalidatePath("/admin/sugestoes");
+  }
+
   return (
     <section className="card">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-4 py-3.5 sm:px-5">
         <div>
           <h2 className="text-base font-semibold">Sugestões para o FAQ</h2>
-          <p className="text-sm text-muted">{plural(sugestoes.length, "sugestão", "sugestões")}</p>
+          <p className="text-sm text-muted">
+            {plural(total, "sugestão", "sugestões")}
+            {totalPaginas > 1 && (
+              <>
+                {" "}
+                · mostrando {(paginaAtual - 1) * TAMANHO_PAGINA + 1}–
+                {Math.min(paginaAtual * TAMANHO_PAGINA, total)}
+              </>
+            )}
+          </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <a href="/admin/sugestoes/exportar" className="btn-primario">
@@ -48,7 +97,7 @@ export default async function AdminSugestoes() {
         </div>
       </div>
 
-      {sugestoes.length === 0 ? (
+      {total === 0 ? (
         <p className="p-6 text-sm text-muted">
           Nenhuma sugestão ainda. O formulário público fica em{" "}
           <a href="/sugestao" className="font-medium text-primary underline">
@@ -61,7 +110,10 @@ export default async function AdminSugestoes() {
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b border-line bg-subtle/70 text-[11px] font-semibold uppercase tracking-wider text-muted">
-                <th scope="col" className="px-4 py-2.5 sm:px-5">Quando</th>
+                <th scope="col" className="w-12 py-2.5 pl-4 pr-1 sm:pl-5">
+                  <CaixaTodas idsPagina={sugestoes.map((s) => s.id)} />
+                </th>
+                <th scope="col" className="px-3 py-2.5">Quando</th>
                 <th scope="col" className="px-3 py-2.5">Pessoa</th>
                 <th scope="col" className="px-3 py-2.5">Assunto</th>
                 <th scope="col" className="px-3 py-2.5">Sugestão</th>
@@ -73,8 +125,14 @@ export default async function AdminSugestoes() {
             </thead>
             <tbody className="divide-y divide-line">
               {sugestoes.map((s) => (
-                <tr key={s.id} className={s.oculta ? "opacity-60" : undefined}>
-                  <td className="whitespace-nowrap px-4 py-3 text-muted num sm:px-5">
+                <tr
+                  key={s.id}
+                  className={`transition has-[input:checked]:bg-primary-soft/70 ${s.oculta ? "opacity-60" : ""}`}
+                >
+                  <td className="py-3 pl-4 pr-1 align-top sm:pl-5">
+                    <CaixaSugestao id={s.id} nome={s.nome} />
+                  </td>
+                  <td className="whitespace-nowrap px-3 py-3 text-muted num">
                     {dataHora.format(s.criadoEm)}
                   </td>
                   <td className="px-3 py-3">
@@ -125,6 +183,15 @@ export default async function AdminSugestoes() {
           </table>
         </div>
       )}
+
+      <Paginacao paginaAtual={paginaAtual} totalPaginas={totalPaginas} href={hrefPagina} />
+
+      <AcoesLoteSugestoes
+        todosIds={todosIds.map((s) => s.id)}
+        ocultar={alterarOcultaLote.bind(null, true)}
+        mostrar={alterarOcultaLote.bind(null, false)}
+        excluir={excluirLote}
+      />
     </section>
   );
 }
