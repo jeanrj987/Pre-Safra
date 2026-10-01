@@ -39,6 +39,12 @@
   --color-afazer-fg: #9a5b00;
   --color-afazer-bg: #fff4db;
   --color-afazer-dot: #e69f00;
+  --color-agendado-fg: #0072b2;
+  --color-agendado-bg: #e1f0f9;
+  --color-agendado-dot: #0072b2;
+  --color-presencial-fg: #7b3fa8;
+  --color-presencial-bg: #f1e7f8;
+  --color-presencial-dot: #9b4fd0;
   --color-atrasado-fg: #c4283c;
   --color-atrasado-bg: #fce8eb;
   --color-atrasado-dot: #c4283c;
@@ -93,6 +99,12 @@
   --color-afazer-fg: #f2b83a;
   --color-afazer-bg: #302408;
   --color-afazer-dot: #e69f00;
+  --color-agendado-fg: #6cbaf0;
+  --color-agendado-bg: #0f2836;
+  --color-agendado-dot: #6cbaf0;
+  --color-presencial-fg: #cfa2f2;
+  --color-presencial-bg: #2b1a3a;
+  --color-presencial-dot: #b57ae6;
   --color-atrasado-fg: #ff8a96;
   --color-atrasado-bg: #3a141a;
   --color-atrasado-dot: #ff7285;

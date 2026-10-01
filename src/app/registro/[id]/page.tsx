@@ -5,6 +5,8 @@ import Shell from "@/app/Shell";
 import Selo from "@/app/Selo";
 import Icone from "@/app/Icone";
 import BotaoEnviar from "@/app/BotaoEnviar";
+import CampoDataForm from "@/app/CampoDataForm";
+import { motivoDiaBloqueado } from "@/lib/diasUteis";
 import { exigirAcessoCompleto, exigirAdmin, exigirLogin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { calcularStatus, diasEmAtraso, mesPrevisto } from "@/lib/status";
@@ -35,7 +37,7 @@ export default async function Registro({
 }: PageProps<"/registro/[id]">) {
   const usuario = await exigirAcessoCompleto();
   const { id: idStr } = await params;
-  const { salvo, conflito } = await searchParams;
+  const { salvo, conflito, diaBloqueado } = await searchParams;
   const id = Number(idStr);
   if (!Number.isInteger(id)) notFound();
 
@@ -70,6 +72,7 @@ export default async function Registro({
     configuradoSistema: r.configuradoSistema,
     dataPrevista: r.dataPrevista,
     inativo: r.inativo,
+    formato: r.formato,
   };
   const status = calcularStatus(dados);
   const dias = diasEmAtraso(dados);
@@ -81,6 +84,11 @@ export default async function Registro({
     "use server";
     const sessao = await exigirLogin();
     const data = texto(formData, "dataPrevista");
+    // Sábado, domingo e feriado não podem ser agendados; uma data antiga já salva é mantida.
+    const dataAtual = r?.dataPrevista?.toISOString().slice(0, 10) ?? null;
+    if (data && data !== dataAtual && motivoDiaBloqueado(data)) {
+      redirect(`/registro/${id}?diaBloqueado=1`);
+    }
     // Optimistic locking: só grava se ninguém alterou o registro desde que esta tela foi
     // carregada. Evita que duas pessoas editando o mesmo cliente ao mesmo tempo se
     // sobrescrevam silenciosamente (era o problema #1 da planilha antiga).
@@ -199,6 +207,17 @@ export default async function Registro({
         </p>
       )}
 
+      {diaBloqueado && (
+        <p
+          role="alert"
+          className="flex items-center gap-2 rounded-lg bg-atrasado-bg px-4 py-3 text-sm font-medium text-atrasado-fg"
+        >
+          <Icone nome="alerta" />
+          Nada foi salvo: a data prevista não pode ser sábado, domingo nem feriado. Escolha outro
+          dia.
+        </p>
+      )}
+
       <form
         action={salvar}
         className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_18rem]"
@@ -240,11 +259,9 @@ export default async function Registro({
                 </label>
                 <label className="block">
                   <span className="rotulo">Data prevista</span>
-                  <input
-                    type="date"
+                  <CampoDataForm
                     name="dataPrevista"
                     defaultValue={r.dataPrevista?.toISOString().slice(0, 10) ?? ""}
-                    className="campo"
                   />
                 </label>
               </div>

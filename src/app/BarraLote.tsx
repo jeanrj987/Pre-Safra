@@ -1,9 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
-import BotaoAcao from "./BotaoAcao";
 import Finalizar from "./Finalizar";
 import Icone from "./Icone";
-import Inativar from "./Inativar";
 import Reabrir from "./Reabrir";
 import {
   caixasVisiveis,
@@ -63,18 +61,12 @@ type Acao = (formData: FormData) => Promise<void>;
 export function AcoesLote({
   finalizar,
   reabrir,
-  inativar,
-  reativar,
   filtro,
-  podeReativar,
   autor,
 }: {
   finalizar: Acao; // recebe as melhorias e a observação da janela de finalizar
   reabrir: Acao; // recebe o motivo da janela de reabrir
-  inativar: Acao; // recebe o motivo da janela de inativar
-  reativar: Acao;
   filtro: string;
-  podeReativar: boolean;
   /** Nome do usuário logado, exibido nas janelas de Finalizar/Reabrir. */
   autor: string;
 }) {
@@ -101,18 +93,9 @@ export function AcoesLote({
         {plural(n, "selecionado", "selecionados")}
       </span>
       <span className="mx-1 hidden h-5 w-px bg-white/20 sm:block" />
-      {filtro === "Inativo" ? (
-        podeReativar && (
-          <BotaoAcao icone="reabrir" tom="barra" rotulo="Reativar" formAction={reativar} />
-        )
-      ) : (
-        <>
-          {filtro !== "Finalizado" && <Finalizar acao={finalizar} tom="barra" autor={autor} />}
-          {(filtro === "" || filtro === "Finalizado") && (
-            <Reabrir acao={reabrir} tom="barra" autor={autor} />
-          )}
-          <Inativar acao={inativar} tom="barra" />
-        </>
+      {filtro !== "Finalizado" && <Finalizar acao={finalizar} tom="barra" autor={autor} />}
+      {(filtro === "" || filtro === "Finalizado") && (
+        <Reabrir acao={reabrir} tom="barra" autor={autor} />
       )}
       <button
         type="button"

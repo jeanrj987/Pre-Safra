@@ -174,7 +174,13 @@ export default async function AdminSugestoes({
                     </a>
                   </td>
                   <td className="px-3 py-3 font-medium">{s.topico}</td>
-                  <td className="max-w-md px-3 py-3">{s.texto}</td>
+                  <td className="max-w-md px-3 py-3">
+                    {/* Texto digitado pelo público: corta em 2 linhas com "…" (o texto inteiro
+                        fica no tooltip) para um texto sem espaços não estourar a tabela. */}
+                    <div title={s.texto} className="line-clamp-2 break-all">
+                      {s.texto}
+                    </div>
+                  </td>
                   <td className="px-3 py-3">
                     {s.possivelDuplicada && (
                       <p className="text-xs text-afazer-fg">

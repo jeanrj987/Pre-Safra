@@ -11,9 +11,12 @@ import {
 } from "@/lib/dados";
 import { normalizar } from "@/lib/texto";
 import Icone from "@/app/Icone";
+import Selo from "@/app/Selo";
 import { CampoBusca } from "@/app/Auto";
 import EditarCliente from "./EditarCliente";
-import { salvarCadastro } from "./acoes";
+import InativarCliente from "./InativarCliente";
+import { inativarCliente, reativarCliente, salvarCadastro } from "./acoes";
+import { obterSafraSelecionada } from "@/lib/safra";
 
 export const metadata = { title: "Clientes · Pré-Safra" };
 
@@ -22,7 +25,7 @@ const TAMANHO_PAGINA = 50;
 export default async function AdminClientes({
   searchParams,
 }: {
-  searchParams: Promise<{ semRegiao?: string; q?: string; pagina?: string }>;
+  searchParams: Promise<{ semRegiao?: string; inativos?: string; q?: string; pagina?: string }>;
 }) {
   // Login (já checado também no layout do admin) e dados em paralelo, para não somar
   // round-trips ao banco a cada troca de aba.
@@ -34,6 +37,7 @@ export default async function AdminClientes({
     regioesConhecidas,
     duplasConhecidas,
     consultoresConhecidos,
+    safra,
   ] = await Promise.all([
     exigirAdmin(),
     searchParams,
@@ -42,8 +46,18 @@ export default async function AdminClientes({
     listarRegioesConhecidas(),
     listarDuplasConhecidas(),
     listarConsultoresConhecidos(),
+    obterSafraSelecionada(),
   ]);
+  // Inativação vale para o Pré-Safra do cliente na safra selecionada no topo da tela.
+  const preSafras = safra
+    ? await prisma.preSafra.findMany({
+        where: { safraId: safra.id, clienteId: { not: null } },
+        select: { id: true, clienteId: true, inativo: true, motivoInativacao: true },
+      })
+    : [];
+  const preSafraDe = new Map(preSafras.map((p) => [p.clienteId, p]));
   const soSemRegiao = sp.semRegiao === "1";
+  const soInativos = sp.inativos === "1";
   const q = (sp.q ?? "").trim();
   const listas = {
     cidades: cidadesConhecidas,
@@ -54,8 +68,12 @@ export default async function AdminClientes({
   };
 
   const semRegiaoTotal = clientes.filter((c) => !c.regiao).length;
+  const inativosTotal = preSafras.filter((p) => p.inativo).length;
   const filtrados = clientes.filter(
-    (c) => (!soSemRegiao || !c.regiao) && (!q || normalizar(c.nome).includes(normalizar(q))),
+    (c) =>
+      (!soSemRegiao || !c.regiao) &&
+      (!soInativos || preSafraDe.get(c.id)?.inativo) &&
+      (!q || normalizar(c.nome).includes(normalizar(q))),
   );
 
   const totalPaginas = Math.max(1, Math.ceil(filtrados.length / TAMANHO_PAGINA));
@@ -65,10 +83,11 @@ export default async function AdminClientes({
     paginaAtual * TAMANHO_PAGINA,
   );
 
-  const hrefFiltro = (novoSemRegiao: boolean) => {
+  const hrefFiltro = (novoSemRegiao: boolean, novoInativos = soInativos) => {
     const p = new URLSearchParams();
     if (q) p.set("q", q);
     if (novoSemRegiao) p.set("semRegiao", "1");
+    if (novoInativos) p.set("inativos", "1");
     const s = p.toString();
     return s ? `/admin/clientes?${s}` : "/admin/clientes";
   };
@@ -77,6 +96,7 @@ export default async function AdminClientes({
     const p = new URLSearchParams();
     if (q) p.set("q", q);
     if (soSemRegiao) p.set("semRegiao", "1");
+    if (soInativos) p.set("inativos", "1");
     if (n > 1) p.set("pagina", String(n));
     const s = p.toString();
     return s ? `/admin/clientes?${s}` : "/admin/clientes";
@@ -94,12 +114,20 @@ export default async function AdminClientes({
             {semRegiaoTotal > 0 && <> · {semRegiaoTotal} sem região no total</>}
           </span>
         </div>
-        <Link
-          href={hrefFiltro(!soSemRegiao)}
-          className={soSemRegiao ? "btn-primario btn-sm" : "btn-contorno btn-sm"}
-        >
-          {soSemRegiao ? "Mostrando só sem região" : "Somente sem região"}
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href={hrefFiltro(!soSemRegiao)}
+            className={soSemRegiao ? "btn-primario btn-sm" : "btn-contorno btn-sm"}
+          >
+            {soSemRegiao ? "Mostrando só sem região" : "Somente sem região"}
+          </Link>
+          <Link
+            href={hrefFiltro(soSemRegiao, !soInativos)}
+            className={soInativos ? "btn-primario btn-sm" : "btn-contorno btn-sm"}
+          >
+            {soInativos ? "Mostrando só inativos" : `Somente inativos (${inativosTotal})`}
+          </Link>
+        </div>
       </div>
 
       <Form
@@ -107,6 +135,7 @@ export default async function AdminClientes({
         className="flex flex-wrap items-center gap-2 border-b border-line bg-canvas/60 px-4 py-3 sm:px-5"
       >
         <input type="hidden" name="semRegiao" value={soSemRegiao ? "1" : ""} />
+        <input type="hidden" name="inativos" value={soInativos ? "1" : ""} />
         <div className="relative min-w-56 flex-1">
           <Icone
             nome="busca"
@@ -143,6 +172,9 @@ export default async function AdminClientes({
                 <th scope="col" className="px-3 py-2.5">Região</th>
                 <th scope="col" className="px-3 py-2.5">Atendimento</th>
                 <th scope="col" className="px-3 py-2.5">Consultor</th>
+                <th scope="col" className="px-3 py-2.5">
+                  Situação{safra ? ` · ${safra.nome}` : ""}
+                </th>
                 <th scope="col" className="py-2.5 pl-3 pr-4 text-right sm:pr-5">
                   <span className="sr-only">Ações</span>
                 </th>
@@ -163,8 +195,39 @@ export default async function AdminClientes({
                   </td>
                   <td className="px-3 py-3 text-muted">{c.atendente || "—"}</td>
                   <td className="px-3 py-3 text-muted">{c.consultor || "—"}</td>
+                  <td className="px-3 py-3">
+                    {(() => {
+                      const ps = preSafraDe.get(c.id);
+                      if (!ps) return <span className="text-muted">Fora desta safra</span>;
+                      return ps.inativo ? (
+                        <div title={ps.motivoInativacao ?? undefined}>
+                          <Selo status="Inativo" />
+                          {ps.motivoInativacao && (
+                            <div className="mt-1 line-clamp-1 max-w-48 text-xs text-muted">
+                              {ps.motivoInativacao}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-ink">Ativo</span>
+                      );
+                    })()}
+                  </td>
                   <td className="py-2.5 pl-3 pr-4 text-right sm:pr-5">
-                    <EditarCliente cliente={c} listas={listas} salvar={salvarCadastro.bind(null, c.id)} />
+                    <div className="flex items-center justify-end gap-1.5">
+                      {(() => {
+                        const ps = preSafraDe.get(c.id);
+                        return ps ? (
+                          <InativarCliente
+                            nome={c.nome}
+                            inativo={ps.inativo}
+                            inativar={inativarCliente.bind(null, ps.id)}
+                            reativar={reativarCliente.bind(null, ps.id)}
+                          />
+                        ) : null;
+                      })()}
+                      <EditarCliente cliente={c} listas={listas} salvar={salvarCadastro.bind(null, c.id)} />
+                    </div>
                   </td>
                 </tr>
               ))}

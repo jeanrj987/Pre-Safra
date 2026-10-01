@@ -1,10 +1,21 @@
-export type StatusPreSafra = "Finalizado" | "Atrasado" | "A Fazer" | "Inativo";
+export type StatusPreSafra =
+  | "Finalizado"
+  | "Atrasado"
+  | "A Fazer"
+  | "Agendado Online"
+  | "Agendado Presencial"
+  | "Inativo";
 
 export interface DadosStatus {
   configuradoSistema: boolean;
   dataPrevista: Date | null;
   inativo?: boolean;
+  /** "Online" ou "Presencial": a previsão do atendimento (e, depois de finalizar, o realizado). */
+  formato?: string | null;
 }
+
+/** Os dois status que o card "Agendados" soma. */
+export const STATUS_AGENDADOS: readonly StatusPreSafra[] = ["Agendado Online", "Agendado Presencial"];
 
 const MS_DIA = 24 * 60 * 60 * 1000;
 
@@ -14,12 +25,14 @@ function diaUtc(d: Date): number {
 }
 
 export function calcularStatus(
-  { configuradoSistema, dataPrevista, inativo }: DadosStatus,
+  { configuradoSistema, dataPrevista, inativo, formato }: DadosStatus,
   hoje: Date = new Date(),
 ): StatusPreSafra {
   if (inativo) return "Inativo";
   if (configuradoSistema) return "Finalizado";
   if (dataPrevista && diaUtc(dataPrevista) < diaHoje(hoje)) return "Atrasado";
+  if (formato === "Online") return "Agendado Online";
+  if (formato === "Presencial") return "Agendado Presencial";
   return "A Fazer";
 }
 

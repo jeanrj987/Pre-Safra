@@ -30,6 +30,37 @@ describe("calcularStatus", () => {
   });
 });
 
+describe("Agendado", () => {
+  it("Agendado Online/Presencial quando há previsão de formato e não está atrasado", () => {
+    const base = { configuradoSistema: false, dataPrevista: d("2026-09-30") };
+    expect(calcularStatus({ ...base, formato: "Online" }, hoje)).toBe("Agendado Online");
+    expect(calcularStatus({ ...base, formato: "Presencial" }, hoje)).toBe("Agendado Presencial");
+    expect(
+      calcularStatus({ configuradoSistema: false, dataPrevista: null, formato: "Online" }, hoje),
+    ).toBe("Agendado Online");
+  });
+  it("atraso, finalização e inativação prevalecem sobre a previsão", () => {
+    expect(
+      calcularStatus(
+        { configuradoSistema: false, dataPrevista: d("2026-09-24"), formato: "Online" },
+        hoje,
+      ),
+    ).toBe("Atrasado");
+    expect(
+      calcularStatus(
+        { configuradoSistema: true, dataPrevista: d("2026-09-30"), formato: "Online" },
+        hoje,
+      ),
+    ).toBe("Finalizado");
+    expect(
+      calcularStatus(
+        { configuradoSistema: false, dataPrevista: null, formato: "Online", inativo: true },
+        hoje,
+      ),
+    ).toBe("Inativo");
+  });
+});
+
 describe("Inativo", () => {
   it("prevalece sobre qualquer outro status", () => {
     expect(

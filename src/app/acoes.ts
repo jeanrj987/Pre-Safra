@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { exigirAdmin, exigirLogin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { finalizarPendentes, formatoValido, reabrirIds, type Formato } from "@/lib/acoesPreSafra";
+import { motivoDiaBloqueado } from "@/lib/diasUteis";
 import { horarioValido } from "@/lib/horarios";
 
 // Server Actions da lista principal (src/app/page.tsx). Extraídas para cá para poder ser
@@ -26,44 +27,6 @@ function voltarPara(formData: FormData, feitos: number, acao: string): never {
   p.set("feito", String(feitos));
   p.set("acao", acao);
   redirect(`/?${p}`);
-}
-
-// Reativar (inativo === false) é só para administradores; inativar continua liberado.
-export async function inativarLote(inativo: boolean, formData: FormData) {
-  await (inativo ? exigirLogin() : exigirAdmin());
-  const ids = idsDe(formData, "ids");
-  if (ids.length) {
-    await prisma.preSafra.updateMany({
-      where: { id: { in: ids } },
-      data: { inativo, ...(!inativo && { motivoInativacao: null }) },
-    });
-  }
-  voltarPara(formData, ids.length, inativo ? "inativados" : "reativados");
-}
-
-// Botão da própria linha: age só sobre aquele cliente, ignorando as caixas marcadas.
-export async function inativarUm(inativo: boolean, id: number, formData: FormData) {
-  await (inativo ? exigirLogin() : exigirAdmin());
-  await prisma.preSafra.updateMany({
-    where: { id },
-    data: { inativo, ...(!inativo && { motivoInativacao: null }) },
-  });
-  voltarPara(formData, 1, inativo ? "inativados" : "reativados");
-}
-
-// Inativar com o motivo da janela (vale para um cliente ou para os marcados).
-export async function inativarComMotivo(formData: FormData) {
-  await exigirLogin();
-  const ids = idsDe(formData, "ids");
-  const motivo = textoDe(formData, "motivoInativacao");
-  if (!motivo) voltarPara(formData, 0, "inativados");
-  if (ids.length) {
-    await prisma.preSafra.updateMany({
-      where: { id: { in: ids } },
-      data: { inativo: true, motivoInativacao: motivo },
-    });
-  }
-  voltarPara(formData, ids.length, "inativados");
 }
 
 // A gravação em si (transação + histórico) fica em src/lib/acoesPreSafra.ts, testável sem
@@ -108,8 +71,40 @@ export async function definirData(id: number, data: string) {
   const valida = /^\d{4}-\d{2}-\d{2}$/.test(data);
   const dia = valida ? new Date(`${data}T00:00:00Z`) : null;
   if (data && (!dia || Number.isNaN(dia.getTime()))) return;
+  // O campo da lista já recusa esses dias; aqui garante a regra mesmo para uma chamada direta.
+  const motivo = data ? motivoDiaBloqueado(data) : null;
+  if (motivo) throw new Error(motivo);
   await prisma.preSafra.update({ where: { id }, data: { dataPrevista: dia } });
   revalidatePath("/");
+}
+
+// Previsão de como o atendimento será feito, escolhida na coluna Status da lista: "Online" ou
+// "Presencial" deixa o cliente como "Agendado Online"/"Agendado Presencial"; vazio volta a "A Fazer".
+// Usa o mesmo campo `formato` da finalização, que confirma (ou corrige) a escolha depois.
+// Para agendar, o cliente precisa já ter responsável, data e horário: sem isso devolve a
+// mensagem do que falta (e não grava). Devolve null quando gravou.
+export async function definirPrevisao(id: number, formato: string): Promise<string | null> {
+  await exigirLogin();
+  const valor = formatoValido(formato) ? formato : null;
+  if (formato && !valor) return null;
+  if (valor) {
+    const r = await prisma.preSafra.findUnique({
+      where: { id },
+      select: { responsavel: true, dataPrevista: true, horario: true },
+    });
+    const faltam = [
+      !r?.responsavel?.trim() && "responsável",
+      !r?.dataPrevista && "data",
+      !r?.horario && "horário",
+    ].filter(Boolean);
+    if (faltam.length) {
+      const lista = faltam.length > 1 ? `${faltam.slice(0, -1).join(", ")} e ${faltam.at(-1)}` : faltam[0];
+      return `Para agendar, preencha antes: ${lista}.`;
+    }
+  }
+  await prisma.preSafra.update({ where: { id }, data: { formato: valor } });
+  revalidatePath("/");
+  return null;
 }
 
 // Horário agendado editado direto na linha; vazio limpa o horário.

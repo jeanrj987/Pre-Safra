@@ -5,24 +5,21 @@ import { normalizar, plural } from "@/lib/texto";
 import {
   definirData,
   definirHorario,
+  definirPrevisao,
   definirResponsavel,
   finalizarComNota,
-  inativarComMotivo,
-  inativarLote,
-  inativarUm,
   reabrirComMotivo,
 } from "./acoes";
 import CampoData from "./CampoData";
 import CampoHorario from "./CampoHorario";
 import CampoResponsavel from "./CampoResponsavel";
+import CampoStatus from "./CampoStatus";
 import { exigirAcessoCompleto } from "@/lib/auth";
 import Shell from "./Shell";
 import Selo from "./Selo";
 import Icone from "./Icone";
 import { AcoesLote, CaixaTodos } from "./BarraLote";
-import BotaoAcao from "./BotaoAcao";
 import Finalizar from "./Finalizar";
-import Inativar from "./Inativar";
 import Reabrir from "./Reabrir";
 import {
   PONTO_STATUS,
@@ -32,11 +29,14 @@ import {
   formatarAtrasoConclusao,
   listarLinhas,
   nomesPossiveis,
+  type Linha,
 } from "@/lib/dados";
 import { pessoasDaDupla } from "@/lib/painel";
+import { STATUS_AGENDADOS } from "@/lib/status";
 import { obterSafraSelecionada } from "@/lib/safra";
 
-type FiltroStatus = "Atrasado" | "A Fazer" | "Finalizado" | "Inativo";
+// "Agendado" agrupa "Agendado Online" e "Agendado Presencial" (card Agendados).
+type FiltroStatus = "Atrasado" | "A Fazer" | "Agendado" | "Finalizado";
 
 const TAMANHO_PAGINA = 50;
 
@@ -44,8 +44,6 @@ const TAMANHO_PAGINA = 50;
 const MENSAGEM: Record<string, [string, string]> = {
   finalizados: ["cliente finalizado", "clientes finalizados"],
   reabertos: ["cliente reaberto", "clientes reabertos"],
-  inativados: ["cliente inativado", "clientes inativados"],
-  reativados: ["cliente reativado", "clientes reativados"],
 };
 
 export default async function Home({ searchParams }: PageProps<"/">) {
@@ -75,10 +73,14 @@ export default async function Home({ searchParams }: PageProps<"/">) {
   const cont = contar(todas);
   const nomes = nomesPossiveis(todas);
 
+  // Inativos não aparecem aqui: são inativados e reativados em Admin → Clientes.
   const bateStatus = (s: string) =>
-    !status
-      ? s !== "Inativo" // a lista principal não mostra inativos
-      : s === status;
+    s !== "Inativo" &&
+    (!status
+      ? true
+      : status === "Agendado"
+        ? STATUS_AGENDADOS.some((a) => a === s)
+        : s === status);
 
   const filtradas = todas.filter(
     (l) =>
@@ -115,8 +117,6 @@ export default async function Home({ searchParams }: PageProps<"/">) {
     return s ? `/?${s}` : "/";
   };
 
-  const reativar = inativarLote.bind(null, false);
-  const reativarLinha = inativarUm.bind(null, false);
   const feito = um(sp.feito);
   const acao = um(sp.acao);
 
@@ -131,7 +131,6 @@ export default async function Home({ searchParams }: PageProps<"/">) {
 
   const pct = cont.todos ? Math.round((cont.Finalizado / cont.todos) * 100) : 0;
   const filtrando = !!(q || status || resp || comentario);
-  const soInativos = status === "Inativo";
   const qtdFeita = Number(feito);
   const mensagem =
     qtdFeita > 0 && MENSAGEM[acao]
@@ -140,9 +139,9 @@ export default async function Home({ searchParams }: PageProps<"/">) {
 
   const TITULO: Record<FiltroStatus, string> = {
     Atrasado: "Clientes atrasados",
-    "A Fazer": "Clientes a fazer",
+    "A Fazer": "Clientes A Fazer",
+    Agendado: "Clientes agendados",
     Finalizado: "Clientes finalizados",
-    Inativo: "Clientes inativos",
   };
 
   // Cada indicador é também um filtro: clicar de novo no ativo remove o filtro.
@@ -163,7 +162,10 @@ export default async function Home({ searchParams }: PageProps<"/">) {
         }`}
       >
         <div className="flex items-center gap-2 text-xs font-medium text-muted sm:text-sm">
-          <span className={`size-2 rounded-full ${PONTO_STATUS[id]}`} aria-hidden="true" />
+          <span
+            className={`size-2 rounded-full ${PONTO_STATUS[id === "Agendado" ? "Agendado Online" : id]}`}
+            aria-hidden="true"
+          />
           {rotulo}
         </div>
         <div className={`mt-1 font-display text-2xl font-bold tabular-nums tracking-tight sm:text-3xl ${corNumero}`}>
@@ -173,6 +175,20 @@ export default async function Home({ searchParams }: PageProps<"/">) {
       </Link>
     );
   };
+
+  // Clientes em aberto (A Fazer ou já com previsão) ganham a escolha de Agendado Online/Presencial;
+  // atrasados, finalizados e inativos só mostram o selo.
+  const statusDaLinha = (l: Linha) =>
+    l.status === "A Fazer" || STATUS_AGENDADOS.some((a) => a === l.status) ? (
+      <CampoStatus
+        id={l.id}
+        nome={l.nome}
+        valor={l.status === "Agendado Online" ? "Online" : l.status === "Agendado Presencial" ? "Presencial" : ""}
+        salvar={definirPrevisao}
+      />
+    ) : (
+      <Selo status={l.status} />
+    );
 
   const larg = (n: number) => `${cont.todos ? (n / cont.todos) * 100 : 0}%`;
 
@@ -201,8 +217,8 @@ export default async function Home({ searchParams }: PageProps<"/">) {
         </p>
       )}
 
-      <section aria-label="Resumo" className="grid grid-cols-3 gap-3 lg:grid-cols-4">
-        <div className="card col-span-3 p-4 lg:col-span-1">
+      <section aria-label="Resumo" className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-5">
+        <div className="card col-span-2 p-4 sm:col-span-4 lg:col-span-1">
           <div className="text-sm font-medium text-muted">Andamento geral</div>
           <div className="mt-1 flex items-baseline gap-1.5">
             <span className="font-display text-3xl font-bold tabular-nums tracking-tight">{pct}%</span>
@@ -212,10 +228,18 @@ export default async function Home({ searchParams }: PageProps<"/">) {
           </div>
           <div
             role="img"
-            aria-label={`${cont.Finalizado} finalizados, ${cont["A Fazer"]} a fazer, ${cont.Atrasado} atrasados`}
+            aria-label={`${cont.Finalizado} finalizados, ${cont.Agendado} agendados, ${cont["A Fazer"]} a fazer, ${cont.Atrasado} atrasados`}
             className="mt-3 flex h-2 gap-0.5 overflow-hidden rounded-full bg-subtle"
           >
             <div className={PONTO_STATUS.Finalizado} style={{ width: larg(cont.Finalizado) }} />
+            <div
+              className={PONTO_STATUS["Agendado Online"]}
+              style={{ width: larg(cont["Agendado Online"]) }}
+            />
+            <div
+              className={PONTO_STATUS["Agendado Presencial"]}
+              style={{ width: larg(cont["Agendado Presencial"]) }}
+            />
             <div className={PONTO_STATUS["A Fazer"]} style={{ width: larg(cont["A Fazer"]) }} />
             <div className={PONTO_STATUS.Atrasado} style={{ width: larg(cont.Atrasado) }} />
           </div>
@@ -227,7 +251,13 @@ export default async function Home({ searchParams }: PageProps<"/">) {
           cont.Atrasado ? "Precisam de atenção" : "Nenhum atraso",
           cont.Atrasado ? "text-atrasado-fg" : "",
         )}
-        {indicador("A Fazer", "A fazer", cont["A Fazer"], "Dentro do prazo ou sem data")}
+        {indicador("A Fazer", "A Fazer", cont["A Fazer"], "Dentro do prazo ou sem data")}
+        {indicador(
+          "Agendado",
+          "Agendados",
+          cont.Agendado,
+          `${cont["Agendado Online"]} online · ${cont["Agendado Presencial"]} presencial`,
+        )}
         {indicador("Finalizado", "Finalizados", cont.Finalizado, `${pct}% do total`)}
       </section>
 
@@ -243,19 +273,6 @@ export default async function Home({ searchParams }: PageProps<"/">) {
                 : `Mostrando ${(paginaAtual - 1) * TAMANHO_PAGINA + 1}–${Math.min(paginaAtual * TAMANHO_PAGINA, filtradas.length)} de ${filtradas.length} clientes`}
             </span>
           </div>
-          {soInativos ? (
-            <Link href="/" className="btn-discreto btn-sm">
-              <Icone nome="voltar" />
-              Voltar aos ativos
-            </Link>
-          ) : (
-            <Link href={href("Inativo")} className="btn-discreto btn-sm !px-2">
-              Inativos
-              <span className="rounded-full bg-subtle px-1.5 text-xs tabular-nums">
-                {cont.Inativo}
-              </span>
-            </Link>
-          )}
         </div>
 
         <Form
@@ -338,7 +355,6 @@ export default async function Home({ searchParams }: PageProps<"/">) {
               </thead>
               <tbody className="divide-y divide-line">
                 {linhas.map((l) => {
-                  const inativo = l.status === "Inativo";
                   return (
                     <tr
                       key={l.id}
@@ -371,7 +387,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
                         </div>
                         {/* No celular, responsável e data ficam sob o nome */}
                         <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted md:hidden">
-                          <Selo status={l.status} />
+                          {statusDaLinha(l)}
                           <CampoResponsavel
                             id={l.id}
                             nome={l.nome}
@@ -459,7 +475,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
                         ) : null}
                       </td>
                       <td className="hidden px-3 py-3 align-top md:table-cell">
-                        <Selo status={l.status} />
+                        {statusDaLinha(l)}
                         {l.atrasoNaConclusao ? (
                           <div className="mt-1 text-xs font-medium text-atrasado-fg">
                             {formatarAtrasoConclusao(l.atrasoNaConclusao)}
@@ -468,40 +484,20 @@ export default async function Home({ searchParams }: PageProps<"/">) {
                       </td>
                       <td className="py-2.5 pl-3 pr-4 align-top sm:pr-5">
                         <div className="flex items-center justify-end gap-1.5">
-                          {inativo ? (
-                            usuario.admin && (
-                              <BotaoAcao
-                                icone="reabrir"
-                                tom="neutro"
-                                rotulo="Reativar"
-                                title={`Reativar ${l.nome}`}
-                                formAction={reativarLinha.bind(null, l.id)}
-                              />
-                            )
+                          {l.status === "Finalizado" ? (
+                            <Reabrir
+                              acao={reabrirComMotivo}
+                              id={l.id}
+                              nome={l.nome}
+                              autor={usuario.nome}
+                            />
                           ) : (
-                            <>
-                              {l.status === "Finalizado" ? (
-                                <Reabrir
-                                  acao={reabrirComMotivo}
-                                  id={l.id}
-                                  nome={l.nome}
-                                  autor={usuario.nome}
-                                />
-                              ) : (
-                                <Finalizar
-                                  acao={finalizarComNota}
-                                  id={l.id}
-                                  nome={l.nome}
-                                  autor={usuario.nome}
-                                />
-                              )}
-                              <Inativar
-                                acao={inativarComMotivo}
-                                id={l.id}
-                                nome={l.nome}
-                                soIcone
-                              />
-                            </>
+                            <Finalizar
+                              acao={finalizarComNota}
+                              id={l.id}
+                              nome={l.nome}
+                              autor={usuario.nome}
+                            />
                           )}
                         </div>
                       </td>
@@ -589,10 +585,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
           <AcoesLote
             finalizar={finalizarComNota}
             reabrir={reabrirComMotivo}
-            inativar={inativarComMotivo}
-            reativar={reativar}
             filtro={status}
-            podeReativar={usuario.admin}
             autor={usuario.nome}
           />
         </form>

@@ -20,3 +20,27 @@ export async function salvarCadastro(id: number, formData: FormData) {
   revalidatePath("/admin/clientes");
   revalidatePath("/", "layout");
 }
+
+// Inativar/reativar vale para o Pré-Safra do cliente na safra selecionada (é ele que sai ou
+// volta para a lista principal e o painel). Só administradores, só por aqui.
+export async function inativarCliente(preSafraId: number, formData: FormData) {
+  await exigirAdmin();
+  const motivo = texto(formData, "motivoInativacao");
+  if (!motivo) return;
+  await prisma.preSafra.update({
+    where: { id: preSafraId },
+    data: { inativo: true, motivoInativacao: motivo },
+  });
+  revalidatePath("/admin/clientes");
+  revalidatePath("/", "layout");
+}
+
+export async function reativarCliente(preSafraId: number) {
+  await exigirAdmin();
+  await prisma.preSafra.update({
+    where: { id: preSafraId },
+    data: { inativo: false, motivoInativacao: null },
+  });
+  revalidatePath("/admin/clientes");
+  revalidatePath("/", "layout");
+}

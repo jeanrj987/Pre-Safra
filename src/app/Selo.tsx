@@ -3,7 +3,9 @@ import type { StatusPreSafra } from "@/lib/status";
 
 const ROTULO: Record<StatusPreSafra, string> = {
   Finalizado: "Finalizado",
-  "A Fazer": "A fazer",
+  "A Fazer": "A Fazer",
+  "Agendado Online": "Agendado Online",
+  "Agendado Presencial": "Agendado Presencial",
   Atrasado: "Atrasado",
   Inativo: "Inativo",
 };

@@ -52,8 +52,10 @@ export interface Linha {
 const ORDEM: Record<StatusPreSafra, number> = {
   Atrasado: 0,
   "A Fazer": 1,
-  Finalizado: 2,
-  Inativo: 3,
+  "Agendado Online": 2,
+  "Agendado Presencial": 3,
+  Finalizado: 4,
+  Inativo: 5,
 };
 
 export async function listarLinhas(safraId: number): Promise<Linha[]> {
@@ -77,6 +79,7 @@ export async function listarLinhas(safraId: number): Promise<Linha[]> {
         configuradoSistema: r.configuradoSistema,
         dataPrevista: r.dataPrevista,
         inativo: r.inativo,
+        formato: r.formato,
       };
       return {
         id: r.id,
@@ -213,10 +216,22 @@ export async function listarConsultoresConhecidos(): Promise<string[]> {
 }
 
 export function contar(linhas: Linha[]) {
-  const total = { Atrasado: 0, "A Fazer": 0, Finalizado: 0, Inativo: 0 };
+  const total: Record<StatusPreSafra, number> = {
+    Atrasado: 0,
+    "A Fazer": 0,
+    "Agendado Online": 0,
+    "Agendado Presencial": 0,
+    Finalizado: 0,
+    Inativo: 0,
+  };
   for (const l of linhas) total[l.status]++;
-  // "todos" considera só clientes ativos; inativos têm o próprio contador.
-  return { ...total, todos: linhas.length - total.Inativo };
+  return {
+    ...total,
+    // Soma dos dois status agendados: é o que o card "Agendados" mostra.
+    Agendado: total["Agendado Online"] + total["Agendado Presencial"],
+    // "todos" considera só clientes ativos; inativos têm o próprio contador.
+    todos: linhas.length - total.Inativo,
+  };
 }
 
 export function formatarData(d: Date | null): string {
@@ -241,6 +256,8 @@ export function formatarDataHora(d: Date): string {
 export const COR_STATUS: Record<StatusPreSafra, string> = {
   Finalizado: "bg-finalizado-bg text-finalizado-fg",
   "A Fazer": "bg-afazer-bg text-afazer-fg",
+  "Agendado Online": "bg-agendado-bg text-agendado-fg",
+  "Agendado Presencial": "bg-presencial-bg text-presencial-fg",
   Atrasado: "bg-atrasado-bg text-atrasado-fg",
   Inativo: "bg-inativo-bg text-inativo-fg",
 };
@@ -248,6 +265,8 @@ export const COR_STATUS: Record<StatusPreSafra, string> = {
 export const PONTO_STATUS: Record<StatusPreSafra, string> = {
   Finalizado: "bg-finalizado-dot",
   "A Fazer": "bg-afazer-dot",
+  "Agendado Online": "bg-agendado-dot",
+  "Agendado Presencial": "bg-presencial-dot",
   Atrasado: "bg-atrasado-dot",
   Inativo: "bg-inativo-dot",
 };

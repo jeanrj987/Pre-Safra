@@ -5,6 +5,8 @@ import Shell from "@/app/Shell";
 import Icone from "@/app/Icone";
 import BotaoEnviar from "@/app/BotaoEnviar";
 import CampoArquivo from "@/app/CampoArquivo";
+import CampoDataForm from "@/app/CampoDataForm";
+import { motivoDiaBloqueado } from "@/lib/diasUteis";
 import { exigirAcessoCompleto, exigirAdmin, exigirLogin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { obterSafraSelecionada } from "@/lib/safra";
@@ -59,6 +61,8 @@ export default async function Novo({
     if (!nome || !safra) redirect("/novo");
 
     const dataPrevista = texto(formData, "dataPrevista");
+    // O formulário já impede esses dias; aqui garante a regra mesmo sem o navegador.
+    if (dataPrevista && motivoDiaBloqueado(dataPrevista)) redirect("/novo");
     const observacoes = texto(formData, "observacoes");
 
     // Cria o cadastro completo do cliente de uma vez só (nome, cidade, região, UF, equipe),
@@ -175,7 +179,7 @@ export default async function Novo({
                 </label>
                 <label className="block">
                   <span className="rotulo">Data prevista</span>
-                  <input type="date" name="dataPrevista" className="campo" />
+                  <CampoDataForm name="dataPrevista" />
                 </label>
               </div>
             </section>
