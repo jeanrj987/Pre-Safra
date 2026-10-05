@@ -1,0 +1,240 @@
+"use client";
+import { useState, type FormEvent } from "react";
+import BotaoEnviar from "./BotaoEnviar";
+import Icone from "./Icone";
+import { Janela, RodapeJanela } from "./Finalizar";
+import { motivoDiaBloqueado } from "@/lib/diasUteis";
+import { HORARIOS } from "@/lib/horarios";
+
+type Status = "" | "Online" | "Presencial";
+
+const STATUS: { valor: Exclude<Status, "">; rotulo: string }[] = [
+  { valor: "Online", rotulo: "Agendado Online" },
+  { valor: "Presencial", rotulo: "Agendado Presencial" },
+];
+
+const campoErro = "!border-atrasado-dot";
+
+function Erro({ id, children }: { id: string; children: string }) {
+  return (
+    <span id={id} role="alert" className="mt-1 block text-xs font-medium text-atrasado-fg">
+      {children}
+    </span>
+  );
+}
+
+// Botão "Agendar" na coluna de ações de cada cliente: abre uma janela para definir responsável, data,
+// horário e status (Agendado Online / Agendado Presencial) e grava tudo de uma vez: o cliente
+// vai para a guia Agendados. Os quatro campos são obrigatórios: ao salvar com algo faltando, a
+// janela marca o campo e explica o motivo, sem enviar nada. Quem já tem agendamento ganha o botão
+// "Remover agendamento", que o devolve a "A Fazer".
+export default function Agendar({
+  acao,
+  id,
+  nome,
+  voltar,
+  responsavel,
+  data,
+  horario,
+  previsao,
+  daRegiao,
+  outros,
+  podeTrocarResponsavel,
+}: {
+  acao: (formData: FormData) => Promise<void>;
+  id: number;
+  nome: string;
+  /** Filtros atuais da lista, para voltar para o mesmo lugar depois de salvar. */
+  voltar: string;
+  responsavel: string;
+  /** "aaaa-mm-dd" ou "". */
+  data: string;
+  horario: string;
+  /** Formato já previsto ("Online"/"Presencial"), ou "" se ainda é A Fazer. */
+  previsao: "" | "Online" | "Presencial";
+  daRegiao: string[];
+  outros: string[];
+  podeTrocarResponsavel: boolean;
+}) {
+  const statusInicial: Status = previsao;
+  const temAgendamento = !!(previsao || data || horario);
+  const [aberto, setAberto] = useState(false);
+  const [resp, setResp] = useState(responsavel);
+  const [dia, setDia] = useState(data);
+  const [hora, setHora] = useState(horario);
+  const [status, setStatus] = useState<Status>(statusInicial);
+  const [tentou, setTentou] = useState(false);
+  const resto = outros.filter((o) => !daRegiao.includes(o));
+
+  function abrir() {
+    setResp(responsavel);
+    setDia(data);
+    setHora(horario);
+    setStatus(statusInicial);
+    setTentou(false);
+    setAberto(true);
+  }
+
+  // O erro de dia bloqueado aparece assim que a data é escolhida; os de "faltou preencher",
+  // só depois da primeira tentativa de salvar.
+  const bloqueio = dia ? motivoDiaBloqueado(dia) : null;
+  const erros = {
+    resp: !resp
+      ? podeTrocarResponsavel
+        ? "Selecione o responsável."
+        : "Este cliente está sem responsável. Peça a um administrador para definir."
+      : null,
+    dia: !dia ? "Informe a data." : bloqueio,
+    hora: !hora ? "Selecione o horário." : null,
+    status: !status ? "Escolha Online ou Presencial." : null,
+  };
+  const mostrar = (k: keyof typeof erros) => (k === "dia" ? !!bloqueio || (tentou && !!erros.dia) : tentou && !!erros[k]);
+  const invalido = Object.values(erros).some(Boolean);
+
+  function validar(e: FormEvent<HTMLFormElement>) {
+    // "Remover agendamento" não precisa dos campos preenchidos.
+    const remover = (e.nativeEvent as SubmitEvent).submitter?.getAttribute("name") === "remover";
+    if (remover || !invalido) return;
+    e.preventDefault();
+    setTentou(true);
+    // Leva o foco para o primeiro campo com problema.
+    const primeiro = (["resp", "dia", "hora", "status"] as const).find((k) => erros[k]);
+    const nomeCampo = { resp: "responsavel", dia: "data", hora: "horario", status: "formato" }[primeiro!];
+    e.currentTarget.querySelector<HTMLElement>(`[name="${nomeCampo}"]`)?.focus();
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={abrir}
+        title={`Agendar ${nome}`}
+        aria-label={`Agendar ${nome}`}
+        className="btn-contorno btn-sm shrink-0"
+      >
+        <Icone nome="calendario" className="size-3.5" />
+        Agendar
+      </button>
+      {aberto && (
+        <Janela icone="calendario" titulo="Agendar cliente" subtitulo={nome} onFechar={() => setAberto(false)}>
+          <form action={acao} onSubmit={validar} noValidate>
+            <input type="hidden" name="id" value={id} />
+            <input type="hidden" name="voltar" value={voltar} />
+            <div className="space-y-4 px-6 py-5">
+              <label className="block">
+                <span className="rotulo">Responsável</span>
+                {podeTrocarResponsavel ? (
+                  <select
+                    name="responsavel"
+                    value={resp}
+                    onChange={(e) => setResp(e.target.value)}
+                    aria-invalid={mostrar("resp")}
+                    aria-describedby={mostrar("resp") ? "erro-resp" : undefined}
+                    className={`campo ${mostrar("resp") ? campoErro : ""}`}
+                  >
+                    <option value="">Selecione o responsável</option>
+                    {daRegiao.length > 0 && (
+                      <optgroup label="Da região">
+                        {daRegiao.map((p) => (
+                          <option key={p}>{p}</option>
+                        ))}
+                      </optgroup>
+                    )}
+                    {resto.length > 0 && (
+                      <optgroup label={daRegiao.length ? "Outros" : "Responsáveis"}>
+                        {resto.map((p) => (
+                          <option key={p}>{p}</option>
+                        ))}
+                      </optgroup>
+                    )}
+                  </select>
+                ) : (
+                  <p
+                    className={`campo flex items-center ${resp ? "text-ink" : "text-muted"} ${
+                      mostrar("resp") ? campoErro : ""
+                    }`}
+                  >
+                    {resp || "Sem responsável"}
+                  </p>
+                )}
+                {mostrar("resp") && <Erro id="erro-resp">{erros.resp!}</Erro>}
+              </label>
+              <div className="grid grid-cols-2 gap-4">
+                <label className="block">
+                  <span className="rotulo">Data</span>
+                  <input
+                    type="date"
+                    name="data"
+                    defaultValue={data}
+                    onChange={(e) => setDia(e.target.value)}
+                    aria-invalid={mostrar("dia")}
+                    aria-describedby={mostrar("dia") ? "erro-dia" : undefined}
+                    className={`campo ${mostrar("dia") ? campoErro : ""}`}
+                  />
+                </label>
+                <label className="block">
+                  <span className="rotulo">Horário</span>
+                  <select
+                    name="horario"
+                    value={hora}
+                    onChange={(e) => setHora(e.target.value)}
+                    aria-invalid={mostrar("hora")}
+                    aria-describedby={mostrar("hora") ? "erro-hora" : undefined}
+                    className={`campo ${mostrar("hora") ? campoErro : ""}`}
+                  >
+                    <option value="">Selecione</option>
+                    {HORARIOS.map((h) => (
+                      <option key={h} value={h}>
+                        {h}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              {(mostrar("dia") || mostrar("hora")) && (
+                <div className="-mt-3 grid grid-cols-2 gap-4">
+                  <div>{mostrar("dia") && <Erro id="erro-dia">{erros.dia!}</Erro>}</div>
+                  <div>{mostrar("hora") && <Erro id="erro-hora">{erros.hora!}</Erro>}</div>
+                </div>
+              )}
+              <label className="block">
+                <span className="rotulo">Status</span>
+                <select
+                  name="formato"
+                  value={status}
+                  onChange={(e) => setStatus(e.target.value as Status)}
+                  aria-invalid={mostrar("status")}
+                  aria-describedby={mostrar("status") ? "erro-status" : undefined}
+                  className={`campo ${mostrar("status") ? campoErro : ""}`}
+                >
+                  <option value="">Selecione Online ou Presencial</option>
+                  {STATUS.map((s) => (
+                    <option key={s.valor} value={s.valor}>
+                      {s.rotulo}
+                    </option>
+                  ))}
+                </select>
+                {mostrar("status") && <Erro id="erro-status">{erros.status!}</Erro>}
+              </label>
+            </div>
+            <RodapeJanela onCancelar={() => setAberto(false)}>
+              {temAgendamento && (
+                <button
+                  type="submit"
+                  name="remover"
+                  value="1"
+                  className="btn-discreto mr-auto !text-atrasado-fg hover:!bg-atrasado-bg"
+                >
+                  Remover agendamento
+                </button>
+              )}
+              <BotaoEnviar pendente="Salvando…" className="btn-primario">
+                Salvar
+              </BotaoEnviar>
+            </RodapeJanela>
+          </form>
+        </Janela>
+      )}
+    </>
+  );
+}

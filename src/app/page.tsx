@@ -2,18 +2,8 @@ import Link from "next/link";
 import Form from "next/form";
 import { CampoBusca, SelectAuto } from "./Auto";
 import { normalizar, plural } from "@/lib/texto";
-import {
-  definirData,
-  definirHorario,
-  definirPrevisao,
-  definirResponsavel,
-  finalizarComNota,
-  reabrirComMotivo,
-} from "./acoes";
-import CampoData from "./CampoData";
-import CampoHorario from "./CampoHorario";
-import CampoResponsavel from "./CampoResponsavel";
-import CampoStatus from "./CampoStatus";
+import { agendarCliente, finalizarComNota, reabrirComMotivo } from "./acoes";
+import Agendar from "./Agendar";
 import { exigirAcessoCompleto } from "@/lib/auth";
 import Shell from "./Shell";
 import Selo from "./Selo";
@@ -25,12 +15,10 @@ import {
   PONTO_STATUS,
   contar,
   dataParaCampo,
-  formatarData,
   formatarAtraso,
   formatarAtrasoConclusao,
   listarLinhas,
   nomesPossiveis,
-  type Linha,
 } from "@/lib/dados";
 import { pessoasDaDupla } from "@/lib/painel";
 import { STATUS_AGENDADOS } from "@/lib/status";
@@ -45,6 +33,8 @@ const TAMANHO_PAGINA = 50;
 const MENSAGEM: Record<string, [string, string]> = {
   finalizados: ["cliente finalizado", "clientes finalizados"],
   reabertos: ["cliente reaberto", "clientes reabertos"],
+  agendados: ["agendamento salvo", "agendamentos salvos"],
+  desagendados: ["agendamento removido", "agendamentos removidos"],
 };
 
 export default async function Home({ searchParams }: PageProps<"/">) {
@@ -132,6 +122,9 @@ export default async function Home({ searchParams }: PageProps<"/">) {
 
   const pct = cont.todos ? Math.round((cont.Finalizado / cont.todos) * 100) : 0;
   const filtrando = !!(q || status || resp || comentario);
+  // Na aba "A Fazer" não há ação em lote (finalizar só vale para agendados; reabrir, para
+  // finalizados): sem caixas de seleção nem barra flutuante.
+  const comSelecao = status !== "A Fazer";
   const qtdFeita = Number(feito);
   const mensagem =
     qtdFeita > 0 && MENSAGEM[acao]
@@ -177,19 +170,21 @@ export default async function Home({ searchParams }: PageProps<"/">) {
     );
   };
 
-  // Clientes em aberto (A Fazer ou já com previsão) ganham a escolha de Agendado Online/Presencial;
-  // atrasados, finalizados e inativos só mostram o selo.
-  const statusDaLinha = (l: Linha) =>
-    l.status === "A Fazer" || STATUS_AGENDADOS.some((a) => a === l.status) ? (
-      <CampoStatus
-        id={l.id}
-        nome={l.nome}
-        valor={l.status === "Agendado Online" ? "Online" : l.status === "Agendado Presencial" ? "Presencial" : ""}
-        salvar={definirPrevisao}
-      />
-    ) : (
+  // Status só para leitura: responsável, data, horário e Online/Presencial são definidos na
+  // janela do botão "Agendar" (coluna de ações). O atraso aparece junto, já que a data não está na lista.
+  const statusDaLinha = (l: (typeof linhas)[number]) => (
+    <>
       <Selo status={l.status} />
-    );
+      {l.dias ? (
+        <div className="mt-1 text-xs font-medium text-atrasado-fg">{formatarAtraso(l.dias)}</div>
+      ) : null}
+      {l.atrasoNaConclusao ? (
+        <div className="mt-1 text-xs font-medium text-atrasado-fg">
+          {formatarAtrasoConclusao(l.atrasoNaConclusao)}
+        </div>
+      ) : null}
+    </>
+  );
 
   const larg = (n: number) => `${cont.todos ? (n / cont.todos) * 100 : 0}%`;
 
@@ -219,7 +214,15 @@ export default async function Home({ searchParams }: PageProps<"/">) {
       )}
 
       <section aria-label="Resumo" className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-5">
-        <div className="card col-span-2 p-4 sm:col-span-4 lg:col-span-1">
+        <Link
+          href="/"
+          title="Mostrar todos os clientes"
+          aria-label="Andamento geral — mostrar todos os clientes"
+          aria-current={filtrando ? undefined : "true"}
+          className={`card group col-span-2 block p-4 transition hover:border-line-strong hover:bg-subtle/50 sm:col-span-4 lg:col-span-1 ${
+            filtrando ? "" : "!border-primary bg-primary-soft/40 ring-1 ring-primary"
+          }`}
+        >
           <div className="text-sm font-medium text-muted">Andamento geral</div>
           <div className="mt-1 flex items-baseline gap-1.5">
             <span className="font-display text-3xl font-bold tabular-nums tracking-tight">{pct}%</span>
@@ -244,7 +247,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
             <div className={PONTO_STATUS["A Fazer"]} style={{ width: larg(cont["A Fazer"]) }} />
             <div className={PONTO_STATUS.Atrasado} style={{ width: larg(cont.Atrasado) }} />
           </div>
-        </div>
+        </Link>
         {indicador(
           "Atrasado",
           "Atrasados",
@@ -338,16 +341,18 @@ export default async function Home({ searchParams }: PageProps<"/">) {
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-line bg-subtle/70 text-[11px] font-semibold uppercase tracking-wider text-muted">
-                  <th scope="col" className="w-12 py-2.5 pl-4 pr-1 sm:pl-5">
-                    <CaixaTodos />
+                  {comSelecao && (
+                    <th scope="col" className="w-12 py-2.5 pl-4 pr-1 sm:pl-5">
+                      <CaixaTodos />
+                    </th>
+                  )}
+                  <th scope="col" className={`py-2.5 pr-3 ${comSelecao ? "pl-3" : "pl-4 sm:pl-5"}`}>
+                    Cliente
                   </th>
-                  <th scope="col" className="px-3 py-2.5">Cliente</th>
                   <th scope="col" className="hidden px-3 py-2.5 lg:table-cell">Cidade</th>
                   <th scope="col" className="hidden px-3 py-2.5 lg:table-cell">UF</th>
                   <th scope="col" className="hidden px-3 py-2.5 lg:table-cell">Região</th>
                   <th scope="col" className="hidden px-3 py-2.5 lg:table-cell">Consultor</th>
-                  <th scope="col" className="hidden px-3 py-2.5 md:table-cell">Responsável</th>
-                  <th scope="col" className="hidden px-3 py-2.5 md:table-cell">Data e horário</th>
                   <th scope="col" className="hidden px-3 py-2.5 md:table-cell">Status</th>
                   <th scope="col" className="py-2.5 pl-3 pr-4 text-right sm:pr-5">
                     <span className="sr-only">Ações</span>
@@ -356,27 +361,24 @@ export default async function Home({ searchParams }: PageProps<"/">) {
               </thead>
               <tbody className="divide-y divide-line">
                 {linhas.map((l) => {
-                  // Finalizado não se reagenda: responsável, data e horário viram só leitura.
-                  const finalizado = l.status === "Finalizado";
-                  const quando = [formatarData(l.dataPrevista), l.horario]
-                    .filter(Boolean)
-                    .join(" · ");
                   return (
                     <tr
                       key={l.id}
                       className="transition hover:bg-subtle/60 has-[input:checked]:bg-primary-soft/70"
                     >
-                      <td className="py-3 pl-4 pr-1 align-top sm:pl-5">
-                        <input
-                          type="checkbox"
-                          name="ids"
-                          value={l.id}
-                          data-cliente={l.nome}
-                          aria-label={`Selecionar ${l.nome}`}
-                          className="mt-1 size-4 cursor-pointer accent-primary"
-                        />
-                      </td>
-                      <td className="w-full max-w-0 px-3 py-3 align-top md:w-auto md:min-w-64 md:max-w-64 xl:max-w-72">
+                      {comSelecao && (
+                        <td className="py-3 pl-4 pr-1 align-top sm:pl-5">
+                          <input
+                            type="checkbox"
+                            name="ids"
+                            value={l.id}
+                            data-cliente={l.nome}
+                            aria-label={`Selecionar ${l.nome}`}
+                            className="mt-1 size-4 cursor-pointer accent-primary"
+                          />
+                        </td>
+                      )}
+                      <td className={`w-full max-w-0 py-3 pr-3 align-top ${comSelecao ? "pl-3" : "pl-4 sm:pl-5"} md:w-auto md:min-w-64 md:max-w-64 xl:max-w-72`}>
                         <div className="flex flex-wrap items-center gap-x-2 md:flex-nowrap">
                           <Link
                             href={`/registro/${l.id}`}
@@ -391,47 +393,8 @@ export default async function Home({ searchParams }: PageProps<"/">) {
                             </span>
                           )}
                         </div>
-                        {/* No celular, responsável e data ficam sob o nome */}
-                        <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted md:hidden">
-                          {statusDaLinha(l)}
-                          <CampoResponsavel
-                            id={l.id}
-                            nome={l.nome}
-                            valor={l.responsavel ?? ""}
-                            daRegiao={pessoasDaDupla(l.atendentes)}
-                            outros={nomes}
-                            salvar={definirResponsavel}
-                            editavel={usuario.admin && !finalizado}
-                          />
-                          {finalizado ? (
-                            <span className="tabular-nums">{quando}</span>
-                          ) : (
-                            <>
-                              <CampoData
-                                id={l.id}
-                                nome={l.nome}
-                                valor={dataParaCampo(l.dataPrevista)}
-                                salvar={definirData}
-                              />
-                              <CampoHorario
-                                id={l.id}
-                                nome={l.nome}
-                                valor={l.horario ?? ""}
-                                salvar={definirHorario}
-                              />
-                            </>
-                          )}
-                          {l.dias ? (
-                            <span className="font-medium text-atrasado-fg">
-                              {formatarAtraso(l.dias)}
-                            </span>
-                          ) : null}
-                          {l.atrasoNaConclusao ? (
-                            <span className="font-medium text-atrasado-fg">
-                              {formatarAtrasoConclusao(l.atrasoNaConclusao)}
-                            </span>
-                          ) : null}
-                        </div>
+                        {/* No celular, o status fica sob o nome */}
+                        <div className="mt-1.5 md:hidden">{statusDaLinha(l)}</div>
                         {l.observacao && (
                           <div
                             title={l.observacao}
@@ -454,52 +417,29 @@ export default async function Home({ searchParams }: PageProps<"/">) {
                       <td className="hidden whitespace-nowrap px-3 py-3 align-top text-muted lg:table-cell">
                         {l.consultor || "—"}
                       </td>
-                      <td className="hidden px-3 py-3 align-top text-ink md:table-cell">
-                        <CampoResponsavel
-                          id={l.id}
-                          nome={l.nome}
-                          valor={l.responsavel ?? ""}
-                          daRegiao={pessoasDaDupla(l.atendentes)}
-                          outros={nomes}
-                          salvar={definirResponsavel}
-                          editavel={usuario.admin && !finalizado}
-                        />
-                      </td>
-                      <td className="hidden whitespace-nowrap px-3 py-3 align-top tabular-nums md:table-cell">
-                        {finalizado ? (
-                          <span className="text-muted">{quando || "—"}</span>
-                        ) : (
-                          <div className="flex items-center gap-1.5">
-                            <CampoData
-                              id={l.id}
-                              nome={l.nome}
-                              valor={dataParaCampo(l.dataPrevista)}
-                              salvar={definirData}
-                            />
-                            <CampoHorario
-                              id={l.id}
-                              nome={l.nome}
-                              valor={l.horario ?? ""}
-                              salvar={definirHorario}
-                            />
-                          </div>
-                        )}
-                        {l.dias ? (
-                          <div className="mt-1 text-xs font-medium text-atrasado-fg">
-                            {formatarAtraso(l.dias)}
-                          </div>
-                        ) : null}
-                      </td>
                       <td className="hidden px-3 py-3 align-top md:table-cell">
                         {statusDaLinha(l)}
-                        {l.atrasoNaConclusao ? (
-                          <div className="mt-1 text-xs font-medium text-atrasado-fg">
-                            {formatarAtrasoConclusao(l.atrasoNaConclusao)}
-                          </div>
-                        ) : null}
                       </td>
                       <td className="py-2.5 pl-3 pr-4 align-top sm:pr-5">
                         <div className="flex items-center justify-end gap-1.5">
+                          {/* Finalizado não se agenda: lá aparece só o Reabrir. */}
+                          {l.status !== "Finalizado" && (
+                            <Agendar
+                              acao={agendarCliente}
+                              id={l.id}
+                              nome={l.nome}
+                              voltar={atual.toString()}
+                              responsavel={l.responsavel ?? ""}
+                              data={dataParaCampo(l.dataPrevista)}
+                              horario={l.horario ?? ""}
+                              previsao={
+                                l.formato === "Online" || l.formato === "Presencial" ? l.formato : ""
+                              }
+                              daRegiao={pessoasDaDupla(l.atendentes)}
+                              outros={nomes}
+                              podeTrocarResponsavel={usuario.admin}
+                            />
+                          )}
                           {l.status === "Finalizado" ? (
                             <Reabrir
                               acao={reabrirComMotivo}
@@ -522,7 +462,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
                   );
                 })}
                 <tr id="sem-resultados" hidden={linhas.length > 0}>
-                  <td colSpan={10} className="px-4 py-16 text-center">
+                  <td colSpan={8} className="px-4 py-16 text-center">
                     <div className="mx-auto grid size-10 place-items-center rounded-full bg-subtle text-muted">
                       <Icone nome="busca" className="size-5" />
                     </div>
@@ -599,12 +539,14 @@ export default async function Home({ searchParams }: PageProps<"/">) {
             </nav>
           )}
 
-          <AcoesLote
-            finalizar={finalizarComNota}
-            reabrir={reabrirComMotivo}
-            filtro={status}
-            autor={usuario.nome}
-          />
+          {comSelecao && (
+            <AcoesLote
+              finalizar={finalizarComNota}
+              reabrir={reabrirComMotivo}
+              filtro={status}
+              autor={usuario.nome}
+            />
+          )}
         </form>
       </section>
     </Shell>

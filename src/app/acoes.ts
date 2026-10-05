@@ -1,7 +1,6 @@
 "use server";
-import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { exigirAdmin, exigirLogin } from "@/lib/auth";
+import { exigirLogin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { finalizarPendentes, formatoValido, reabrirIds, type Formato } from "@/lib/acoesPreSafra";
 import { motivoDiaBloqueado } from "@/lib/diasUteis";
@@ -73,62 +72,60 @@ export async function reabrirComMotivo(formData: FormData) {
   voltarPara(formData, feitos, "reabertos");
 }
 
-// Data prevista editada direto na linha; vazio limpa a data.
-export async function definirData(id: number, data: string) {
-  await exigirLogin();
-  const valida = /^\d{4}-\d{2}-\d{2}$/.test(data);
-  const dia = valida ? new Date(`${data}T00:00:00Z`) : null;
-  if (data && (!dia || Number.isNaN(dia.getTime()))) return;
-  // O campo da lista já recusa esses dias; aqui garante a regra mesmo para uma chamada direta.
-  const motivo = data ? motivoDiaBloqueado(data) : null;
-  if (motivo) throw new Error(motivo);
-  await prisma.preSafra.update({ where: { id }, data: { dataPrevista: dia } });
-  revalidatePath("/");
-}
+// Janela "Agendar" da lista: grava de uma vez responsável, data, horário e formato ("Online" ou
+// "Presencial" deixa o cliente como "Agendado Online"/"Agendado Presencial"). Os quatro campos
+// são obrigatórios. O botão "Remover agendamento" (campo "remover") limpa data, horário e formato
+// e devolve o cliente a "A Fazer", mantendo o responsável. A janela já mostra os erros; aqui o servidor
+// garante as regras mesmo para uma chamada direta, e nesse caso não grava nada: campo faltando,
+// sábados, domingos e feriados, cliente finalizado ou inativo. Só admin troca o responsável.
+export async function agendarCliente(formData: FormData) {
+  const sessao = await exigirLogin();
+  const id = Number(formData.get("id"));
+  if (!Number.isInteger(id)) voltarPara(formData, 0, "agendados");
 
-// Previsão de como o atendimento será feito, escolhida na coluna Status da lista: "Online" ou
-// "Presencial" deixa o cliente como "Agendado Online"/"Agendado Presencial"; vazio volta a "A Fazer".
-// Usa o mesmo campo `formato` da finalização, que confirma (ou corrige) a escolha depois.
-// Para agendar, o cliente precisa já ter responsável, data e horário: sem isso devolve a
-// mensagem do que falta (e não grava). Devolve null quando gravou.
-export async function definirPrevisao(id: number, formato: string): Promise<string | null> {
-  await exigirLogin();
-  const valor = formatoValido(formato) ? formato : null;
-  if (formato && !valor) return null;
-  if (valor) {
-    const r = await prisma.preSafra.findUnique({
-      where: { id },
-      select: { responsavel: true, dataPrevista: true, horario: true },
-    });
-    const faltam = [
-      !r?.responsavel?.trim() && "responsável",
-      !r?.dataPrevista && "data",
-      !r?.horario && "horário",
-    ].filter(Boolean);
-    if (faltam.length) {
-      const lista = faltam.length > 1 ? `${faltam.slice(0, -1).join(", ")} e ${faltam.at(-1)}` : faltam[0];
-      return `Para agendar, preencha antes: ${lista}.`;
-    }
+  const registro = await prisma.preSafra.findUnique({
+    where: { id },
+    select: { responsavel: true, configuradoSistema: true, inativo: true },
+  });
+  if (!registro || registro.configuradoSistema || registro.inativo) {
+    voltarPara(formData, 0, "agendados");
   }
-  await prisma.preSafra.update({ where: { id }, data: { formato: valor } });
-  revalidatePath("/");
-  return null;
-}
 
-// Horário agendado editado direto na linha; vazio limpa o horário.
-export async function definirHorario(id: number, horario: string) {
-  await exigirLogin();
-  if (horario && !horarioValido(horario)) return;
-  await prisma.preSafra.update({ where: { id }, data: { horario: horario || null } });
-  revalidatePath("/");
-}
+  if (formData.get("remover")) {
+    await prisma.preSafra.update({
+      where: { id },
+      data: { dataPrevista: null, horario: null, formato: null },
+    });
+    voltarPara(formData, 1, "desagendados");
+  }
 
-// Responsável escolhido direto na linha; vazio limpa o responsável. Só admin edita.
-export async function definirResponsavel(id: number, responsavel: string) {
-  await exigirAdmin();
+  const dataTexto = textoDe(formData, "data") ?? "";
+  const dataValida = /^\d{4}-\d{2}-\d{2}$/.test(dataTexto);
+  const dia = dataValida ? new Date(`${dataTexto}T00:00:00Z`) : null;
+  if (dataTexto && (!dia || Number.isNaN(dia.getTime()) || motivoDiaBloqueado(dataTexto))) {
+    voltarPara(formData, 0, "agendados");
+  }
+
+  const horario = textoDe(formData, "horario");
+  if (horario && !horarioValido(horario)) voltarPara(formData, 0, "agendados");
+
+  const formato = textoDe(formData, "formato");
+  if (!formatoValido(formato)) voltarPara(formData, 0, "agendados");
+
+  const responsavel = sessao.admin
+    ? textoDe(formData, "responsavel")
+    : (registro?.responsavel?.trim() || null);
+
+  if (!responsavel || !dia || !horario) voltarPara(formData, 0, "agendados");
+
   await prisma.preSafra.update({
     where: { id },
-    data: { responsavel: responsavel.trim() || null },
+    data: {
+      ...(sessao.admin ? { responsavel } : {}),
+      dataPrevista: dia,
+      horario,
+      formato,
+    },
   });
-  revalidatePath("/");
+  voltarPara(formData, 1, "agendados");
 }
