@@ -74,8 +74,9 @@ export async function reabrirComMotivo(formData: FormData) {
 
 // Janela "Agendar" da lista: grava de uma vez responsável, data, horário e formato ("Online" ou
 // "Presencial" deixa o cliente como "Agendado Online"/"Agendado Presencial"). Os quatro campos
-// são obrigatórios. O botão "Remover agendamento" (campo "remover") limpa data, horário e formato
-// e devolve o cliente a "A Fazer", mantendo o responsável. A janela já mostra os erros; aqui o servidor
+// são obrigatórios. O botão "Remover agendamento" (campo "remover") limpa data, horário, formato
+// e responsável e devolve o cliente a "A Fazer" (o responsável só é limpo por admin, que é quem
+// consegue defini-lo de novo; para os demais ele fica). A janela já mostra os erros; aqui o servidor
 // garante as regras mesmo para uma chamada direta, e nesse caso não grava nada: campo faltando,
 // sábados, domingos e feriados, cliente finalizado ou inativo. Só admin troca o responsável.
 export async function agendarCliente(formData: FormData) {
@@ -94,7 +95,12 @@ export async function agendarCliente(formData: FormData) {
   if (formData.get("remover")) {
     await prisma.preSafra.update({
       where: { id },
-      data: { dataPrevista: null, horario: null, formato: null },
+      data: {
+        dataPrevista: null,
+        horario: null,
+        formato: null,
+        ...(sessao.admin ? { responsavel: null } : {}),
+      },
     });
     voltarPara(formData, 1, "desagendados");
   }

@@ -16,7 +16,7 @@ export default function NovaSafra({ acao }: { acao: (formData: FormData) => Prom
       {aberto && (
         <Janela icone="calendario" titulo="Nova safra" onFechar={() => setAberto(false)}>
           <form action={acao}>
-            <div className="space-y-4 px-6 py-5">
+            <div className="space-y-4 px-4 py-5 sm:px-6">
               <p className="rounded-lg bg-subtle/60 px-3 py-2 text-xs text-muted">
                 Todos os clientes cadastrados que não estiverem inativos são copiados
                 automaticamente para a safra nova.
@@ -35,7 +35,7 @@ export default function NovaSafra({ acao }: { acao: (formData: FormData) => Prom
                   <option value="Milho">Milho</option>
                 </select>
               </label>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-4 min-[420px]:grid-cols-2">
                 <label className="block">
                   <span className="rotulo">Início</span>
                   <input type="date" name="inicio" required className="campo" />

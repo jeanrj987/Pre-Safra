@@ -39,7 +39,7 @@ export default function ExcluirSafra({
       {aberto && (
         <Janela icone="lixeira" titulo="Excluir safra" subtitulo={nome} onFechar={fechar}>
           <form action={acao}>
-            <div className="space-y-4 px-6 py-5">
+            <div className="space-y-4 px-4 py-5 sm:px-6">
               <p className="text-sm text-muted">
                 Isso apaga a safra <strong className="font-semibold text-ink">{nome}</strong>
                 {qtdPreSafras > 0 && (

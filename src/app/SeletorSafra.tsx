@@ -26,7 +26,7 @@ export default function SeletorSafra({
         const id = Number(e.currentTarget.value);
         iniciar(() => salvar(id));
       }}
-      className={`h-7 rounded-full border-none bg-primary-soft px-2.5 text-xs font-semibold text-primary transition focus:outline-2 focus:outline-offset-1 focus:outline-primary/30 ${
+      className={`h-7 max-w-full rounded-full border-none bg-primary-soft px-2.5 text-xs font-semibold text-primary transition focus:outline-2 focus:outline-offset-1 focus:outline-primary/30 ${
         pendente ? "opacity-60" : ""
       }`}
     >

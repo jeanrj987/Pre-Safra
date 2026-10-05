@@ -112,7 +112,7 @@ export default function Finalizar({
               />
             ))}
             <input type="hidden" name="voltar" value={voltar} />
-            <div className="space-y-5 px-6 py-5">
+            <div className="space-y-5 px-4 py-5 sm:px-6">
               <fieldset className="space-y-2">
                 <legend className="rotulo">
                   {ids.length > 1 ? "Formato do atendimento (aplicar a todos)" : "Formato do atendimento"}
@@ -159,7 +159,7 @@ export default function Finalizar({
                       </button>
                     </div>
                   </div>
-                  <div className="max-h-80 divide-y divide-line overflow-y-auto rounded-lg border border-line">
+                  <div className="max-h-[50dvh] divide-y divide-line overflow-y-auto rounded-lg border border-line">
                     {ids.map((i, idx) => (
                       <div key={i} className="space-y-2 p-2.5 text-sm">
                         <div className="flex items-center justify-between gap-3">
@@ -270,7 +270,7 @@ export function RodapeJanela({
   children: ReactNode;
 }) {
   return (
-    <div className="flex justify-end gap-2 rounded-b-xl border-t border-line bg-canvas px-6 py-4">
+    <div className="flex flex-wrap justify-end gap-2 rounded-b-xl border-t border-line bg-canvas px-4 py-4 sm:px-6">
       <button type="button" onClick={onCancelar} className="btn-contorno">
         Cancelar
       </button>
@@ -305,9 +305,9 @@ export function Janela({
         if (e.target === ref.current) ref.current?.close();
       }}
       aria-labelledby="janela-titulo"
-      className="m-auto w-[calc(100%-2rem)] max-w-md rounded-xl border border-line bg-surface p-0 text-ink shadow-pop backdrop:bg-night/50 backdrop:backdrop-blur-[2px]"
+      className="m-auto max-h-[calc(100dvh-1.5rem)] w-[calc(100%-1.5rem)] max-w-md overflow-y-auto overscroll-contain rounded-xl sm:w-[calc(100%-2rem)] border border-line bg-surface p-0 text-ink shadow-pop backdrop:bg-night/50 backdrop:backdrop-blur-[2px]"
     >
-      <div className="flex items-start gap-3 px-6 pt-5">
+      <div className="flex items-start gap-3 px-4 pt-5 sm:px-6">
         <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-full bg-subtle text-ink">
           <Icone nome={icone} className="size-[18px]" />
         </span>

@@ -146,20 +146,20 @@ export default async function AdminSafras({
       {safras.length === 0 ? (
         <p className="p-5 text-sm text-muted">Nenhuma safra cadastrada ainda.</p>
       ) : (
-        <div className="overflow-x-auto">
+        <div className="@container overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b border-line bg-subtle/70 text-[11px] font-semibold uppercase tracking-wider text-muted">
                 <th scope="col" className="px-4 py-2.5 sm:px-5">
                   Nome
                 </th>
-                <th scope="col" className="px-3 py-2.5">
+                <th scope="col" className="hidden px-3 py-2.5 @2xl:table-cell">
                   Cultura
                 </th>
-                <th scope="col" className="px-3 py-2.5">
+                <th scope="col" className="hidden px-3 py-2.5 @2xl:table-cell">
                   Período
                 </th>
-                <th scope="col" className="px-3 py-2.5">
+                <th scope="col" className="hidden px-3 py-2.5 @2xl:table-cell">
                   Situação
                 </th>
                 <th scope="col" className="py-2.5 pl-3 pr-4 text-right sm:pr-5">
@@ -172,9 +172,24 @@ export default async function AdminSafras({
                 const emUso = s.id === safraAtual?.id;
                 return (
                   <tr key={s.id}>
-                    <td className="px-4 py-3 font-medium text-ink sm:px-5">{s.nome}</td>
-                    <td className="px-3 py-3 text-muted">{s.cultura || "—"}</td>
-                    <td className="px-3 py-3">
+                    <td className="px-4 py-3 align-top font-medium text-ink sm:px-5">
+                      {s.nome}
+                      {/* Em tela estreita, cultura, situação e período ficam sob o nome */}
+                      <div className="mt-0.5 text-xs font-normal text-muted @2xl:hidden">
+                        {s.cultura ? `${s.cultura} · ` : ""}
+                        {s.ativa ? "Ativa" : "Inativa"}
+                      </div>
+                      <div className="mt-1 text-sm font-normal @2xl:hidden">
+                        <EditarSafra
+                          exibicao={`${formatarData(s.inicio)} – ${formatarData(s.prazo)}`}
+                          inicio={dataParaCampo(s.inicio)}
+                          prazo={dataParaCampo(s.prazo)}
+                          salvar={editarPeriodo.bind(null, s.id)}
+                        />
+                      </div>
+                    </td>
+                    <td className="hidden px-3 py-3 align-top text-muted @2xl:table-cell">{s.cultura || "—"}</td>
+                    <td className="hidden px-3 py-3 align-top @2xl:table-cell">
                       <EditarSafra
                         exibicao={`${formatarData(s.inicio)} – ${formatarData(s.prazo)}`}
                         inicio={dataParaCampo(s.inicio)}
@@ -182,8 +197,8 @@ export default async function AdminSafras({
                         salvar={editarPeriodo.bind(null, s.id)}
                       />
                     </td>
-                    <td className="px-3 py-3">{s.ativa ? "Ativa" : "Inativa"}</td>
-                    <td className="py-2.5 pl-3 pr-4 text-right sm:pr-5">
+                    <td className="hidden px-3 py-3 align-top @2xl:table-cell">{s.ativa ? "Ativa" : "Inativa"}</td>
+                    <td className="py-2.5 pl-3 pr-4 text-right align-top sm:pr-5">
                       <div className="flex items-center justify-end gap-1.5">
                         <form action={alternarAtiva.bind(null, s.id, !s.ativa)}>
                           <BotaoAcao

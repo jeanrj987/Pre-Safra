@@ -18,7 +18,7 @@ export default function NovoUsuario({ acao }: { acao: (formData: FormData) => Pr
       {aberto && (
         <Janela icone="usuario" titulo="Novo usuário" onFechar={() => setAberto(false)}>
           <form action={acao}>
-            <div className="space-y-4 px-6 py-5">
+            <div className="space-y-4 px-4 py-5 sm:px-6">
               <label className="block">
                 <span className="rotulo">Nome</span>
                 <input name="nome" required autoFocus autoComplete="name" className="campo" />

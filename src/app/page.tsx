@@ -151,7 +151,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
       <Link
         href={href(ativo ? "" : id)}
         aria-pressed={ativo}
-        className={`card group block p-3 transition sm:p-4 hover:border-line-strong hover:bg-subtle/50 ${
+        className={`card group block min-w-0 p-3 transition sm:p-4 hover:border-line-strong hover:bg-subtle/50 ${
           ativo ? "!border-primary bg-primary-soft/40 ring-1 ring-primary" : ""
         }`}
       >
@@ -165,7 +165,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
         <div className={`mt-1 font-display text-2xl font-bold tabular-nums tracking-tight sm:text-3xl ${corNumero}`}>
           {valor}
         </div>
-        <div className="hidden text-xs text-muted sm:block">{legenda}</div>
+        <div className="hidden text-xs text-muted @xl:block">{legenda}</div>
       </Link>
     );
   };
@@ -213,18 +213,19 @@ export default async function Home({ searchParams }: PageProps<"/">) {
         </p>
       )}
 
-      <section aria-label="Resumo" className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-5">
+      <div className="@container">
+      <section aria-label="Resumo" className="grid grid-cols-2 gap-3 @xl:grid-cols-4 @5xl:grid-cols-5">
         <Link
           href="/"
           title="Mostrar todos os clientes"
           aria-label="Andamento geral — mostrar todos os clientes"
           aria-current={filtrando ? undefined : "true"}
-          className={`card group col-span-2 block p-4 transition hover:border-line-strong hover:bg-subtle/50 sm:col-span-4 lg:col-span-1 ${
+          className={`card group col-span-2 block p-4 transition hover:border-line-strong hover:bg-subtle/50 @xl:col-span-4 @5xl:col-span-1 ${
             filtrando ? "" : "!border-primary bg-primary-soft/40 ring-1 ring-primary"
           }`}
         >
           <div className="text-sm font-medium text-muted">Andamento geral</div>
-          <div className="mt-1 flex items-baseline gap-1.5">
+          <div className="mt-1 flex flex-wrap items-baseline gap-x-1.5">
             <span className="font-display text-3xl font-bold tabular-nums tracking-tight">{pct}%</span>
             <span className="text-xs text-muted">
               {cont.Finalizado} de {cont.todos} finalizados
@@ -264,6 +265,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
         )}
         {indicador("Finalizado", "Finalizados", cont.Finalizado, `${pct}% do total`)}
       </section>
+      </div>
 
       <section className="card">
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b border-line px-4 py-3.5 sm:px-5">
@@ -337,7 +339,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
 
         <form action={finalizarComNota}>
           <input type="hidden" name="voltar" value={atual.toString()} />
-          <div className="overflow-x-auto">
+          <div className="@container overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-line bg-subtle/70 text-[11px] font-semibold uppercase tracking-wider text-muted">
@@ -349,11 +351,11 @@ export default async function Home({ searchParams }: PageProps<"/">) {
                   <th scope="col" className={`py-2.5 pr-3 ${comSelecao ? "pl-3" : "pl-4 sm:pl-5"}`}>
                     Cliente
                   </th>
-                  <th scope="col" className="hidden px-3 py-2.5 lg:table-cell">Cidade</th>
-                  <th scope="col" className="hidden px-3 py-2.5 lg:table-cell">UF</th>
-                  <th scope="col" className="hidden px-3 py-2.5 lg:table-cell">Região</th>
-                  <th scope="col" className="hidden px-3 py-2.5 lg:table-cell">Consultor</th>
-                  <th scope="col" className="hidden px-3 py-2.5 md:table-cell">Status</th>
+                  <th scope="col" className="hidden px-3 py-2.5 @min-[1080px]:table-cell">Cidade</th>
+                  <th scope="col" className="hidden px-3 py-2.5 @min-[1080px]:table-cell">UF</th>
+                  <th scope="col" className="hidden px-3 py-2.5 @min-[1080px]:table-cell">Região</th>
+                  <th scope="col" className="hidden px-3 py-2.5 @min-[1080px]:table-cell">Consultor</th>
+                  <th scope="col" className="hidden px-3 py-2.5 @2xl:table-cell">Status</th>
                   <th scope="col" className="py-2.5 pl-3 pr-4 text-right sm:pr-5">
                     <span className="sr-only">Ações</span>
                   </th>
@@ -378,12 +380,12 @@ export default async function Home({ searchParams }: PageProps<"/">) {
                           />
                         </td>
                       )}
-                      <td className={`w-full max-w-0 py-3 pr-3 align-top ${comSelecao ? "pl-3" : "pl-4 sm:pl-5"} md:w-auto md:min-w-64 md:max-w-64 xl:max-w-72`}>
-                        <div className="flex flex-wrap items-center gap-x-2 md:flex-nowrap">
+                      <td className={`w-full max-w-0 py-3 pr-3 align-top ${comSelecao ? "pl-3" : "pl-4 sm:pl-5"} @2xl:w-auto @2xl:min-w-64 @2xl:max-w-64 @min-[1300px]:max-w-72`}>
+                        <div className="flex flex-wrap items-center gap-x-2 @2xl:flex-nowrap">
                           <Link
                             href={`/registro/${l.id}`}
                             title={l.nome}
-                            className="font-medium text-ink hover:text-primary hover:underline md:min-w-0 md:truncate"
+                            className="font-medium text-ink hover:text-primary hover:underline @2xl:min-w-0 @2xl:truncate"
                           >
                             {l.nome}
                           </Link>
@@ -393,8 +395,16 @@ export default async function Home({ searchParams }: PageProps<"/">) {
                             </span>
                           )}
                         </div>
-                        {/* No celular, o status fica sob o nome */}
-                        <div className="mt-1.5 md:hidden">{statusDaLinha(l)}</div>
+                        {/* Em tela estreita, o status fica sob o nome */}
+                        <div className="mt-1.5 @2xl:hidden">{statusDaLinha(l)}</div>
+                        {/* Sem espaço para as colunas de localização, elas viram uma linha sob o nome */}
+                        {[[l.cidade, l.uf].filter(Boolean).join("/"), l.regiao, l.consultor].some(Boolean) && (
+                          <div className="mt-1 text-xs text-muted @min-[1080px]:hidden">
+                            {[[l.cidade, l.uf].filter(Boolean).join("/"), l.regiao, l.consultor]
+                              .filter(Boolean)
+                              .join(" · ")}
+                          </div>
+                        )}
                         {l.observacao && (
                           <div
                             title={l.observacao}
@@ -405,19 +415,19 @@ export default async function Home({ searchParams }: PageProps<"/">) {
                           </div>
                         )}
                       </td>
-                      <td className="hidden whitespace-nowrap px-3 py-3 align-top text-muted lg:table-cell">
+                      <td className="hidden whitespace-nowrap px-3 py-3 align-top text-muted @min-[1080px]:table-cell">
                         {l.cidade || "—"}
                       </td>
-                      <td className="hidden whitespace-nowrap px-3 py-3 align-top text-muted lg:table-cell">
+                      <td className="hidden whitespace-nowrap px-3 py-3 align-top text-muted @min-[1080px]:table-cell">
                         {l.uf || "—"}
                       </td>
-                      <td className="hidden whitespace-nowrap px-3 py-3 align-top text-muted lg:table-cell">
+                      <td className="hidden whitespace-nowrap px-3 py-3 align-top text-muted @min-[1080px]:table-cell">
                         {l.regiao || "—"}
                       </td>
-                      <td className="hidden whitespace-nowrap px-3 py-3 align-top text-muted lg:table-cell">
+                      <td className="hidden whitespace-nowrap px-3 py-3 align-top text-muted @min-[1080px]:table-cell">
                         {l.consultor || "—"}
                       </td>
-                      <td className="hidden px-3 py-3 align-top md:table-cell">
+                      <td className="hidden px-3 py-3 align-top @2xl:table-cell">
                         {statusDaLinha(l)}
                       </td>
                       <td className="py-2.5 pl-3 pr-4 align-top sm:pr-5">

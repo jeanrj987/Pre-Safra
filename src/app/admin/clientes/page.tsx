@@ -162,17 +162,17 @@ export default async function AdminClientes({
       {listados.length === 0 ? (
         <p className="p-5 text-sm text-muted">Nenhum cliente encontrado.</p>
       ) : (
-        <div className="overflow-x-auto">
+        <div className="@container overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b border-line bg-subtle/70 text-[11px] font-semibold uppercase tracking-wider text-muted">
                 <th scope="col" className="px-4 py-2.5 sm:px-5">Nome</th>
-                <th scope="col" className="px-3 py-2.5">Cidade</th>
-                <th scope="col" className="px-3 py-2.5">UF</th>
-                <th scope="col" className="px-3 py-2.5">Região</th>
-                <th scope="col" className="px-3 py-2.5">Atendimento</th>
-                <th scope="col" className="px-3 py-2.5">Consultor</th>
-                <th scope="col" className="px-3 py-2.5">
+                <th scope="col" className="hidden px-3 py-2.5 @min-[1100px]:table-cell">Cidade</th>
+                <th scope="col" className="hidden px-3 py-2.5 @min-[1100px]:table-cell">UF</th>
+                <th scope="col" className="hidden px-3 py-2.5 @min-[1100px]:table-cell">Região</th>
+                <th scope="col" className="hidden px-3 py-2.5 @min-[1100px]:table-cell">Atendimento</th>
+                <th scope="col" className="hidden px-3 py-2.5 @min-[1100px]:table-cell">Consultor</th>
+                <th scope="col" className="hidden px-3 py-2.5 @2xl:table-cell">
                   Situação{safra ? ` · ${safra.nome}` : ""}
                 </th>
                 <th scope="col" className="py-2.5 pl-3 pr-4 text-right sm:pr-5">
@@ -181,56 +181,73 @@ export default async function AdminClientes({
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
-              {listados.map((c) => (
+              {listados.map((c) => {
+                const ps = preSafraDe.get(c.id);
+                const situacao = !ps ? (
+                  <span className="text-muted">Fora desta safra</span>
+                ) : ps.inativo ? (
+                  <div title={ps.motivoInativacao ?? undefined}>
+                    <Selo status="Inativo" />
+                    {ps.motivoInativacao && (
+                      <div className="mt-1 line-clamp-1 max-w-48 text-xs text-muted">
+                        {ps.motivoInativacao}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <span className="text-ink">Ativo</span>
+                );
+                return (
                 <tr key={c.id}>
-                  <td className="px-4 py-3 font-medium text-ink sm:px-5">{c.nome}</td>
-                  <td className="px-3 py-3 text-muted">{c.cidade || "—"}</td>
-                  <td className="px-3 py-3 text-muted">{c.uf || "—"}</td>
-                  <td className="px-3 py-3">
+                  <td className="px-4 py-3 align-top font-medium text-ink sm:px-5">
+                    {c.nome}
+                    {/* Sem espaço para as colunas, os dados do cadastro viram linhas sob o nome */}
+                    <div className="mt-1 space-y-0.5 text-xs font-normal text-muted @min-[1100px]:hidden">
+                      {[[c.cidade, c.uf].filter(Boolean).join("/"), c.atendente, c.consultor].some(Boolean) && (
+                        <div>
+                          {[[c.cidade, c.uf].filter(Boolean).join("/"), c.atendente, c.consultor]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </div>
+                      )}
+                      <div>
+                        {c.regiao ? (
+                          c.regiao
+                        ) : (
+                          <span className="font-medium text-atrasado-fg">Sem região</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="mt-1.5 text-sm font-normal @2xl:hidden">{situacao}</div>
+                  </td>
+                  <td className="hidden px-3 py-3 text-muted @min-[1100px]:table-cell">{c.cidade || "—"}</td>
+                  <td className="hidden px-3 py-3 text-muted @min-[1100px]:table-cell">{c.uf || "—"}</td>
+                  <td className="hidden px-3 py-3 @min-[1100px]:table-cell">
                     {c.regiao ? (
                       c.regiao
                     ) : (
                       <span className="font-medium text-atrasado-fg">Sem região</span>
                     )}
                   </td>
-                  <td className="px-3 py-3 text-muted">{c.atendente || "—"}</td>
-                  <td className="px-3 py-3 text-muted">{c.consultor || "—"}</td>
-                  <td className="px-3 py-3">
-                    {(() => {
-                      const ps = preSafraDe.get(c.id);
-                      if (!ps) return <span className="text-muted">Fora desta safra</span>;
-                      return ps.inativo ? (
-                        <div title={ps.motivoInativacao ?? undefined}>
-                          <Selo status="Inativo" />
-                          {ps.motivoInativacao && (
-                            <div className="mt-1 line-clamp-1 max-w-48 text-xs text-muted">
-                              {ps.motivoInativacao}
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        <span className="text-ink">Ativo</span>
-                      );
-                    })()}
-                  </td>
-                  <td className="py-2.5 pl-3 pr-4 text-right sm:pr-5">
+                  <td className="hidden px-3 py-3 text-muted @min-[1100px]:table-cell">{c.atendente || "—"}</td>
+                  <td className="hidden px-3 py-3 text-muted @min-[1100px]:table-cell">{c.consultor || "—"}</td>
+                  <td className="hidden px-3 py-3 @2xl:table-cell">{situacao}</td>
+                  <td className="py-2.5 pl-3 pr-4 text-right align-top sm:pr-5">
                     <div className="flex items-center justify-end gap-1.5">
-                      {(() => {
-                        const ps = preSafraDe.get(c.id);
-                        return ps ? (
-                          <InativarCliente
-                            nome={c.nome}
-                            inativo={ps.inativo}
-                            inativar={inativarCliente.bind(null, ps.id)}
-                            reativar={reativarCliente.bind(null, ps.id)}
-                          />
-                        ) : null;
-                      })()}
+                      {ps ? (
+                        <InativarCliente
+                          nome={c.nome}
+                          inativo={ps.inativo}
+                          inativar={inativarCliente.bind(null, ps.id)}
+                          reativar={reativarCliente.bind(null, ps.id)}
+                        />
+                      ) : null}
                       <EditarCliente cliente={c} listas={listas} salvar={salvarCadastro.bind(null, c.id)} />
                     </div>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>

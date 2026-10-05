@@ -55,7 +55,7 @@ export default function Reabrir({
               <input key={i} type="hidden" name="ids" value={i} />
             ))}
             <input type="hidden" name="voltar" value={voltar} />
-            <div className="space-y-5 px-6 py-5">
+            <div className="space-y-5 px-4 py-5 sm:px-6">
               <label className="block">
                 <span className="rotulo">Motivo da reabertura</span>
                 <textarea

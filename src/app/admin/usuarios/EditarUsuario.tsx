@@ -49,7 +49,7 @@ export default function EditarUsuario({
               else fechar();
             }}
           >
-            <div className="space-y-4 px-6 py-5">
+            <div className="space-y-4 px-4 py-5 sm:px-6">
               {erro && (
                 <p
                   role="alert"

@@ -215,13 +215,13 @@ export default function Telao({
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col overflow-hidden bg-night text-white lg:flex-row">
-      <aside className="flex shrink-0 items-center gap-5 border-b border-white/10 bg-night-raised p-4 lg:w-80 lg:flex-col lg:justify-between lg:border-r lg:border-b-0 lg:p-8">
+      <aside className="flex shrink-0 flex-wrap items-center gap-x-5 gap-y-3 lg:flex-nowrap border-b border-white/10 bg-night-raised p-4 lg:w-80 lg:flex-col lg:justify-between lg:border-r lg:border-b-0 lg:p-8">
         <div className="hidden w-full lg:block">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/logo-controlsoft.webp" alt="ControlSoft" className="h-8 w-auto" />
         </div>
 
-        <div className="flex items-center gap-5 lg:flex-col lg:text-center">
+        <div className="flex min-w-0 flex-1 items-center gap-4 sm:gap-5 lg:flex-none lg:flex-col lg:text-center">
           <div
             className="size-28 shrink-0 rounded-2xl bg-white p-2 sm:size-36 lg:size-60 lg:p-3 [&>svg]:size-full"
             role="img"
@@ -279,7 +279,7 @@ export default function Telao({
             As ideias vão aparecer aqui assim que chegarem.
           </p>
         )}
-        <ul className="grid h-full grid-cols-2 gap-3 overflow-y-auto lg:grid-cols-[repeat(var(--colunas),minmax(0,1fr))] lg:grid-rows-[repeat(var(--linhas),minmax(0,1fr))] lg:gap-4 lg:overflow-visible">
+        <ul className="grid h-full grid-cols-1 content-start gap-3 min-[520px]:grid-cols-2 overflow-y-auto lg:grid-cols-[repeat(var(--colunas),minmax(0,1fr))] lg:grid-rows-[repeat(var(--linhas),minmax(0,1fr))] lg:gap-4 lg:overflow-visible">
           {tela.vagas.map((s, i) => {
             const saiu = tela.saindo.get(i);
             if (saiu) {
@@ -373,7 +373,7 @@ function Cartao({
         >
           {s.topico}
         </span>
-        <p className="line-clamp-4 text-base font-medium leading-snug lg:line-clamp-3 lg:text-[1em] lg:leading-[1.2]">
+        <p className="line-clamp-4 break-words text-base font-medium leading-snug lg:line-clamp-3 lg:text-[1em] lg:leading-[1.2]">
           {s.texto}
         </p>
         <p className="truncate text-sm font-semibold lg:text-[0.85em]" style={{ color: cor }}>

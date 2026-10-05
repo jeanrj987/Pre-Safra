@@ -30,7 +30,7 @@ export default function RedefinirSenha({
       {aberto && (
         <Janela icone="chave" titulo="Redefinir senha" subtitulo={nome} onFechar={() => setAberto(false)}>
           <form action={acao}>
-            <div className="space-y-4 px-6 py-5">
+            <div className="space-y-4 px-4 py-5 sm:px-6">
               <p className="text-sm text-muted">
                 Defina uma senha nova para <strong className="font-semibold text-ink">{nome}</strong>.
                 A sessão atual dele é encerrada e ele precisa entrar de novo com essa senha.

@@ -158,6 +158,13 @@ table,
   outline-offset: 2px;
 }
 
+/* No celular, campos com menos de 16px fazem o iOS dar zoom ao focar; 16px evita o pulo de tela */
+@media (max-width: 639px) {
+  .campo {
+    font-size: 16px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     transition: none !important;

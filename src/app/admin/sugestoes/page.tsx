@@ -133,18 +133,18 @@ export default async function AdminSugestoes({
           e o QR code fica no “Telão de ideias”, no menu lateral.
         </p>
       ) : (
-        <div className="overflow-x-auto">
+        <div className="@container overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b border-line bg-subtle/70 text-[11px] font-semibold uppercase tracking-wider text-muted">
                 <th scope="col" className="w-12 py-2.5 pl-4 pr-1 sm:pl-5">
                   <CaixaTodas idsPagina={sugestoes.map((s) => s.id)} />
                 </th>
-                <th scope="col" className="px-3 py-2.5">Quando</th>
-                <th scope="col" className="px-3 py-2.5">Pessoa</th>
-                <th scope="col" className="px-3 py-2.5">Assunto</th>
+                <th scope="col" className="hidden px-3 py-2.5 @3xl:table-cell">Quando</th>
+                <th scope="col" className="hidden px-3 py-2.5 @3xl:table-cell">Pessoa</th>
+                <th scope="col" className="hidden px-3 py-2.5 @3xl:table-cell">Assunto</th>
                 <th scope="col" className="px-3 py-2.5">Sugestão</th>
-                <th scope="col" className="px-3 py-2.5">Situação</th>
+                <th scope="col" className="hidden px-3 py-2.5 @3xl:table-cell">Situação</th>
                 <th scope="col" className="py-2.5 pl-3 pr-4 text-right sm:pr-5">
                   <span className="sr-only">Ações</span>
                 </th>
@@ -159,10 +159,10 @@ export default async function AdminSugestoes({
                   <td className="py-3 pl-4 pr-1 align-top sm:pl-5">
                     <CaixaSugestao id={s.id} nome={s.nome} />
                   </td>
-                  <td className="whitespace-nowrap px-3 py-3 text-muted num">
+                  <td className="hidden whitespace-nowrap px-3 py-3 align-top text-muted num @3xl:table-cell">
                     {dataHora.format(s.criadoEm)}
                   </td>
-                  <td className="px-3 py-3">
+                  <td className="hidden px-3 py-3 align-top @3xl:table-cell">
                     <p className="font-medium text-ink">{s.nome}</p>
                     <a
                       href={linkWhatsapp(s.whatsapp)}
@@ -173,15 +173,35 @@ export default async function AdminSugestoes({
                       {formatarWhatsapp(s.whatsapp)}
                     </a>
                   </td>
-                  <td className="px-3 py-3 font-medium">{s.topico}</td>
-                  <td className="max-w-md px-3 py-3">
+                  <td className="hidden px-3 py-3 align-top font-medium @3xl:table-cell">{s.topico}</td>
+                  <td className="w-full max-w-md px-3 py-3 align-top">
+                    {/* Em tela estreita, quem enviou, quando, assunto e situação ficam sobre o texto */}
+                    <div className="mb-1.5 space-y-0.5 text-xs @3xl:hidden">
+                      <p>
+                        <span className="text-sm font-medium text-ink">{s.nome}</span>{" "}
+                        <span className="num text-muted">· {dataHora.format(s.criadoEm)}</span>
+                      </p>
+                      <p>
+                        <a
+                          href={linkWhatsapp(s.whatsapp)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="num text-primary underline"
+                        >
+                          {formatarWhatsapp(s.whatsapp)}
+                        </a>
+                      </p>
+                      <p className="font-medium text-ink">{s.topico}</p>
+                      {s.possivelDuplicada && <p className="text-afazer-fg">Possível duplicada</p>}
+                      {s.oculta && <p className="text-muted">Oculta no telão</p>}
+                    </div>
                     {/* Texto digitado pelo público: corta em 2 linhas com "…" (o texto inteiro
                         fica no tooltip) para um texto sem espaços não estourar a tabela. */}
                     <div title={s.texto} className="line-clamp-2 break-all">
                       {s.texto}
                     </div>
                   </td>
-                  <td className="px-3 py-3">
+                  <td className="hidden px-3 py-3 align-top @3xl:table-cell">
                     {s.possivelDuplicada && (
                       <p className="text-xs text-afazer-fg">
                         <strong>Possível duplicada.</strong> Parecida com: “{s.faqParecida}”
@@ -192,7 +212,7 @@ export default async function AdminSugestoes({
                       <span className="text-xs text-finalizado-fg">Nova</span>
                     )}
                   </td>
-                  <td className="py-2.5 pl-3 pr-4 text-right sm:pr-5">
+                  <td className="py-2.5 pl-3 pr-4 text-right align-top sm:pr-5">
                     <div className="flex items-center justify-end gap-1.5">
                       <form action={alternarOculta.bind(null, s.id, !s.oculta)}>
                         <BotaoAcao

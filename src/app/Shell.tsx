@@ -19,6 +19,8 @@ type ItemNav = {
   href: string;
   rotulo: string;
   icone: NomeIcone;
+  // Rótulo enxuto para a barra do celular, onde cinco itens precisam caber lado a lado
+  rotuloCurto: string;
   // Abre em outra aba (tela cheia para projetor/TV, sem a navegação do app)
   novaAba?: boolean;
 };
@@ -28,18 +30,19 @@ type ItemNav = {
 // safra selecionada, ver src/lib/safra.ts).
 const COOKIE_SIDEBAR = "presafra_sidebar_colapsada";
 
-const NAV_CLIENTES: ItemNav = { id: "clientes", href: "/", rotulo: "Clientes", icone: "lista" };
+const NAV_CLIENTES: ItemNav = { id: "clientes", href: "/", rotulo: "Clientes", rotuloCurto: "Clientes", icone: "lista" };
 // Liberado para admin e para contas "somente Painel" (ex.: TV da sala) — ver
 // exigirAcessoPainel() em src/lib/auth.ts.
-const NAV_PAINEL: ItemNav = { id: "painel", href: "/painel", rotulo: "Painel", icone: "painel" };
-const NAV_NOVO: ItemNav = { id: "novo", href: "/novo", rotulo: "Novo cliente", icone: "mais" };
-const NAV_ADMIN: ItemNav = { id: "admin", href: "/admin", rotulo: "Admin", icone: "engrenagem" };
+const NAV_PAINEL: ItemNav = { id: "painel", href: "/painel", rotulo: "Painel", rotuloCurto: "Painel", icone: "painel" };
+const NAV_NOVO: ItemNav = { id: "novo", href: "/novo", rotulo: "Novo cliente", rotuloCurto: "Novo", icone: "mais" };
+const NAV_ADMIN: ItemNav = { id: "admin", href: "/admin", rotulo: "Admin", rotuloCurto: "Admin", icone: "engrenagem" };
 // Telão de ideias do evento: QR code do formulário de sugestões + as ideias chegando ao vivo.
 // Mesmo acesso do Painel (admin e contas "somente Painel"), ver exigirAcessoPainel().
 const NAV_TELAO: ItemNav = {
   id: "telao",
   href: "/telao",
   rotulo: "Telão de ideias",
+  rotuloCurto: "Telão",
   icone: "nota",
   novaAba: true,
 };
@@ -180,12 +183,14 @@ export default async function Shell({
         />
       </header>
 
-      {/* Celular e tablet: barra escura com a navegação em linha */}
+      {/* Celular e tablet: barra escura. Primeira linha com marca, safra e atalhos; a navegação
+          fica numa linha própria embaixo (ícone + rótulo curto no celular, rótulo completo a
+          partir de sm), dividindo a largura igualmente — nada precisa rolar nem quebrar. */}
       <header className="sticky top-0 z-30 bg-night text-white lg:hidden">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-6 gap-y-1 px-4 pt-3 sm:h-14 sm:flex-nowrap sm:px-8 sm:py-0">
-          <Link href="/" className="flex items-center gap-3" aria-label="Início">
+        <div className="mx-auto flex h-14 max-w-7xl items-center gap-3 px-4 sm:px-8">
+          <Link href="/" className="flex shrink-0 items-center gap-3" aria-label="Início">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo-controlsoft.webp" alt="ControlSoft" className="h-7 w-auto" />
+            <img src="/logo-controlsoft.webp" alt="ControlSoft" className="h-6 w-auto sm:h-7" />
             <span className="hidden h-5 w-px bg-white/20 sm:block" />
             <span className="hidden text-sm font-semibold text-white/90 sm:block">
               Pré-Safra
@@ -193,17 +198,36 @@ export default async function Shell({
           </Link>
 
           {safras.length > 0 && (
-            <SeletorSafra
-              safras={safras}
-              selecionada={safraAtual?.id ?? null}
-              salvar={selecionarSafra}
-            />
+            <div className="min-w-0">
+              <SeletorSafra
+                safras={safras}
+                selecionada={safraAtual?.id ?? null}
+                salvar={selecionarSafra}
+              />
+            </div>
           )}
 
-          <nav
-            aria-label="Principal"
-            className="order-3 -mx-1 flex w-full gap-1 pb-2 sm:order-none sm:mx-0 sm:h-full sm:w-auto sm:pb-0"
-          >
+          <div className="ml-auto flex shrink-0 items-center gap-1">
+            <BotaoTema
+              nomeCookie={COOKIE_TEMA}
+              className="grid size-9 cursor-pointer place-items-center rounded-md text-white/70 transition hover:bg-white/10 hover:text-white"
+            />
+
+            <form action={sair}>
+              <button
+                aria-label="Sair"
+                title="Sair"
+                className="inline-flex size-9 cursor-pointer items-center justify-center gap-2 rounded-md text-sm font-medium text-white/70 transition hover:bg-white/10 hover:text-white sm:w-auto sm:px-2.5"
+              >
+                <Icone nome="sair" />
+                <span className="hidden sm:inline">Sair</span>
+              </button>
+            </form>
+          </div>
+        </div>
+
+        <nav aria-label="Principal" className="border-t border-white/10">
+          <div className="mx-auto flex max-w-7xl px-1 sm:px-6">
             {NAV.map((n) => {
               const atual = ativo === n.id;
               return (
@@ -213,37 +237,22 @@ export default async function Shell({
                   target={n.novaAba ? "_blank" : undefined}
                   rel={n.novaAba ? "noopener" : undefined}
                   aria-current={atual ? "page" : undefined}
-                  className={`relative flex items-center rounded-md px-3 py-2 text-sm font-medium transition sm:rounded-none sm:py-0 ${
-                    atual
-                      ? "bg-white/10 text-white sm:bg-transparent"
-                      : "text-white/70 hover:text-white"
+                  className={`relative flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-1 py-2 text-[11px] font-medium transition sm:flex-row sm:gap-2 sm:text-sm ${
+                    atual ? "text-white" : "text-white/60 hover:text-white"
                   }`}
                 >
-                  {n.rotulo}
-                  {!n.novaAba && <IndicadorLink className="ml-1.5" />}
+                  <Icone nome={n.icone} className="size-[18px] shrink-0" />
+                  <span className="truncate sm:hidden">{n.rotuloCurto}</span>
+                  <span className="hidden truncate sm:inline">{n.rotulo}</span>
+                  {!n.novaAba && <IndicadorLink className="absolute right-2 top-2 sm:static sm:ml-0.5" />}
                   {atual && (
-                    <span className="absolute inset-x-3 bottom-0 hidden h-0.5 rounded-full bg-brand sm:block" />
+                    <span className="absolute inset-x-3 bottom-0 h-0.5 rounded-full bg-brand" />
                   )}
                 </Link>
               );
             })}
-          </nav>
-
-          <div className="ml-auto flex items-center gap-1">
-            <BotaoTema
-              nomeCookie={COOKIE_TEMA}
-              className="grid size-9 cursor-pointer place-items-center rounded-md text-white/70 transition hover:bg-white/10 hover:text-white"
-            />
-
-            <form action={sair}>
-              <button className="inline-flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-2 text-sm font-medium text-white/70 transition hover:bg-white/10 hover:text-white">
-                <Icone nome="sair" />
-                <span className="hidden sm:inline">Sair</span>
-                <span className="sr-only sm:hidden">Sair</span>
-              </button>
-            </form>
           </div>
-        </div>
+        </nav>
       </header>
 
       <main

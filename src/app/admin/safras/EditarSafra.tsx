@@ -20,14 +20,14 @@ export default function EditarSafra({
 
   if (!editando) {
     return (
-      <div className="flex items-center gap-2">
-        <span className="tabular-nums">{exibicao}</span>
+      <div>
+        <span className="mr-2 tabular-nums">{exibicao}</span>
         <button
           type="button"
           onClick={() => setEditando(true)}
           aria-label="Editar datas"
           title="Editar datas"
-          className="text-muted transition hover:text-primary"
+          className="inline-block align-middle text-muted transition hover:text-primary"
         >
           <Icone nome="calendario" className="size-3.5" />
         </button>

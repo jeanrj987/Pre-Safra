@@ -58,6 +58,9 @@ export default function Agendar({
 }) {
   const statusInicial: Status = previsao;
   const temAgendamento = !!(previsao || data || horario);
+  // Quem ficou só com o responsável (sem data/horário/formato, ex.: dado de antes de a remoção
+  // limpar o responsável) também precisa de um jeito de zerar — só o admin, que é quem o define.
+  const soResponsavel = !temAgendamento && podeTrocarResponsavel && !!responsavel;
   const [aberto, setAberto] = useState(false);
   const [resp, setResp] = useState(responsavel);
   const [dia, setDia] = useState(data);
@@ -120,7 +123,7 @@ export default function Agendar({
           <form action={acao} onSubmit={validar} noValidate>
             <input type="hidden" name="id" value={id} />
             <input type="hidden" name="voltar" value={voltar} />
-            <div className="space-y-4 px-6 py-5">
+            <div className="space-y-4 px-4 py-5 sm:px-6">
               <label className="block">
                 <span className="rotulo">Responsável</span>
                 {podeTrocarResponsavel ? (
@@ -159,7 +162,7 @@ export default function Agendar({
                 )}
                 {mostrar("resp") && <Erro id="erro-resp">{erros.resp!}</Erro>}
               </label>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-4 min-[420px]:grid-cols-2">
                 <label className="block">
                   <span className="rotulo">Data</span>
                   <input
@@ -169,8 +172,9 @@ export default function Agendar({
                     onChange={(e) => setDia(e.target.value)}
                     aria-invalid={mostrar("dia")}
                     aria-describedby={mostrar("dia") ? "erro-dia" : undefined}
-                    className={`campo ${mostrar("dia") ? campoErro : ""}`}
+                    className={`campo min-w-0 ${mostrar("dia") ? campoErro : ""}`}
                   />
+                  {mostrar("dia") && <Erro id="erro-dia">{erros.dia!}</Erro>}
                 </label>
                 <label className="block">
                   <span className="rotulo">Horário</span>
@@ -180,7 +184,7 @@ export default function Agendar({
                     onChange={(e) => setHora(e.target.value)}
                     aria-invalid={mostrar("hora")}
                     aria-describedby={mostrar("hora") ? "erro-hora" : undefined}
-                    className={`campo ${mostrar("hora") ? campoErro : ""}`}
+                    className={`campo min-w-0 ${mostrar("hora") ? campoErro : ""}`}
                   >
                     <option value="">Selecione</option>
                     {HORARIOS.map((h) => (
@@ -189,14 +193,9 @@ export default function Agendar({
                       </option>
                     ))}
                   </select>
+                  {mostrar("hora") && <Erro id="erro-hora">{erros.hora!}</Erro>}
                 </label>
               </div>
-              {(mostrar("dia") || mostrar("hora")) && (
-                <div className="-mt-3 grid grid-cols-2 gap-4">
-                  <div>{mostrar("dia") && <Erro id="erro-dia">{erros.dia!}</Erro>}</div>
-                  <div>{mostrar("hora") && <Erro id="erro-hora">{erros.hora!}</Erro>}</div>
-                </div>
-              )}
               <label className="block">
                 <span className="rotulo">Status</span>
                 <select
@@ -218,14 +217,14 @@ export default function Agendar({
               </label>
             </div>
             <RodapeJanela onCancelar={() => setAberto(false)}>
-              {temAgendamento && (
+              {(temAgendamento || soResponsavel) && (
                 <button
                   type="submit"
                   name="remover"
                   value="1"
                   className="btn-discreto mr-auto !text-atrasado-fg hover:!bg-atrasado-bg"
                 >
-                  Remover agendamento
+                  {temAgendamento ? "Remover agendamento" : "Limpar responsável"}
                 </button>
               )}
               <BotaoEnviar pendente="Salvando…" className="btn-primario">
