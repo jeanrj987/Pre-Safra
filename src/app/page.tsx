@@ -25,6 +25,7 @@ import {
   PONTO_STATUS,
   contar,
   dataParaCampo,
+  formatarData,
   formatarAtraso,
   formatarAtrasoConclusao,
   listarLinhas,
@@ -355,6 +356,11 @@ export default async function Home({ searchParams }: PageProps<"/">) {
               </thead>
               <tbody className="divide-y divide-line">
                 {linhas.map((l) => {
+                  // Finalizado não se reagenda: responsável, data e horário viram só leitura.
+                  const finalizado = l.status === "Finalizado";
+                  const quando = [formatarData(l.dataPrevista), l.horario]
+                    .filter(Boolean)
+                    .join(" · ");
                   return (
                     <tr
                       key={l.id}
@@ -395,20 +401,26 @@ export default async function Home({ searchParams }: PageProps<"/">) {
                             daRegiao={pessoasDaDupla(l.atendentes)}
                             outros={nomes}
                             salvar={definirResponsavel}
-                            editavel={usuario.admin}
+                            editavel={usuario.admin && !finalizado}
                           />
-                          <CampoData
-                            id={l.id}
-                            nome={l.nome}
-                            valor={dataParaCampo(l.dataPrevista)}
-                            salvar={definirData}
-                          />
-                          <CampoHorario
-                            id={l.id}
-                            nome={l.nome}
-                            valor={l.horario ?? ""}
-                            salvar={definirHorario}
-                          />
+                          {finalizado ? (
+                            <span className="tabular-nums">{quando}</span>
+                          ) : (
+                            <>
+                              <CampoData
+                                id={l.id}
+                                nome={l.nome}
+                                valor={dataParaCampo(l.dataPrevista)}
+                                salvar={definirData}
+                              />
+                              <CampoHorario
+                                id={l.id}
+                                nome={l.nome}
+                                valor={l.horario ?? ""}
+                                salvar={definirHorario}
+                              />
+                            </>
+                          )}
                           {l.dias ? (
                             <span className="font-medium text-atrasado-fg">
                               {formatarAtraso(l.dias)}
@@ -450,24 +462,28 @@ export default async function Home({ searchParams }: PageProps<"/">) {
                           daRegiao={pessoasDaDupla(l.atendentes)}
                           outros={nomes}
                           salvar={definirResponsavel}
-                          editavel={usuario.admin}
+                          editavel={usuario.admin && !finalizado}
                         />
                       </td>
                       <td className="hidden whitespace-nowrap px-3 py-3 align-top tabular-nums md:table-cell">
-                        <div className="flex items-center gap-1.5">
-                          <CampoData
-                            id={l.id}
-                            nome={l.nome}
-                            valor={dataParaCampo(l.dataPrevista)}
-                            salvar={definirData}
-                          />
-                          <CampoHorario
-                            id={l.id}
-                            nome={l.nome}
-                            valor={l.horario ?? ""}
-                            salvar={definirHorario}
-                          />
-                        </div>
+                        {finalizado ? (
+                          <span className="text-muted">{quando || "—"}</span>
+                        ) : (
+                          <div className="flex items-center gap-1.5">
+                            <CampoData
+                              id={l.id}
+                              nome={l.nome}
+                              valor={dataParaCampo(l.dataPrevista)}
+                              salvar={definirData}
+                            />
+                            <CampoHorario
+                              id={l.id}
+                              nome={l.nome}
+                              valor={l.horario ?? ""}
+                              salvar={definirHorario}
+                            />
+                          </div>
+                        )}
                         {l.dias ? (
                           <div className="mt-1 text-xs font-medium text-atrasado-fg">
                             {formatarAtraso(l.dias)}
@@ -491,14 +507,15 @@ export default async function Home({ searchParams }: PageProps<"/">) {
                               nome={l.nome}
                               autor={usuario.nome}
                             />
-                          ) : (
+                          ) : STATUS_AGENDADOS.some((a) => a === l.status) ? (
+                            // Só quem já está agendado pode ser finalizado.
                             <Finalizar
                               acao={finalizarComNota}
                               id={l.id}
                               nome={l.nome}
                               autor={usuario.nome}
                             />
-                          )}
+                          ) : null}
                         </div>
                       </td>
                     </tr>

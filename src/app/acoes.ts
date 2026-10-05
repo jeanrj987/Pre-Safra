@@ -33,7 +33,15 @@ function voltarPara(formData: FormData, feitos: number, acao: string): never {
 // sessão/FormData. Aqui só cuidamos de autenticação, parsing do formulário e navegação.
 export async function finalizarComNota(formData: FormData) {
   const sessao = await exigirLogin();
-  const ids = idsDe(formData, "ids");
+  // Só se finaliza quem já foi agendado (tem formato previsto): a tela já esconde o botão dos
+  // demais, e aqui o servidor ignora qualquer id que não esteja nessa condição.
+  const idsPedidos = idsDe(formData, "ids");
+  const ids = (
+    await prisma.preSafra.findMany({
+      where: { id: { in: idsPedidos }, formato: { not: null } },
+      select: { id: true },
+    })
+  ).map((p) => p.id);
   // Formato, melhorias e observação vêm um por cliente (o modal aplica um padrão para todos
   // no formato, ajustável por linha) — nenhum dos três é decidido em bloco para a seleção
   // inteira.

@@ -85,7 +85,24 @@ describe("finalizarPendentes", () => {
 });
 
 describe("reabrirIds", () => {
+  it("mantém a data prevista quando ainda é futura", async () => {
+    await prisma.preSafra.update({
+      where: { id: idB },
+      data: { configuradoSistema: true, formato: "Online", horario: "09:00", dataPrevista: new Date("2099-01-01") },
+    });
+    await reabrirIds({ ids: [idB], motivo: "teste", autor: "Teste" });
+    const registro = await prisma.preSafra.findUnique({ where: { id: idB } });
+    expect(registro?.dataPrevista?.toISOString().slice(0, 10)).toBe("2099-01-01");
+    expect(registro?.formato).toBeNull();
+    expect(registro?.horario).toBeNull();
+  });
+
   it("reabre e grava o motivo na finalização em vigor", async () => {
+    // Agendamento antigo: data já vencida e horário marcado.
+    await prisma.preSafra.update({
+      where: { id: idA },
+      data: { dataPrevista: new Date("2020-06-01"), horario: "08:00" },
+    });
     const feitos = await reabrirIds({ ids: [idA], motivo: "motivo do teste", autor: "Teste" });
     expect(feitos).toBe(1);
 
@@ -94,6 +111,10 @@ describe("reabrirIds", () => {
       include: { conclusoes: true },
     });
     expect(registro?.configuradoSistema).toBe(false);
+    // Volta para "A Fazer": sem formato, horário nem data vencida.
+    expect(registro?.formato).toBeNull();
+    expect(registro?.horario).toBeNull();
+    expect(registro?.dataPrevista).toBeNull();
     expect(registro?.conclusoes[0].reabertoEm).not.toBeNull();
     expect(registro?.conclusoes[0].reabertoPor).toBe("Teste");
     expect(registro?.conclusoes[0].motivoReabertura).toBe("motivo do teste");

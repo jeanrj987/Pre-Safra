@@ -2,6 +2,7 @@
 // banco, sem sessão nem FormData. Separado assim para poder ser testado com um Prisma real,
 // sem precisar simular cookies()/redirect() do Next (que exigem contexto de requisição).
 import { prisma } from "./db";
+import { diaHoje } from "./status";
 
 export type Formato = "Online" | "Presencial";
 export const formatoValido = (v: string | null): v is Formato => v === "Online" || v === "Presencial";
@@ -62,7 +63,7 @@ export async function finalizarPendentes({
   return { feitos: idsPendentes.length, faltaFormato: false };
 }
 
-// Reabre os ids informados e grava o motivo na finalização que estava em vigor (a que ainda
+// Reabre os ids informados (voltando a "A Fazer") e grava o motivo na finalização que estava em vigor (a que ainda
 // não tinha sido reaberta). O histórico anterior a essa finalização não é tocado.
 export async function reabrirIds({
   ids,
@@ -75,9 +76,16 @@ export async function reabrirIds({
 }): Promise<number> {
   if (ids.length === 0) return 0;
   await prisma.$transaction([
+    // Volta para "A Fazer": sem formato (previsão/realizado) nem horário, o cliente precisa ser
+    // agendado de novo. Uma data prevista já vencida também sai (senão ele voltaria como
+    // "Atrasado", não "A Fazer"); data futura é mantida.
     prisma.preSafra.updateMany({
       where: { id: { in: ids } },
-      data: { configuradoSistema: false },
+      data: { configuradoSistema: false, formato: null, horario: null },
+    }),
+    prisma.preSafra.updateMany({
+      where: { id: { in: ids }, dataPrevista: { lt: new Date(diaHoje(new Date())) } },
+      data: { dataPrevista: null },
     }),
     prisma.conclusao.updateMany({
       where: { preSafraId: { in: ids }, reabertoEm: null },
