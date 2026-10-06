@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Form from "next/form";
 import { CampoBusca } from "./Auto";
+import { equipesPorRegiao, gruposDeResponsavel } from "@/lib/equipe";
 import Seletor from "./Seletor";
 import { Avatar, Bolinha } from "./seletorOpcoes";
 import { normalizar, plural } from "@/lib/texto";
@@ -25,7 +26,6 @@ import {
   listarLinhas,
   nomesPossiveis,
 } from "@/lib/dados";
-import { pessoasDaDupla } from "@/lib/painel";
 import { STATUS_AGENDADOS } from "@/lib/status";
 import { obterSafraSelecionada } from "@/lib/safra";
 
@@ -78,6 +78,8 @@ export default async function Home({ searchParams }: PageProps<"/">) {
   const todas = await listarLinhas(safra.id);
   const cont = contar(todas);
   const nomes = nomesPossiveis(todas);
+  // Equipe de cada região, para o responsável do Agendar: a da região do cliente primeiro, depois as outras.
+  const equipes = equipesPorRegiao(todas);
 
   // Inativos não aparecem aqui: são inativados e reativados em Admin → Clientes.
   const bateStatus = (s: string) =>
@@ -495,7 +497,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
                               previsao={
                                 l.formato === "Online" || l.formato === "Presencial" ? l.formato : ""
                               }
-                              daRegiao={pessoasDaDupla(l.atendentes)}
+                              grupos={gruposDeResponsavel(l, equipes)}
                               outros={nomes}
                               podeTrocarResponsavel={usuario.admin}
                             />

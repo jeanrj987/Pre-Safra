@@ -1,4 +1,5 @@
 "use client";
+import { comercialDaRegiao } from "@/lib/equipe";
 import { COR, nf } from "./cores";
 import { SEM_REGIAO } from "./filtros";
 import { SITUACOES, situacao, type ClientePainel, type Regiao, type Situacao } from "@/lib/painel";
@@ -9,6 +10,7 @@ interface Grupo {
   curto: string;
   cobre: string;
   atendentes: string;
+  consultor: string;
   semRegiao: boolean;
 }
 
@@ -29,7 +31,7 @@ export default function Regioes({
 }) {
   const grupos: Grupo[] = [
     ...regioes.map((r) => ({ ...r, semRegiao: false })),
-    { nome: SEM_REGIAO, curto: SEM_REGIAO, cobre: "", atendentes: "", semRegiao: true },
+    { nome: SEM_REGIAO, curto: SEM_REGIAO, cobre: "", atendentes: "", consultor: "", semRegiao: true },
   ];
 
   const dados = grupos.map((g) => {
@@ -76,7 +78,7 @@ export default function Regioes({
                 type="button"
                 aria-pressed={sel}
                 onClick={() => onSelecionar(sel ? "" : g.nome)}
-                aria-label={`${g.nome}: ${Math.round(pct * 100)}% finalizado, ${plural(n, "cliente", "clientes")}, ${por.T} atrasados${g.atendentes ? `. Atendentes: ${g.atendentes}` : ""}`}
+                aria-label={`${g.nome}: ${Math.round(pct * 100)}% finalizado, ${plural(n, "cliente", "clientes")}, ${por.T} atrasados${g.atendentes ? `. Atendentes: ${g.atendentes}` : ""}${g.consultor ? `. Consultor: ${g.consultor}` : ""}${comercialDaRegiao(g.nome) ? `. Comercial: ${comercialDaRegiao(g.nome)}` : ""}`}
                 className={`card flex min-w-0 cursor-pointer flex-col gap-1.5 px-3.5 py-2.5 text-left hover:border-line-strong ${
                   g.semRegiao ? "border-dashed bg-subtle shadow-none" : ""
                 } ${sel ? "!border-primary ring-1 ring-primary" : ""}`}
@@ -108,12 +110,24 @@ export default function Regioes({
                   </span>
                   <span className="text-muted">{nf.format(por.S)} sem data</span>
                 </span>
-                <span className="border-t border-line pt-1.5 text-[12.5px] text-muted">
+                <span className="space-y-0.5 border-t border-line pt-1.5 text-[12.5px] text-muted">
                   {g.semRegiao ? (
                     "Ajuste a região no cadastro do cliente."
                   ) : (
                     <>
-                      Atendentes <span className="text-ink">{g.atendentes}</span>
+                      <span className="block">
+                        Atendentes <span className="text-ink">{g.atendentes}</span>
+                      </span>
+                      {g.consultor && (
+                        <span className="block">
+                          Consultor <span className="text-ink">{g.consultor}</span>
+                        </span>
+                      )}
+                      {comercialDaRegiao(g.nome) && (
+                        <span className="block">
+                          Comercial <span className="text-ink">{comercialDaRegiao(g.nome)}</span>
+                        </span>
+                      )}
                     </>
                   )}
                 </span>

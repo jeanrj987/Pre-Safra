@@ -1,3 +1,4 @@
+import type { GrupoEquipe } from "@/lib/equipe";
 import type { OpcaoSeletor } from "./Seletor";
 
 // Montagem das opções do Seletor. Fica fora de Seletor.tsx (que é "use client") para poder ser
@@ -28,19 +29,23 @@ export function Bolinha({ cor }: { cor: "agendado" | "presencial" }) {
 export const opcoesDeLista = (lista: readonly string[]): OpcaoSeletor[] =>
   lista.map((v) => ({ valor: v, rotulo: v }));
 
-/** Pessoas com avatar, as da região primeiro. */
-export function opcoesDePessoas(daRegiao: string[], outros: string[]): OpcaoSeletor[] {
-  const resto = outros.filter((o) => !daRegiao.includes(o));
-  const grupoResto = daRegiao.length ? "Outros" : "Responsáveis";
-  const pessoa = (p: string, grupo: string): OpcaoSeletor => ({
-    valor: p,
-    rotulo: p,
-    grupo,
-    marca: <Avatar nome={p} />,
-  });
+/**
+ * Pessoas com avatar, uma seção por grupo (ex.: "Da região", depois cada região), com o papel
+ * ao lado do nome. `outros` são nomes sem região, listados no fim sem quem já apareceu antes.
+ */
+export function opcoesDePessoas(grupos: GrupoEquipe[], outros: string[] = []): OpcaoSeletor[] {
+  const jaListados = new Set(grupos.flatMap((g) => g.pessoas.map((p) => p.nome)));
+  const restantes = [...new Set(outros)].filter((n) => !jaListados.has(n));
   return [
-    ...daRegiao.map((p) => pessoa(p, "Da região")),
-    ...resto.map((p) => pessoa(p, grupoResto)),
+    ...grupos.flatMap((g) =>
+      g.pessoas.map((p) => ({ valor: p.nome, rotulo: p.nome, grupo: g.titulo, marca: <Avatar nome={p.nome} />, detalhe: p.papel })),
+    ),
+    ...restantes.map((n) => ({
+      valor: n,
+      rotulo: n,
+      grupo: grupos.length ? "Outros" : "Responsáveis",
+      marca: <Avatar nome={n} />,
+    })),
   ];
 }
 

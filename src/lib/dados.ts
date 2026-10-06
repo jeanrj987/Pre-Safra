@@ -1,4 +1,5 @@
 import { FUSO_NEGOCIO } from "./fuso";
+import { COMERCIAL_POR_REGIAO, equipesPorRegiao, type GrupoEquipe } from "./equipe";
 import { prisma } from "@/lib/db";
 import { pessoasDaDupla } from "@/lib/painel";
 import {
@@ -127,10 +128,12 @@ export async function listarLinhas(safraId: number): Promise<Linha[]> {
 function coletarNomes(
   duplas: (string | null)[],
   responsaveis: (string | null)[],
+  extras: (string | null)[] = [],
 ): string[] {
   const nomes = new Set<string>();
   duplas.forEach((d) => pessoasDaDupla(d).forEach((p) => nomes.add(p)));
   responsaveis.forEach((r) => r && nomes.add(r));
+  extras.forEach((e) => e && nomes.add(e));
   return [...nomes].sort((a, b) => a.localeCompare(b, "pt-BR"));
 }
 
@@ -142,9 +145,12 @@ export function nomesPossiveis(linhas: Linha[]): string[] {
   );
 }
 
-/** Nomes para escolher como responsável: atendentes das regiões e quem já foi escolhido. */
+/**
+ * Nomes para escolher como responsável: atendentes das regiões, consultores, comerciais e quem
+ * já foi escolhido.
+ */
 export async function listarNomesResponsaveis(): Promise<string[]> {
-  const [duplas, escolhidos] = await Promise.all([
+  const [duplas, escolhidos, consultores] = await Promise.all([
     prisma.cliente.findMany({
       where: { atendente: { not: null } },
       distinct: ["atendente"],
@@ -155,11 +161,26 @@ export async function listarNomesResponsaveis(): Promise<string[]> {
       distinct: ["responsavel"],
       select: { responsavel: true },
     }),
+    prisma.cliente.findMany({
+      where: { consultor: { not: null } },
+      distinct: ["consultor"],
+      select: { consultor: true },
+    }),
   ]);
   return coletarNomes(
     duplas.map((d) => d.atendente),
     escolhidos.map((e) => e.responsavel),
+    [...consultores.map((c) => c.consultor), ...Object.values(COMERCIAL_POR_REGIAO)],
   );
+}
+
+/** A equipe de cada região (atendentes, consultor, comercial), para escolher o responsável. */
+export async function listarEquipesPorRegiao(): Promise<GrupoEquipe[]> {
+  const clientes = await prisma.cliente.findMany({
+    where: { regiao: { not: null } },
+    select: { regiao: true, atendente: true, consultor: true },
+  });
+  return equipesPorRegiao(clientes.map((c) => ({ regiao: c.regiao, atendentes: c.atendente, consultor: c.consultor })));
 }
 
 /** Cidades já usadas em algum cliente, para sugerir no cadastro em vez de digitar do zero. */

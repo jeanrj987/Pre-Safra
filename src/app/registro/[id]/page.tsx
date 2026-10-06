@@ -18,11 +18,12 @@ import {
   listarCidadesConhecidas,
   listarConsultoresConhecidos,
   listarDuplasConhecidas,
+  listarEquipesPorRegiao,
   listarNomesResponsaveis,
   listarRegioesConhecidas,
   UFS_BRASIL,
 } from "@/lib/dados";
-import { pessoasDaDupla } from "@/lib/painel";
+import { gruposDeResponsavel, type GrupoEquipe } from "@/lib/equipe";
 
 const texto = (f: FormData, k: string) => String(f.get(k) ?? "").trim() || null;
 
@@ -53,9 +54,10 @@ export default async function Registro({
   if (!r) notFound();
 
   const usuarioAdmin = usuario.admin;
-  const [nomes, cidadesConhecidas, regioesConhecidas, duplasConhecidas, consultoresConhecidos] =
+  const [nomes, equipes, cidadesConhecidas, regioesConhecidas, duplasConhecidas, consultoresConhecidos] =
     await Promise.all([
       listarNomesResponsaveis(),
+      usuarioAdmin ? listarEquipesPorRegiao() : Promise.resolve<GrupoEquipe[]>([]),
       usuarioAdmin ? listarCidadesConhecidas() : Promise.resolve<string[]>([]),
       usuarioAdmin ? listarRegioesConhecidas() : Promise.resolve<string[]>([]),
       usuarioAdmin ? listarDuplasConhecidas() : Promise.resolve<string[]>([]),
@@ -66,8 +68,13 @@ export default async function Registro({
   const opcoesUf = comValorAtual(UFS_BRASIL, r.cliente?.uf ?? null);
   const opcoesAtendimento = comValorAtual(duplasConhecidas, r.cliente?.atendente ?? null);
   const opcoesConsultor = comValorAtual(consultoresConhecidos, r.cliente?.consultor ?? null);
-  const daRegiao = pessoasDaDupla(r.cliente?.atendente ?? null);
-  const outros = nomes.filter((n) => !daRegiao.includes(n));
+  const pessoasDoCliente = {
+    atendentes: r.cliente?.atendente ?? null,
+    consultor: r.cliente?.consultor ?? null,
+    regiao: r.cliente?.regiao ?? null,
+  };
+  // Responsável (só admin escolhe): a equipe da região do cliente primeiro, depois cada região.
+  const gruposResponsavel = gruposDeResponsavel(pessoasDoCliente, equipes);
 
   const nome = r.cliente?.nome ?? r.clienteNomeManual ?? "(sem nome)";
   const dados = {
@@ -238,7 +245,7 @@ export default async function Registro({
                     nome="responsavel" placeholder="Selecione o responsável"
                     rotulo="Responsável"
                     valorInicial={r.responsavel ?? ""}
-                    opcoes={opcoesDePessoas(daRegiao, outros)}
+                    opcoes={opcoesDePessoas(gruposResponsavel, nomes)}
                   />
                 ) : (
                   <div>

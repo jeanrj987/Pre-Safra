@@ -29,6 +29,7 @@ export interface ClientePainel {
   nome: string;
   regiao: string | null;
   atendentes: string | null;
+  consultor?: string | null;
   responsavel: string | null;
   formato: string | null;
   /** Data prevista, em dia UTC (ms). */
@@ -256,22 +257,35 @@ export interface Regiao {
   curto: string;
   cobre: string;
   atendentes: string;
+  /** Consultor que mais aparece nos clientes da região (na planilha é um só por região). */
+  consultor: string;
   total: number;
 }
 
 /** Regiões presentes nos dados, da maior para a menor. */
 export function listarRegioes(clientes: ClientePainel[]): Regiao[] {
   const mapa = new Map<string, Regiao>();
+  const consultores = new Map<string, Map<string, number>>();
   for (const c of clientes) {
     if (!c.regiao) continue;
     const r = mapa.get(c.regiao) ?? {
       nome: c.regiao,
       ...nomeCurtoRegiao(c.regiao),
       atendentes: c.atendentes ?? "",
+      consultor: "",
       total: 0,
     };
     r.total++;
     mapa.set(c.regiao, r);
+    const consultor = c.consultor?.trim();
+    if (consultor) {
+      const contagem = consultores.get(c.regiao) ?? new Map<string, number>();
+      contagem.set(consultor, (contagem.get(consultor) ?? 0) + 1);
+      consultores.set(c.regiao, contagem);
+    }
+  }
+  for (const [regiao, contagem] of consultores) {
+    mapa.get(regiao)!.consultor = [...contagem].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "pt-BR"))[0][0];
   }
   return [...mapa.values()].sort((a, b) => b.total - a.total || a.nome.localeCompare(b.nome, "pt-BR"));
 }

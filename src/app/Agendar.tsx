@@ -5,6 +5,7 @@ import Icone from "./Icone";
 import { Janela, RodapeJanela } from "./Finalizar";
 import Seletor, { type OpcaoSeletor } from "./Seletor";
 import { Bolinha, opcoesDeLista, opcoesDePessoas } from "./seletorOpcoes";
+import type { GrupoEquipe } from "@/lib/equipe";
 import { hojeIso, motivoDataIndisponivel } from "@/lib/diasUteis";
 import { HORARIOS, motivoHorarioPassado } from "@/lib/horarios";
 
@@ -46,7 +47,7 @@ export default function Agendar({
   data,
   horario,
   previsao,
-  daRegiao,
+  grupos,
   outros,
   podeTrocarResponsavel,
 }: {
@@ -61,7 +62,9 @@ export default function Agendar({
   horario: string;
   /** Formato já previsto ("Online"/"Presencial"), ou "" se ainda é A Fazer. */
   previsao: "" | "Online" | "Presencial";
-  daRegiao: string[];
+  /** "Da região" e depois cada região, com as pessoas e o papel de cada uma. */
+  grupos: GrupoEquipe[];
+  /** Nomes sem região (ex.: quem já foi escolhido antes), listados no fim. */
   outros: string[];
   podeTrocarResponsavel: boolean;
 }) {
@@ -76,7 +79,7 @@ export default function Agendar({
   const [hora, setHora] = useState(horario);
   const [status, setStatus] = useState<Status>(statusInicial);
   const [tentou, setTentou] = useState(false);
-  const opcoesResponsavel = opcoesDePessoas(daRegiao, outros);
+  const opcoesResponsavel = opcoesDePessoas(grupos, outros);
 
   function abrir() {
     setResp(responsavel);

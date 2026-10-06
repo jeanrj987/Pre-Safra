@@ -26,7 +26,7 @@ export default async function PaginaPainel() {
   const registros = await prisma.preSafra.findMany({
     where: { safraId: safra.id, inativo: false },
     include: {
-      cliente: { select: { nome: true, regiao: true, atendente: true } },
+      cliente: { select: { nome: true, regiao: true, atendente: true, consultor: true } },
       // A data da finalização em vigor (a que ainda não foi reaberta) é a data de conclusão.
       conclusoes: {
         where: { reabertoEm: null },
@@ -44,6 +44,7 @@ export default async function PaginaPainel() {
     nome: r.cliente?.nome ?? r.clienteNomeManual ?? "(sem nome)",
     regiao: r.cliente?.regiao ?? null,
     atendentes: r.cliente?.atendente ?? null,
+    consultor: r.cliente?.consultor ?? null,
     responsavel: r.responsavel,
     formato: r.formato,
     data: r.dataPrevista ? r.dataPrevista.getTime() : null,

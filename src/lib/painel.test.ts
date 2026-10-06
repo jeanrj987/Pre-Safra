@@ -167,6 +167,18 @@ describe("regiões", () => {
     ];
     expect(listarRegioes(set).map((r) => [r.nome, r.total])).toEqual([["B", 2], ["A", 1]]);
   });
+
+  it("usa o consultor que mais aparece na região, sem contar clientes sem consultor", () => {
+    const set = [
+      cliente({ regiao: "A", consultor: "André" }),
+      cliente({ regiao: "A", consultor: "André" }),
+      cliente({ regiao: "A", consultor: "Cledinei" }),
+      cliente({ regiao: "A", consultor: null }),
+      cliente({ regiao: "B" }),
+    ];
+    const porNome = Object.fromEntries(listarRegioes(set).map((r) => [r.nome, r.consultor]));
+    expect(porNome).toEqual({ A: "André", B: "" });
+  });
 });
 
 describe("escalaAgradavel", () => {
