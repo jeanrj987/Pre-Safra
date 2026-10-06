@@ -215,7 +215,7 @@ export default async function Registro({
           className="flex items-center gap-2 rounded-lg bg-atrasado-bg px-4 py-3 text-sm font-medium text-atrasado-fg"
         >
           <Icone nome="alerta" />
-          Nada foi salvo: a data prevista não pode ser uma data passada, sábado, domingo nem
+          Nada foi salvo: a data prevista não pode ser retroativa, sábado, domingo nem
           feriado. Escolha outro dia.
         </p>
       )}

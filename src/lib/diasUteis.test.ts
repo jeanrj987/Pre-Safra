@@ -41,7 +41,7 @@ describe("data passada", () => {
   const agora = new Date("2026-10-06T15:00:00Z");
 
   it("recusa dia anterior a hoje, mas aceita hoje e o futuro", () => {
-    expect(motivoDataPassada("2026-10-05", agora)).toMatch(/já passou/);
+    expect(motivoDataPassada("2026-10-05", agora)).toMatch(/retroativa/);
     expect(motivoDataPassada("2026-10-06", agora)).toBeNull();
     expect(motivoDataPassada("2026-10-07", agora)).toBeNull();
   });
@@ -56,7 +56,7 @@ describe("data passada", () => {
     expect(motivoDataPassada("2026-02-31", agora)).toBeNull();
   });
   it("junta com sábado, domingo e feriado", () => {
-    expect(motivoDataIndisponivel("2026-10-03", agora)).toMatch(/já passou/);
+    expect(motivoDataIndisponivel("2026-10-03", agora)).toMatch(/retroativa/);
     expect(motivoDataIndisponivel("2026-10-10", agora)).toMatch(/sábado/);
     expect(motivoDataIndisponivel("2026-10-08", agora)).toBeNull();
   });

@@ -95,7 +95,7 @@ export function hojeIso(agora: Date = new Date()): string {
 export function motivoDataPassada(data: string, agora: Date = new Date()): string | null {
   const p = partes(data);
   if (!p) return null;
-  return p.ms < diaHoje(agora) ? "Não é possível agendar em uma data que já passou." : null;
+  return p.ms < diaHoje(agora) ? "Não é possível agendar data retroativa." : null;
 }
 
 /** Tudo o que impede agendar naquele dia: data passada, fim de semana ou feriado. */
