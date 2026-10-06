@@ -110,7 +110,7 @@ export async function exigirAcessoPainel(): Promise<UsuarioSessao> {
 }
 
 // Use no topo das páginas que não são o Painel (Clientes, Novo cliente, registro de
-// cliente): uma conta "somente Painel" tentando abrir qualquer uma delas volta pro Painel,
+// cliente): uma conta "somente Painel" tentando abrir qualquer uma delas volta para o Painel,
 // em vez de ver a lista de clientes ou poder editar algo.
 export async function exigirAcessoCompleto(): Promise<UsuarioSessao> {
   const usuario = await exigirLogin();

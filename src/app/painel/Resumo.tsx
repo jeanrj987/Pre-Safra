@@ -74,7 +74,7 @@ export function AndamentoGeral({ m }: { m: Metricas }) {
             </div>
             <div className="mt-0.5 flex items-baseline gap-2">
               <span className="text-2xl leading-none font-semibold tracking-tight tabular-nums">{nf.format(m.por[s.k])}</span>
-              <span className="text-sm text-muted tabular-nums">{m.n ? Math.round((m.por[s.k] / m.n) * 100) : 0}%</span>
+              <span className="text-sm text-muted tabular-nums">({m.n ? Math.round((m.por[s.k] / m.n) * 100) : 0}%)</span>
             </div>
           </li>
         ))}

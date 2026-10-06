@@ -2,7 +2,7 @@
 // e aponta todo PreSafra existente para ela.
 //
 // Roda ANTES do corte final do schema (quando safraId ainda é opcional e anoSafra ainda
-// existe no banco) — ver prisma/schema.additivo.prisma e o runbook no final deste arquivo.
+// existe no banco) — ver prisma/schema.aditivo.prisma e o runbook no final deste arquivo.
 // Usa SQL bruto para ler/gravar anoSafra/safraId de propósito: assim o script continua
 // funcionando não importa qual versão do schema.prisma esteja com `generate` no momento em
 // que ele é executado (o Prisma Client tipado muda de forma entre a etapa aditiva e o corte).

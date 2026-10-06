@@ -1,3 +1,4 @@
+import { FUSO_NEGOCIO } from "@/lib/fuso";
 import { revalidatePath } from "next/cache";
 import { exigirAdmin } from "@/lib/auth";
 import {
@@ -21,7 +22,7 @@ export const metadata = { title: "Sugestões · Pré-Safra" };
 const dataHora = new Intl.DateTimeFormat("pt-BR", {
   dateStyle: "short",
   timeStyle: "short",
-  timeZone: "America/Sao_Paulo",
+  timeZone: FUSO_NEGOCIO,
 });
 
 const TAMANHO_PAGINA = 25;

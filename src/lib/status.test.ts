@@ -99,7 +99,7 @@ describe("diasAtrasoNaConclusao", () => {
     expect(diasAtrasoNaConclusao(null, hoje)).toBeNull();
     expect(diasAtrasoNaConclusao(d("2026-09-20"), null)).toBeNull();
   });
-  it("usa o dia do Brasil: 01h UTC ainda é o dia anterior", () => {
+  it("usa o dia de Mato Grosso: 01h UTC ainda é o dia anterior", () => {
     expect(
       diasAtrasoNaConclusao(d("2026-09-24"), new Date("2026-09-25T01:00:00Z")),
     ).toBeNull();

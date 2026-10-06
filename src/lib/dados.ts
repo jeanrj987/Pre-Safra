@@ -1,3 +1,4 @@
+import { FUSO_NEGOCIO } from "./fuso";
 import { prisma } from "@/lib/db";
 import { pessoasDaDupla } from "@/lib/painel";
 import {
@@ -249,7 +250,7 @@ export function formatarDataHora(d: Date): string {
   return new Intl.DateTimeFormat("pt-BR", {
     dateStyle: "short",
     timeStyle: "short",
-    timeZone: "America/Sao_Paulo",
+    timeZone: FUSO_NEGOCIO,
   }).format(d);
 }
 

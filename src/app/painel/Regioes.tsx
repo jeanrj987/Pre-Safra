@@ -82,8 +82,10 @@ export default function Regioes({
                 } ${sel ? "!border-primary ring-1 ring-primary" : ""}`}
               >
                 <span className="flex flex-wrap items-baseline gap-x-1.5">
-                  <b className="text-[14.5px] font-semibold">{g.curto}</b>
-                  {g.cobre && <span className="text-[12.5px] text-muted">a {g.cobre}</span>}
+                  <b className="text-[14.5px] font-semibold">
+                    {g.curto}
+                    {g.cobre && ` a ${g.cobre}`}
+                  </b>
                   {g.semRegiao && <span className="text-[12.5px] text-muted">cadastro incompleto</span>}
                 </span>
                 <span className="flex flex-wrap items-baseline gap-x-2">

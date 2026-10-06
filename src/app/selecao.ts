@@ -60,7 +60,7 @@ export function lerSelecionados(): { id: string; nome: string }[] {
 }
 
 /** Limpa a seleção inteira — usada tanto pelo botão "Limpar seleção" quanto depois de uma
- * ação em lote concluída (os clientes agiu não devem continuar marcados). */
+ * ação em lote concluída (os clientes já processados não devem continuar marcados). */
 export function limparSelecao() {
   gravarMapa(new Map());
   caixasVisiveis().forEach((c) => (c.checked = false));

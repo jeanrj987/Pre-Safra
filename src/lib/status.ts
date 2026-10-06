@@ -1,3 +1,5 @@
+import { FUSO_NEGOCIO } from "./fuso";
+
 export type StatusPreSafra =
   | "Finalizado"
   | "Atrasado"
@@ -67,10 +69,10 @@ export function mesPrevisto(dataPrevista: Date | null): string | null {
   return `${mes}/${dataPrevista.getUTCFullYear()}`;
 }
 
-// "Hoje" segue o calendário do Brasil (servidor costuma rodar em UTC).
+// "Hoje" segue o calendário de Mato Grosso (servidor costuma rodar em UTC).
 export function diaHoje(agora: Date): number {
   const [d, m, a] = new Intl.DateTimeFormat("pt-BR", {
-    timeZone: "America/Sao_Paulo",
+    timeZone: FUSO_NEGOCIO,
   })
     .format(agora)
     .split("/")

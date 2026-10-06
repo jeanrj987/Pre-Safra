@@ -136,7 +136,15 @@ export default async function Novo({
   return (
     <Shell ativo="novo">
       <div className="mx-auto max-w-4xl space-y-6">
-        <div className="space-y-3">
+        <div className="relative space-y-3">
+          <Link
+            href="/"
+            aria-label="Fechar e voltar para Clientes"
+            title="Fechar"
+            className="absolute right-0 top-0 grid size-8 cursor-pointer place-items-center rounded-lg text-muted transition hover:bg-subtle hover:text-ink"
+          >
+            <Icone nome="x" />
+          </Link>
           <Link
             href="/"
             className="inline-flex items-center gap-1.5 text-sm font-medium text-muted transition hover:text-ink"

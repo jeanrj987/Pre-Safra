@@ -49,7 +49,12 @@ export default async function Home({ searchParams }: PageProps<"/">) {
     (Array.isArray(v) ? v[0] : v) ?? "";
   const q = um(sp.q).trim();
   const status = um(sp.status);
-  const resp = um(sp.responsavel);
+  // Vários responsáveis de uma vez: o parâmetro vem repetido (?responsavel=A&responsavel=B).
+  const resps = [
+    ...new Set(
+      (Array.isArray(sp.responsavel) ? sp.responsavel : [sp.responsavel ?? ""]).map((r) => r.trim()).filter(Boolean),
+    ),
+  ];
   // Online ou Presencial, o que foi agendado (ou realizado, no caso dos finalizados). Só existe
   // nas abas "Agendados" e "Finalizados"; nas demais o filtro nem aparece e o parâmetro é ignorado.
   const temFormato = status === "Agendado" || status === "Finalizado";
@@ -87,7 +92,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
     (l) =>
       (!q || normalizar(l.nome).includes(normalizar(q))) &&
       bateStatus(l.status) &&
-      (!resp || l.responsavel === resp) &&
+      (resps.length === 0 || (!!l.responsavel && resps.includes(l.responsavel))) &&
       (!formato || l.formato === formato) &&
       (!comentario || (!!l.observacao && normalizar(l.observacao).includes(normalizar(comentario)))),
   );
@@ -105,7 +110,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
     const p = new URLSearchParams();
     if (q) p.set("q", q);
     if (status) p.set("status", status);
-    if (resp) p.set("responsavel", resp);
+    resps.forEach((r) => p.append("responsavel", r));
     if (formato) p.set("formato", formato);
     if (comentario) p.set("comentario", comentario);
     if (paginaAtual > 1) p.set("pagina", String(paginaAtual));
@@ -126,8 +131,11 @@ export default async function Home({ searchParams }: PageProps<"/">) {
   // Trocar de card começa uma lista nova: só o status vale, busca, responsável e formato zeram.
   const href = (novo: string) => (novo ? `/?${new URLSearchParams({ status: novo })}` : "/");
 
-  const pct = cont.todos ? Math.round((cont.Finalizado / cont.todos) * 100) : 0;
-  const filtrando = !!(q || status || resp || formato || comentario);
+  const pctDe = (n: number) => (cont.todos ? Math.round((n / cont.todos) * 100) : 0);
+  const pct = pctDe(cont.Finalizado);
+  // Todo card termina com a fatia que representa no total, igual ao de Finalizados.
+  const doTotal = (n: number) => `${pctDe(n)}% do total`;
+  const filtrando = !!(q || status || resps.length > 0 || formato || comentario);
   // Ação em lote só existe onde faz sentido: finalizar vale para agendados e reabrir, para
   // finalizados. Nas demais telas (Todos, Atrasados, A Fazer) não há caixas de seleção nem barra.
   const comSelecao = status === "Agendado" || status === "Finalizado";
@@ -267,20 +275,20 @@ export default async function Home({ searchParams }: PageProps<"/">) {
           </div>
         </Link>
         {indicador(
-          "Atrasado",
-          "Atrasados",
-          cont.Atrasado,
-          cont.Atrasado ? "Precisam de atenção" : "Nenhum atraso",
-          cont.Atrasado ? "text-atrasado-fg" : "",
-        )}
-        {indicador("A Fazer", "A Fazer", cont["A Fazer"], "Dentro do prazo ou sem data")}
-        {indicador(
           "Agendado",
           "Agendados",
           cont.Agendado,
-          `${cont["Agendado Online"]} online · ${cont["Agendado Presencial"]} presencial`,
+          `${cont["Agendado Online"]} online · ${cont["Agendado Presencial"]} presencial · ${doTotal(cont.Agendado)}`,
         )}
-        {indicador("Finalizado", "Finalizados", cont.Finalizado, `${pct}% do total`)}
+        {indicador("A Fazer", "A Fazer", cont["A Fazer"], `Dentro do prazo ou sem data · ${doTotal(cont["A Fazer"])}`)}
+        {indicador(
+          "Atrasado",
+          "Atrasados",
+          cont.Atrasado,
+          `${cont.Atrasado ? "Precisam de atenção" : "Nenhum atraso"} · ${doTotal(cont.Atrasado)}`,
+          cont.Atrasado ? "text-atrasado-fg" : "",
+        )}
+        {indicador("Finalizado", "Finalizados", cont.Finalizado, doTotal(cont.Finalizado))}
       </section>
       </div>
 
@@ -323,9 +331,12 @@ export default async function Home({ searchParams }: PageProps<"/">) {
             rotulo="Filtrar por responsável"
             ocultarRotulo
             tamanho="compacto"
-            valorInicial={resp}
+            multiplo
+            valoresIniciais={resps}
+            unidadePlural="responsáveis"
+            placeholder="Todos os responsáveis"
             enviarAoMudar
-            opcoes={[{ valor: "", rotulo: "Todos os responsáveis" }, ...nomes.map((r) => ({ valor: r, rotulo: r, marca: <Avatar nome={r} /> }))]}
+            opcoes={nomes.map((r) => ({ valor: r, rotulo: r, marca: <Avatar nome={r} /> }))}
           />
           {temFormato && (
             <Seletor

@@ -1,3 +1,4 @@
+import { FUSO_NEGOCIO } from "@/lib/fuso";
 import { usuarioAtual } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { formatarWhatsapp } from "@/lib/whatsapp";
@@ -5,7 +6,7 @@ import { formatarWhatsapp } from "@/lib/whatsapp";
 const dataHora = new Intl.DateTimeFormat("pt-BR", {
   dateStyle: "short",
   timeStyle: "short",
-  timeZone: "America/Sao_Paulo",
+  timeZone: FUSO_NEGOCIO,
 });
 
 // Aspas duplicadas dentro de campo entre aspas (RFC 4180). Também neutraliza fórmulas do Excel:

@@ -86,7 +86,7 @@ export function motivoDiaBloqueado(data: string): string | null {
   return feriado ? `Não é possível agendar em feriado (${feriado}).` : null;
 }
 
-/** Hoje no calendário do Brasil, como "aaaa-mm-dd" (o formato do campo de data do navegador). */
+/** Hoje no calendário de Mato Grosso, como "aaaa-mm-dd" (o formato do campo de data do navegador). */
 export function hojeIso(agora: Date = new Date()): string {
   return new Date(diaHoje(agora)).toISOString().slice(0, 10);
 }

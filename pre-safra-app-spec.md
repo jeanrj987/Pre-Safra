@@ -20,7 +20,7 @@ Hoje esse processo é controlado em uma planilha Excel (`Pré-Safra 2026.xlsx`) 
 - Fórmulas `XLOOKUP`/`IFERROR` dependem de nomes de cliente baterem **exatamente** entre abas — qualquer diferença de digitação quebra o vínculo silenciosamente (retorna vazio).
 - Colunas calculadas (Status, Dias em Atraso, Mês Previsto) só mostram valores corretos se a planilha for aberta e recalculada no Excel/Sheets — ferramentas que leem o arquivo "a frio" (scripts, exportações) veem essas colunas vazias.
 - Uma referência (`Analista atendimento`) usa **célula fixa** (`Clientes!H4`) em vez de busca por chave — quebra se a base de Clientes for reordenada.
-- Múltiplas pessoas editando a mesma planilha ao mesmo tempo gera risco de conflito/sobrescrita.
+- Quando várias pessoas editam a mesma planilha ao mesmo tempo, há risco de conflito/sobrescrita.
 - Não há histórico de mudanças, nem notificação automática de atraso.
 
 ---
@@ -58,8 +58,8 @@ Baseada na aba "Clientes" da planilha atual.
 | Campo | Tipo | Observação |
 |---|---|---|
 | id | string/número | Identificador único (na planilha é numérico) |
-| nome | string | Nome completo do cliente (ex: "Agrícola Grão de Ouro - SELF: Grão de Ouro - Status: Ativo - ControlSoft") |
-| caracterizacao | string | Segmento(s) de atuação (ex: "5 - Produtor Rural") |
+| nome | string | Nome completo do cliente (ex.: "Agrícola Grão de Ouro - SELF: Grão de Ouro - Status: Ativo - ControlSoft") |
+| caracterizacao | string | Segmento(s) de atuação (ex.: "5 - Produtor Rural") |
 | uf | string | Estado(s) |
 | softwarehouse | string | Ex: "ControlSoft" |
 | consultor | string | |
@@ -113,7 +113,7 @@ mes_previsto =
   SENÃO → null
 ```
 
-> ⚠️ **Nota de revisão:** na planilha original, a fórmula de `Status Calculado` considera "Finalizado" quando a coluna **"Formato do Pré-Safra"** está preenchida — não quando "Configurado Sistema" está preenchida, o que parece um possível erro de construção da planilha (faria mais sentido "Finalizado" depender de `configurado_sistema`, já que é isso que de fato indica que o trabalho foi concluído). **Confirmar com o time qual é a regra correta antes de implementar**, e considerar exigir múltiplos campos preenchidos para marcar como "Finalizado" (ex: `configurado_sistema = true` E `melhorias_apresentadas` respondido).
+> ⚠️ **Nota de revisão:** na planilha original, a fórmula de `Status Calculado` considera "Finalizado" quando a coluna **"Formato do Pré-Safra"** está preenchida — não quando "Configurado Sistema" está preenchida, o que parece um possível erro de construção da planilha (faria mais sentido "Finalizado" depender de `configurado_sistema`, já que é isso que de fato indica que o trabalho foi concluído). **Confirmar com o time qual é a regra correta antes de implementar**, e considerar exigir múltiplos campos preenchidos para marcar como "Finalizado" (ex.: `configurado_sistema = true` E `melhorias_apresentadas` respondido).
 
 ---
 
@@ -153,15 +153,15 @@ mes_previsto =
 ## 7. Requisitos não funcionais
 
 - **Simplicidade de manutenção**: equipe pequena, sem time de infraestrutura dedicado — preferir stack simples de rodar e hospedar.
-- **Baixo custo operacional**: evitar dependências caras; hospedagem simples (ex: um único servidor/serviço gerenciado).
+- **Baixo custo operacional**: evitar dependências caras; hospedagem simples (ex.: um único servidor/serviço gerenciado).
 - **Multiusuário simples**: sem necessidade de perfis de permissão complexos na v1, mas o banco de dados deve suportar múltiplos usuários editando concorrentemente sem conflito (diferente da planilha).
 
 ---
 
 ## 8. Stack sugerida (ponto de partida — ajustar conforme preferência)
 
-- **Frontend + Backend**: aplicação web full-stack simples (ex: Next.js, ou um backend leve tipo FastAPI/Node + frontend React) — a decisão exata pode ser feita durante o desenvolvimento com o Claude Code.
-- **Banco de dados**: um banco relacional simples (ex: SQLite para começar, ou Postgres se for crescer) — evitar over-engineering para uma equipe pequena.
+- **Frontend + Backend**: aplicação web full-stack simples (ex.: Next.js, ou um backend leve tipo FastAPI/Node + frontend React) — a decisão exata pode ser feita durante o desenvolvimento com o Claude Code.
+- **Banco de dados**: um banco relacional simples (ex.: SQLite para começar, ou Postgres se for crescer) — evitar over-engineering para uma equipe pequena.
 - **Autenticação**: simples (login básico da equipe), sem necessidade de SSO corporativo na v1.
 - **Importação de dados**: script que lê o `.xlsx` atual (abas Clientes e Pré-Safra 2026) e popula o banco novo.
 

@@ -61,7 +61,7 @@ export default async function PaginaPainel() {
           Painel de Acompanhamento — Pré-Safra {safra.nome}
         </h1>
         <p className="text-sm text-muted">
-          Situação em {diaMesAno(hoje)} · prazo final em {diaMesAno(periodo.prazo)}
+          Situação em {diaMesAno(hoje)} · Prazo final em {diaMesAno(periodo.prazo)}
         </p>
       </div>
 

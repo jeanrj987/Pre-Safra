@@ -37,7 +37,7 @@ describe("nomeDoFeriado — feriados móveis", () => {
 });
 
 describe("data passada", () => {
-  // 12h em Brasília (15h UTC): ainda é o mesmo dia no Brasil.
+  // 12h em Mato Grosso (16h UTC): ainda é o mesmo dia.
   const agora = new Date("2026-10-06T15:00:00Z");
 
   it("recusa dia anterior a hoje, mas aceita hoje e o futuro", () => {
@@ -45,8 +45,8 @@ describe("data passada", () => {
     expect(motivoDataPassada("2026-10-06", agora)).toBeNull();
     expect(motivoDataPassada("2026-10-07", agora)).toBeNull();
   });
-  it("usa o dia do Brasil, não o do servidor em UTC", () => {
-    // 01h UTC de 07/10 ainda é 22h de 06/10 em Brasília.
+  it("usa o dia de Mato Grosso, não o do servidor em UTC", () => {
+    // 01h UTC de 07/10 ainda é 21h de 06/10 em Mato Grosso.
     const virada = new Date("2026-10-07T01:00:00Z");
     expect(hojeIso(virada)).toBe("2026-10-06");
     expect(motivoDataPassada("2026-10-06", virada)).toBeNull();

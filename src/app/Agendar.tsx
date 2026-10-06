@@ -6,7 +6,7 @@ import { Janela, RodapeJanela } from "./Finalizar";
 import Seletor, { type OpcaoSeletor } from "./Seletor";
 import { Bolinha, opcoesDeLista, opcoesDePessoas } from "./seletorOpcoes";
 import { hojeIso, motivoDataIndisponivel } from "@/lib/diasUteis";
-import { HORARIOS } from "@/lib/horarios";
+import { HORARIOS, motivoHorarioPassado } from "@/lib/horarios";
 
 type Status = "" | "Online" | "Presencial";
 
@@ -87,9 +87,10 @@ export default function Agendar({
     setAberto(true);
   }
 
-  // O erro de dia bloqueado aparece assim que a data é escolhida; os de "faltou preencher",
-  // só depois da primeira tentativa de salvar.
+  // Os erros de dia bloqueado e de horário que já passou aparecem assim que a escolha é feita;
+  // os de "faltou preencher", só depois da primeira tentativa de salvar.
   const bloqueio = dia ? motivoDataIndisponivel(dia) : null;
+  const horaPassada = motivoHorarioPassado(dia, hora);
   const erros = {
     resp: !resp
       ? podeTrocarResponsavel
@@ -97,10 +98,15 @@ export default function Agendar({
         : "Este cliente está sem responsável. Peça a um administrador para definir."
       : null,
     dia: !dia ? "Informe a data." : bloqueio,
-    hora: !hora ? "Selecione o horário." : null,
+    hora: !hora ? "Selecione o horário." : horaPassada,
     status: !status ? "Escolha Online ou Presencial." : null,
   };
-  const mostrar = (k: keyof typeof erros) => (k === "dia" ? !!bloqueio || (tentou && !!erros.dia) : tentou && !!erros[k]);
+  const mostrar = (k: keyof typeof erros) =>
+    k === "dia"
+      ? !!bloqueio || (tentou && !!erros.dia)
+      : k === "hora"
+        ? !!horaPassada || (tentou && !!erros.hora)
+        : tentou && !!erros[k];
   const invalido = Object.values(erros).some(Boolean);
 
   function validar(e: FormEvent<HTMLFormElement>) {

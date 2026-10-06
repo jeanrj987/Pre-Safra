@@ -4,7 +4,7 @@ import { exigirLogin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { finalizarPendentes, formatoValido, reabrirIds, type Formato } from "@/lib/acoesPreSafra";
 import { motivoDataIndisponivel } from "@/lib/diasUteis";
-import { horarioValido } from "@/lib/horarios";
+import { horarioValido, motivoHorarioPassado } from "@/lib/horarios";
 
 // Server Actions da lista principal (src/app/page.tsx). Extraídas para cá para poder ser
 // importadas/testadas fora do componente de página, que já é grande só com a tabela e os
@@ -78,7 +78,7 @@ export async function reabrirComMotivo(formData: FormData) {
 // e responsável e devolve o cliente a "A Fazer" (o responsável só é limpo por admin, que é quem
 // consegue defini-lo de novo; para os demais ele fica). A janela já mostra os erros; aqui o servidor
 // garante as regras mesmo para uma chamada direta, e nesse caso não grava nada: campo faltando,
-// datas passadas, sábados, domingos e feriados, cliente finalizado ou inativo. Só admin troca o responsável.
+// datas e horários passados, sábados, domingos e feriados, cliente finalizado ou inativo. Só admin troca o responsável.
 export async function agendarCliente(formData: FormData) {
   const sessao = await exigirLogin();
   const id = Number(formData.get("id"));
@@ -114,6 +114,8 @@ export async function agendarCliente(formData: FormData) {
 
   const horario = textoDe(formData, "horario");
   if (horario && !horarioValido(horario)) voltarPara(formData, 0, "agendados");
+  // Hoje só vale de agora em diante.
+  if (horario && motivoHorarioPassado(dataTexto, horario)) voltarPara(formData, 0, "agendados");
 
   const formato = textoDe(formData, "formato");
   if (!formatoValido(formato)) voltarPara(formData, 0, "agendados");

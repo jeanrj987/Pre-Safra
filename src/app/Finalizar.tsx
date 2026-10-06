@@ -149,7 +149,7 @@ export default function Finalizar({
                         type="button"
                         onClick={() => setMelhorias(Object.fromEntries(ids.map((i) => [i, true])))}
                       >
-                        Marcar melhorias p/ todas
+                        Marcar melhorias para todas
                       </button>
                       <button
                         type="button"
