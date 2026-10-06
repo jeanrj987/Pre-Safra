@@ -8,7 +8,7 @@ import { opcoesDeLista, opcoesDePessoas } from "@/app/seletorOpcoes";
 import Icone from "@/app/Icone";
 import BotaoEnviar from "@/app/BotaoEnviar";
 import CampoDataForm from "@/app/CampoDataForm";
-import { motivoDiaBloqueado } from "@/lib/diasUteis";
+import { motivoDataIndisponivel } from "@/lib/diasUteis";
 import { exigirAcessoCompleto, exigirAdmin, exigirLogin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { calcularStatus, diasEmAtraso, mesPrevisto } from "@/lib/status";
@@ -86,9 +86,9 @@ export default async function Registro({
     "use server";
     const sessao = await exigirLogin();
     const data = texto(formData, "dataPrevista");
-    // Sábado, domingo e feriado não podem ser agendados; uma data antiga já salva é mantida.
+    // Data passada, sábado, domingo e feriado não podem ser agendados; uma data antiga já salva é mantida.
     const dataAtual = r?.dataPrevista?.toISOString().slice(0, 10) ?? null;
-    if (data && data !== dataAtual && motivoDiaBloqueado(data)) {
+    if (data && data !== dataAtual && motivoDataIndisponivel(data)) {
       redirect(`/registro/${id}?diaBloqueado=1`);
     }
     // Optimistic locking: só grava se ninguém alterou o registro desde que esta tela foi
@@ -215,8 +215,8 @@ export default async function Registro({
           className="flex items-center gap-2 rounded-lg bg-atrasado-bg px-4 py-3 text-sm font-medium text-atrasado-fg"
         >
           <Icone nome="alerta" />
-          Nada foi salvo: a data prevista não pode ser sábado, domingo nem feriado. Escolha outro
-          dia.
+          Nada foi salvo: a data prevista não pode ser uma data passada, sábado, domingo nem
+          feriado. Escolha outro dia.
         </p>
       )}
 

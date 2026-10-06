@@ -2,6 +2,8 @@
 // no formato "aaaa-mm-dd" (o mesmo do campo de data do navegador), calculadas em UTC — sem
 // hora, para não depender do fuso do servidor.
 
+import { diaHoje } from "./status";
+
 const NOME_DIA = ["domingo", "segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira", "sábado"];
 
 // Feriados nacionais fixos, no formato "mm-dd".
@@ -82,4 +84,21 @@ export function motivoDiaBloqueado(data: string): string | null {
   }
   const feriado = nomeDoFeriado(data);
   return feriado ? `Não é possível agendar em feriado (${feriado}).` : null;
+}
+
+/** Hoje no calendário do Brasil, como "aaaa-mm-dd" (o formato do campo de data do navegador). */
+export function hojeIso(agora: Date = new Date()): string {
+  return new Date(diaHoje(agora)).toISOString().slice(0, 10);
+}
+
+/** Texto pronto para mostrar se a data ("aaaa-mm-dd") já passou; null se é hoje ou futura. */
+export function motivoDataPassada(data: string, agora: Date = new Date()): string | null {
+  const p = partes(data);
+  if (!p) return null;
+  return p.ms < diaHoje(agora) ? "Não é possível agendar em uma data que já passou." : null;
+}
+
+/** Tudo o que impede agendar naquele dia: data passada, fim de semana ou feriado. */
+export function motivoDataIndisponivel(data: string, agora: Date = new Date()): string | null {
+  return motivoDataPassada(data, agora) ?? motivoDiaBloqueado(data);
 }

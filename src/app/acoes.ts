@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { exigirLogin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { finalizarPendentes, formatoValido, reabrirIds, type Formato } from "@/lib/acoesPreSafra";
-import { motivoDiaBloqueado } from "@/lib/diasUteis";
+import { motivoDataIndisponivel } from "@/lib/diasUteis";
 import { horarioValido } from "@/lib/horarios";
 
 // Server Actions da lista principal (src/app/page.tsx). Extraídas para cá para poder ser
@@ -78,7 +78,7 @@ export async function reabrirComMotivo(formData: FormData) {
 // e responsável e devolve o cliente a "A Fazer" (o responsável só é limpo por admin, que é quem
 // consegue defini-lo de novo; para os demais ele fica). A janela já mostra os erros; aqui o servidor
 // garante as regras mesmo para uma chamada direta, e nesse caso não grava nada: campo faltando,
-// sábados, domingos e feriados, cliente finalizado ou inativo. Só admin troca o responsável.
+// datas passadas, sábados, domingos e feriados, cliente finalizado ou inativo. Só admin troca o responsável.
 export async function agendarCliente(formData: FormData) {
   const sessao = await exigirLogin();
   const id = Number(formData.get("id"));
@@ -108,7 +108,7 @@ export async function agendarCliente(formData: FormData) {
   const dataTexto = textoDe(formData, "data") ?? "";
   const dataValida = /^\d{4}-\d{2}-\d{2}$/.test(dataTexto);
   const dia = dataValida ? new Date(`${dataTexto}T00:00:00Z`) : null;
-  if (dataTexto && (!dia || Number.isNaN(dia.getTime()) || motivoDiaBloqueado(dataTexto))) {
+  if (dataTexto && (!dia || Number.isNaN(dia.getTime()) || motivoDataIndisponivel(dataTexto))) {
     voltarPara(formData, 0, "agendados");
   }
 

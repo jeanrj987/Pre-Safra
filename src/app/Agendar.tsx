@@ -5,7 +5,7 @@ import Icone from "./Icone";
 import { Janela, RodapeJanela } from "./Finalizar";
 import Seletor, { type OpcaoSeletor } from "./Seletor";
 import { Bolinha, opcoesDeLista, opcoesDePessoas } from "./seletorOpcoes";
-import { motivoDiaBloqueado } from "@/lib/diasUteis";
+import { hojeIso, motivoDataIndisponivel } from "@/lib/diasUteis";
 import { HORARIOS } from "@/lib/horarios";
 
 type Status = "" | "Online" | "Presencial";
@@ -89,7 +89,7 @@ export default function Agendar({
 
   // O erro de dia bloqueado aparece assim que a data é escolhida; os de "faltou preencher",
   // só depois da primeira tentativa de salvar.
-  const bloqueio = dia ? motivoDiaBloqueado(dia) : null;
+  const bloqueio = dia ? motivoDataIndisponivel(dia) : null;
   const erros = {
     resp: !resp
       ? podeTrocarResponsavel
@@ -167,6 +167,7 @@ export default function Agendar({
                     type="date"
                     name="data"
                     data-campo="data"
+                    min={hojeIso()}
                     defaultValue={data}
                     onChange={(e) => setDia(e.target.value)}
                     aria-invalid={mostrar("dia")}

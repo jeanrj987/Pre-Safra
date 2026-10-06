@@ -2,7 +2,7 @@ import Link from "next/link";
 import Form from "next/form";
 import { CampoBusca } from "./Auto";
 import Seletor from "./Seletor";
-import { Avatar } from "./seletorOpcoes";
+import { Avatar, Bolinha } from "./seletorOpcoes";
 import { normalizar, plural } from "@/lib/texto";
 import { agendarCliente, finalizarComNota, reabrirComMotivo } from "./acoes";
 import Agendar from "./Agendar";
@@ -49,6 +49,8 @@ export default async function Home({ searchParams }: PageProps<"/">) {
   const q = um(sp.q).trim();
   const status = um(sp.status);
   const resp = um(sp.responsavel);
+  // Online ou Presencial, o que foi agendado (ou realizado, no caso dos finalizados).
+  const formato = um(sp.formato) === "Online" || um(sp.formato) === "Presencial" ? um(sp.formato) : "";
   // Só faz sentido dentro da aba "Finalizados": busca no texto do comentário de conclusão.
   const comentario = status === "Finalizado" ? um(sp.comentario).trim() : "";
 
@@ -82,6 +84,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
       (!q || normalizar(l.nome).includes(normalizar(q))) &&
       bateStatus(l.status) &&
       (!resp || l.responsavel === resp) &&
+      (!formato || l.formato === formato) &&
       (!comentario || (!!l.observacao && normalizar(l.observacao).includes(normalizar(comentario)))),
   );
 
@@ -99,6 +102,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
     if (q) p.set("q", q);
     if (status) p.set("status", status);
     if (resp) p.set("responsavel", resp);
+    if (formato) p.set("formato", formato);
     if (comentario) p.set("comentario", comentario);
     if (paginaAtual > 1) p.set("pagina", String(paginaAtual));
     return p;
@@ -115,17 +119,11 @@ export default async function Home({ searchParams }: PageProps<"/">) {
   const feito = um(sp.feito);
   const acao = um(sp.acao);
 
-  const href = (novo: string) => {
-    const p = new URLSearchParams();
-    if (q) p.set("q", q);
-    if (resp) p.set("responsavel", resp);
-    if (novo) p.set("status", novo);
-    const s = p.toString();
-    return s ? `/?${s}` : "/";
-  };
+  // Trocar de card começa uma lista nova: só o status vale, busca, responsável e formato zeram.
+  const href = (novo: string) => (novo ? `/?${new URLSearchParams({ status: novo })}` : "/");
 
   const pct = cont.todos ? Math.round((cont.Finalizado / cont.todos) * 100) : 0;
-  const filtrando = !!(q || status || resp || comentario);
+  const filtrando = !!(q || status || resp || formato || comentario);
   // Na aba "A Fazer" não há ação em lote (finalizar só vale para agendados; reabrir, para
   // finalizados): sem caixas de seleção nem barra flutuante.
   const comSelecao = status !== "A Fazer";
@@ -313,6 +311,19 @@ export default async function Home({ searchParams }: PageProps<"/">) {
             valorInicial={resp}
             enviarAoMudar
             opcoes={[{ valor: "", rotulo: "Todos os responsáveis" }, ...nomes.map((r) => ({ valor: r, rotulo: r, marca: <Avatar nome={r} /> }))]}
+          />
+          <Seletor
+            nome="formato"
+            rotulo="Filtrar por formato"
+            ocultarRotulo
+            tamanho="compacto"
+            valorInicial={formato}
+            enviarAoMudar
+            opcoes={[
+              { valor: "", rotulo: "Todos os formatos" },
+              { valor: "Online", rotulo: "Online", marca: <Bolinha cor="agendado" /> },
+              { valor: "Presencial", rotulo: "Presencial", marca: <Bolinha cor="presencial" /> },
+            ]}
           />
           {status === "Finalizado" && (
             <div className="relative min-w-56 flex-1">

@@ -8,7 +8,7 @@ import CampoArquivo from "@/app/CampoArquivo";
 import CampoDataForm from "@/app/CampoDataForm";
 import Seletor from "@/app/Seletor";
 import { opcoesDeLista, opcoesDePessoas } from "@/app/seletorOpcoes";
-import { motivoDiaBloqueado } from "@/lib/diasUteis";
+import { motivoDataIndisponivel } from "@/lib/diasUteis";
 import { exigirAcessoCompleto, exigirAdmin, exigirLogin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { obterSafraSelecionada } from "@/lib/safra";
@@ -64,7 +64,7 @@ export default async function Novo({
 
     const dataPrevista = texto(formData, "dataPrevista");
     // O formulário já impede esses dias; aqui garante a regra mesmo sem o navegador.
-    if (dataPrevista && motivoDiaBloqueado(dataPrevista)) redirect("/novo");
+    if (dataPrevista && motivoDataIndisponivel(dataPrevista)) redirect("/novo");
     const observacoes = texto(formData, "observacoes");
 
     // Cria o cadastro completo do cliente de uma vez só (nome, cidade, região, UF, equipe),
