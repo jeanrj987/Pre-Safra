@@ -26,6 +26,9 @@ export interface PessoaEquipe {
   papel: string;
 }
 
+/** Título do grupo com a equipe da região do próprio cliente (os indicados). */
+export const TITULO_DA_REGIAO = "Da região";
+
 export interface GrupoEquipe {
   titulo: string;
   pessoas: PessoaEquipe[];
@@ -92,5 +95,5 @@ export function equipesPorRegiao(clientes: EquipeCliente[]): GrupoEquipe[] {
 export function gruposDeResponsavel(cliente: EquipeCliente, regioes: GrupoEquipe[]): GrupoEquipe[] {
   const daRegiao = equipeDoCliente(cliente);
   const outras = regioes.filter((g) => g.titulo !== cliente.regiao && g.pessoas.length > 0);
-  return [...(daRegiao.length ? [{ titulo: "Da região", pessoas: daRegiao }] : []), ...outras];
+  return [...(daRegiao.length ? [{ titulo: TITULO_DA_REGIAO, pessoas: daRegiao }] : []), ...outras];
 }

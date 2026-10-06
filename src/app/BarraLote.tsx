@@ -6,6 +6,7 @@ import Reabrir from "./Reabrir";
 import {
   caixasVisiveis,
   lerSelecionados,
+  aplicarRecorte,
   limparSelecao,
   restaurarSelecao,
   sincronizarSelecao,
@@ -53,6 +54,15 @@ export function CaixaTodos() {
       className="size-4 cursor-pointer accent-primary"
     />
   );
+}
+
+// Não desenha nada: avisa à seleção qual é o recorte da lista (card + filtros). Ao mudar de
+// recorte, quem estava marcado deixa de estar (ver aplicarRecorte em selecao.ts).
+export function RecorteSelecao({ recorte }: { recorte: string }) {
+  useEffect(() => {
+    aplicarRecorte(recorte);
+  }, [recorte]);
+  return null;
 }
 
 type Acao = (formData: FormData) => Promise<void>;

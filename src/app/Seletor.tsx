@@ -19,6 +19,8 @@ export type OpcaoSeletor = {
   marca?: ReactNode;
   /** Texto pequeno e apagado à direita (ex.: o papel da pessoa). */
   detalhe?: string;
+  /** `destaque` = indicado (verde); `neutro` = os demais (cinza). Sem valor, aparência normal. */
+  tom?: "destaque" | "neutro";
 };
 
 type Tamanho = "normal" | "compacto" | "pilula";
@@ -420,7 +422,9 @@ export default function Seletor({
                   {g.titulo && (
                     <p
                       aria-hidden="true"
-                      className="px-2.5 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-muted first:pt-1"
+                      className={`px-2.5 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide first:pt-1 ${
+                        g.itens[0].o.tom === "destaque" ? "text-finalizado-fg" : "text-muted"
+                      }`}
                     >
                       {g.titulo}
                     </p>
@@ -448,7 +452,11 @@ export default function Seletor({
                                     : `text-ink ${i === ativo ? "bg-subtle" : ""}`
                                 }`
                               : `flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition-colors ${
-                                  marcado ? "bg-primary-faint font-semibold text-primary" : "text-ink"
+                                  marcado
+                                  ? "bg-primary-faint font-semibold text-primary"
+                                  : o.tom === "neutro"
+                                    ? "text-muted"
+                                    : "text-ink"
                                 } ${i === ativo && !marcado ? "bg-subtle" : ""}`
                           }
                         >
@@ -468,7 +476,15 @@ export default function Seletor({
                               )}
                               {o.marca}
                               <span className="min-w-0 flex-1 truncate">{o.rotulo}</span>
-                              {o.detalhe && <span className="shrink-0 text-xs font-normal text-muted">{o.detalhe}</span>}
+                              {o.detalhe && (
+                                <span
+                                  className={`shrink-0 text-xs ${
+                                    o.tom === "destaque" ? "font-medium text-finalizado-fg" : "font-normal text-muted"
+                                  }`}
+                                >
+                                  {o.detalhe}
+                                </span>
+                              )}
                               {marcado && !multiplo && <Icone nome="check" className="size-4" />}
                             </>
                           )}

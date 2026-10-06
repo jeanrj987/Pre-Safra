@@ -4,7 +4,11 @@
 // vivesse só no atributo `checked` do checkbox. Usa sessionStorage (dura a aba, não o
 // navegador todo) guardando também o nome, já que o checkbox de um cliente escondido pela
 // busca não está mais no DOM para ser lido depois.
+//
+// A seleção vale para um "recorte" da lista (card + responsável + formato). Buscar pelo nome e
+// trocar de página mantêm a seleção; trocar o recorte a descarta (ver aplicarRecorte).
 const CHAVE = "presafra:selecao";
+const CHAVE_RECORTE = "presafra:selecao:recorte";
 const CAIXAS = 'input[name="ids"]';
 
 function lerMapa(): Map<string, string> {
@@ -65,4 +69,21 @@ export function limparSelecao() {
   gravarMapa(new Map());
   caixasVisiveis().forEach((c) => (c.checked = false));
   document.dispatchEvent(new Event("change"));
+}
+
+/**
+ * Diz qual é o recorte da lista agora (ex.: "Finalizado|Amanda|Online"). Se mudou desde a última
+ * vez, a seleção é descartada: marcar clientes de um card/filtro e agir sobre eles em outro seria
+ * finalizar ou reabrir gente que a pessoa nem está vendo. Recarregar a mesma lista não limpa.
+ */
+export function aplicarRecorte(recorte: string) {
+  let anterior: string | null = null;
+  try {
+    anterior = sessionStorage.getItem(CHAVE_RECORTE);
+    sessionStorage.setItem(CHAVE_RECORTE, recorte);
+  } catch {
+    // Sem armazenamento não há seleção persistida para descartar.
+    return;
+  }
+  if (anterior !== recorte) limparSelecao();
 }

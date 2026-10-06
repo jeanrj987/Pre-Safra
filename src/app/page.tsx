@@ -12,7 +12,7 @@ import { exigirAcessoCompleto } from "@/lib/auth";
 import Shell from "./Shell";
 import Selo from "./Selo";
 import Icone from "./Icone";
-import { AcoesLote, CaixaTodos } from "./BarraLote";
+import { AcoesLote, CaixaTodos, RecorteSelecao } from "./BarraLote";
 import Finalizar from "./Finalizar";
 import Reabrir from "./Reabrir";
 import {
@@ -374,6 +374,8 @@ export default async function Home({ searchParams }: PageProps<"/">) {
           )}
         </Form>
 
+        {/* Marcações valem só para este card + responsável + formato; busca e página não contam. */}
+        <RecorteSelecao recorte={[status, [...resps].sort().join(","), formato].join("|")} />
         <form action={finalizarComNota}>
           <input type="hidden" name="voltar" value={atual.toString()} />
           <div className="@container overflow-x-auto">
