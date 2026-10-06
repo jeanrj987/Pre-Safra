@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { hojeIso, motivoDataIndisponivel, motivoDataPassada, motivoDiaBloqueado, nomeDoFeriado } from "./diasUteis";
+import {
+  dataMaximaIso,
+  hojeIso,
+  motivoDataDistante,
+  motivoDataIndisponivel,
+  motivoDataPassada,
+  motivoDiaBloqueado,
+  nomeDoFeriado,
+} from "./diasUteis";
 
 describe("motivoDiaBloqueado", () => {
   it("bloqueia sábado e domingo", () => {
@@ -59,5 +67,34 @@ describe("data passada", () => {
     expect(motivoDataIndisponivel("2026-10-03", agora)).toMatch(/retroativa/);
     expect(motivoDataIndisponivel("2026-10-10", agora)).toMatch(/sábado/);
     expect(motivoDataIndisponivel("2026-10-08", agora)).toBeNull();
+  });
+});
+
+describe("datas com ano digitado errado", () => {
+  const agora = new Date("2026-10-06T16:00:00Z");
+
+  it("ano de dois dígitos digitado no campo (0022) conta como data passada", () => {
+    // O campo de data do navegador devolve "0022-01-05" para quem digita 05/01/22.
+    expect(motivoDataPassada("0022-01-05", agora)).toMatch(/retroativa/);
+    expect(motivoDataIndisponivel("0022-01-05", agora)).toMatch(/retroativa/);
+    expect(motivoDataIndisponivel("0001-01-01", agora)).toMatch(/retroativa/);
+    expect(motivoDataIndisponivel("1999-12-31", agora)).toMatch(/retroativa/);
+  });
+  it("data que não existe pede uma data válida", () => {
+    expect(motivoDataIndisponivel("2026-02-31", agora)).toMatch(/válida/);
+    expect(motivoDataIndisponivel("2026-13-01", agora)).toMatch(/válida/);
+    expect(motivoDataIndisponivel("abc", agora)).toMatch(/válida/);
+  });
+  it("vazio não é erro daqui (quem exige a data é o formulário)", () => {
+    expect(motivoDataIndisponivel("", agora)).toBeNull();
+  });
+  it("recusa mais de um ano à frente (ex.: 2062 digitado sem querer)", () => {
+    expect(dataMaximaIso(agora)).toBe("2027-10-06");
+    expect(motivoDataDistante("2027-10-06", agora)).toBeNull();
+    expect(motivoDataDistante("2027-10-07", agora)).toMatch(/um ano/);
+    expect(motivoDataIndisponivel("2062-10-06", agora)).toMatch(/um ano/);
+  });
+  it("feriado móvel continua certo", () => {
+    expect(nomeDoFeriado("2026-04-03")).toBe("Sexta-feira Santa");
   });
 });

@@ -264,14 +264,8 @@ export default async function Home({ searchParams }: PageProps<"/">) {
             className="mt-3 flex h-2 gap-0.5 overflow-hidden rounded-full bg-subtle"
           >
             <div className={PONTO_STATUS.Finalizado} style={{ width: larg(cont.Finalizado) }} />
-            <div
-              className={PONTO_STATUS["Agendado Online"]}
-              style={{ width: larg(cont["Agendado Online"]) }}
-            />
-            <div
-              className={PONTO_STATUS["Agendado Presencial"]}
-              style={{ width: larg(cont["Agendado Presencial"]) }}
-            />
+            {/* Online e Presencial juntos, numa faixa só (azul, a cor de "Agendados"). */}
+            <div className={PONTO_STATUS["Agendado Online"]} style={{ width: larg(cont.Agendado) }} />
             <div className={PONTO_STATUS["A Fazer"]} style={{ width: larg(cont["A Fazer"]) }} />
             <div className={PONTO_STATUS.Atrasado} style={{ width: larg(cont.Atrasado) }} />
           </div>

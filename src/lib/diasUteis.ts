@@ -19,6 +19,14 @@ const FERIADOS_FIXOS: Record<string, string> = {
   "12-25": "Natal",
 };
 
+// Dia UTC em ms. `Date.UTC` trata anos de 0 a 99 como 1900–1999 (ano "22" viraria 1922), então o
+// ano é colocado à parte: o campo de data do navegador aceita "0022" quando se digita só dois dígitos.
+function diaUtc(ano: number, mes: number, dia: number): number {
+  const d = new Date(0);
+  d.setUTCFullYear(ano, mes - 1, dia);
+  return d.getTime();
+}
+
 // Domingo de Páscoa (algoritmo de Meeus/Jones/Butcher), como dia UTC em ms.
 function pascoa(ano: number): number {
   const a = ano % 19;
@@ -35,7 +43,7 @@ function pascoa(ano: number): number {
   const m = Math.floor((a + 11 * h + 22 * l) / 451);
   const mes = Math.floor((h + l - 7 * m + 114) / 31);
   const dia = ((h + l - 7 * m + 114) % 31) + 1;
-  return Date.UTC(ano, mes - 1, dia);
+  return diaUtc(ano, mes, dia);
 }
 
 const DIA_MS = 24 * 60 * 60 * 1000;
@@ -56,7 +64,7 @@ function partes(data: string): { ano: number; mes: number; dia: number; ms: numb
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(data);
   if (!m) return null;
   const [ano, mes, dia] = [Number(m[1]), Number(m[2]), Number(m[3])];
-  const ms = Date.UTC(ano, mes - 1, dia);
+  const ms = diaUtc(ano, mes, dia);
   const d = new Date(ms);
   // Rejeita datas que o calendário "corrige" (ex.: 2026-02-31).
   if (d.getUTCFullYear() !== ano || d.getUTCMonth() !== mes - 1 || d.getUTCDate() !== dia) return null;
@@ -98,7 +106,27 @@ export function motivoDataPassada(data: string, agora: Date = new Date()): strin
   return p.ms < diaHoje(agora) ? "Não é possível agendar data retroativa." : null;
 }
 
-/** Tudo o que impede agendar naquele dia: data passada, fim de semana ou feriado. */
+/** Até quantos dias à frente se pode agendar (um ano). Evita o erro de digitação, como 2062. */
+const DIAS_A_FRENTE = 365;
+
+/** Último dia agendável, como "aaaa-mm-dd". */
+export function dataMaximaIso(agora: Date = new Date()): string {
+  return new Date(diaHoje(agora) + DIAS_A_FRENTE * DIA_MS).toISOString().slice(0, 10);
+}
+
+/** Texto pronto para mostrar se a data ("aaaa-mm-dd") está longe demais; null se está dentro do limite. */
+export function motivoDataDistante(data: string, agora: Date = new Date()): string | null {
+  const p = partes(data);
+  if (!p) return null;
+  return p.ms > diaHoje(agora) + DIAS_A_FRENTE * DIA_MS ? "Não é possível agendar com mais de um ano de antecedência." : null;
+}
+
+/**
+ * Tudo o que impede agendar naquele dia, na ordem: data que não existe, data passada, data
+ * distante demais, fim de semana ou feriado. Vazio não é erro aqui (quem exige a data é o formulário).
+ */
 export function motivoDataIndisponivel(data: string, agora: Date = new Date()): string | null {
-  return motivoDataPassada(data, agora) ?? motivoDiaBloqueado(data);
+  if (!data) return null;
+  if (!partes(data)) return "Informe uma data válida.";
+  return motivoDataPassada(data, agora) ?? motivoDataDistante(data, agora) ?? motivoDiaBloqueado(data);
 }

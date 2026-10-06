@@ -86,14 +86,11 @@ export function equipesPorRegiao(clientes: EquipeCliente[]): GrupoEquipe[] {
 
 /**
  * Grupos da lista de responsável de um cliente: "Da região" (a equipe da região dele) e, depois,
- * cada uma das outras regiões com as pessoas dela. Quem já está em "Da região" não se repete.
+ * cada uma das outras regiões com a equipe completa dela. Quem atende mais de uma região (como o
+ * consultor André, de Leste e Oeste) aparece em cada uma, inclusive em "Da região".
  */
 export function gruposDeResponsavel(cliente: EquipeCliente, regioes: GrupoEquipe[]): GrupoEquipe[] {
   const daRegiao = equipeDoCliente(cliente);
-  const jaListados = new Set(daRegiao.map((p) => p.nome));
-  const outras = regioes
-    .filter((g) => g.titulo !== cliente.regiao)
-    .map((g) => ({ titulo: g.titulo, pessoas: g.pessoas.filter((p) => !jaListados.has(p.nome)) }))
-    .filter((g) => g.pessoas.length > 0);
+  const outras = regioes.filter((g) => g.titulo !== cliente.regiao && g.pessoas.length > 0);
   return [...(daRegiao.length ? [{ titulo: "Da região", pessoas: daRegiao }] : []), ...outras];
 }

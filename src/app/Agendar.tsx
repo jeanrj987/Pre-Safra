@@ -6,7 +6,7 @@ import { Janela, RodapeJanela } from "./Finalizar";
 import Seletor, { type OpcaoSeletor } from "./Seletor";
 import { Bolinha, opcoesDeLista, opcoesDePessoas } from "./seletorOpcoes";
 import type { GrupoEquipe } from "@/lib/equipe";
-import { hojeIso, motivoDataIndisponivel } from "@/lib/diasUteis";
+import { dataMaximaIso, hojeIso, motivoDataIndisponivel } from "@/lib/diasUteis";
 import { HORARIOS, motivoHorarioPassado } from "@/lib/horarios";
 
 type Status = "" | "Online" | "Presencial";
@@ -79,6 +79,7 @@ export default function Agendar({
   const [hora, setHora] = useState(horario);
   const [status, setStatus] = useState<Status>(statusInicial);
   const [tentou, setTentou] = useState(false);
+  const [dataTocada, setDataTocada] = useState(false);
   const opcoesResponsavel = opcoesDePessoas(grupos, outros);
 
   function abrir() {
@@ -87,6 +88,7 @@ export default function Agendar({
     setHora(horario);
     setStatus(statusInicial);
     setTentou(false);
+    setDataTocada(false);
     setAberto(true);
   }
 
@@ -104,9 +106,12 @@ export default function Agendar({
     hora: !hora ? "Selecione o horário." : horaPassada,
     status: !status ? "Escolha Online ou Presencial." : null,
   };
+  // Ao digitar o ano, o navegador passa por "0002", "0020"…: o erro da data só aparece com o ano
+  // completo ou quando o campo perde o foco, para não piscar a cada tecla.
+  const anoCompleto = Number(dia.slice(0, 4)) >= 1000;
   const mostrar = (k: keyof typeof erros) =>
     k === "dia"
-      ? !!bloqueio || (tentou && !!erros.dia)
+      ? (!!bloqueio && (anoCompleto || dataTocada)) || (tentou && !!erros.dia)
       : k === "hora"
         ? !!horaPassada || (tentou && !!erros.hora)
         : tentou && !!erros[k];
@@ -141,7 +146,10 @@ export default function Agendar({
           <form action={acao} onSubmit={validar} noValidate>
             <input type="hidden" name="id" value={id} />
             <input type="hidden" name="voltar" value={voltar} />
-            <div className="space-y-4 px-4 py-5 sm:px-6">
+            {/* O menu de responsável (busca + uma seção por região) abre sobre a própria janela: a altura
+                mínima dá espaço para ele aparecer inteiro, sem rolar a janela. Quem não escolhe
+                responsável não precisa dela. */}
+            <div className={`space-y-4 px-4 py-5 sm:px-6 ${podeTrocarResponsavel ? "min-h-[24.5rem]" : ""}`}>
               <div>
                 {podeTrocarResponsavel ? (
                   <Seletor
@@ -177,6 +185,8 @@ export default function Agendar({
                     name="data"
                     data-campo="data"
                     min={hojeIso()}
+                    max={dataMaximaIso()}
+                    onBlur={() => setDataTocada(true)}
                     defaultValue={data}
                     onChange={(e) => setDia(e.target.value)}
                     aria-invalid={mostrar("dia")}

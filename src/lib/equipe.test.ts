@@ -55,10 +55,16 @@ describe("grupos da lista de responsável", () => {
     const grupos = gruposDeResponsavel(oeste, regioes);
     expect(grupos.map((g) => g.titulo)).toEqual(["Da região", "Leste MT a TO/GO/MG", "Sorriso e Região"]);
   });
-  it("não repete em outra região quem já está em Da região", () => {
-    const leste2 = gruposDeResponsavel(oeste, regioes).find((g) => g.titulo === "Leste MT a TO/GO/MG")!;
-    // André é consultor de Oeste e Leste: já aparece em "Da região".
-    expect(leste2.pessoas.map((p) => p.nome)).toEqual(["Gabriel", "Samuel", "Gilberto"]);
+  it("cada região mostra a equipe completa, mesmo de quem já está em Da região", () => {
+    const grupos = gruposDeResponsavel(oeste, regioes);
+    // André é consultor de Oeste e Leste: aparece em "Da região" e também em Leste.
+    expect(grupos.find((g) => g.titulo === "Da região")!.pessoas.map((p) => p.nome)).toContain("André");
+    expect(grupos.find((g) => g.titulo === "Leste MT a TO/GO/MG")!.pessoas.map((p) => p.nome)).toEqual([
+      "Gabriel",
+      "Samuel",
+      "André",
+      "Gilberto",
+    ]);
   });
   it("cliente sem região: sem grupo Da região, só as regiões", () => {
     const grupos = gruposDeResponsavel({ atendentes: null, consultor: null, regiao: null }, regioes);

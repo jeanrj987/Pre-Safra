@@ -54,7 +54,8 @@ export default function EditarCliente({
               setAberto(false);
             }}
           >
-            <div className="grid gap-4 px-4 py-5 sm:px-6 sm:grid-cols-2">
+            {/* Altura mínima: o menu de cidade (com busca) abre sobre a janela e precisa de espaço. */}
+            <div className="grid min-h-[22rem] content-start gap-4 px-4 py-5 sm:px-6 sm:grid-cols-2">
               <Seletor
                 nome="cidade" placeholder="Selecione a cidade"
                 rotulo="Cidade"

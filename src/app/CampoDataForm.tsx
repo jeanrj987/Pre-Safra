@@ -1,6 +1,6 @@
 "use client";
 import { useRef } from "react";
-import { hojeIso, motivoDataIndisponivel } from "@/lib/diasUteis";
+import { dataMaximaIso, hojeIso, motivoDataIndisponivel } from "@/lib/diasUteis";
 
 // Campo de data prevista dos formulários (Novo cliente e Registro). Impede enviar o formulário
 // com data passada, sábado, domingo ou feriado: o navegador mostra o motivo ao tentar salvar. Uma
@@ -14,6 +14,7 @@ export default function CampoDataForm({
 }) {
   const original = useRef(defaultValue);
   const hoje = hojeIso();
+  const limite = dataMaximaIso();
   return (
     <input
       type="date"
@@ -21,13 +22,15 @@ export default function CampoDataForm({
       defaultValue={defaultValue}
       // Com uma data antiga já salva, o `min` travaria o envio mesmo sem mexer no campo.
       min={defaultValue && defaultValue < hoje ? undefined : hoje}
+      max={defaultValue && defaultValue > limite ? undefined : limite}
       className="campo"
       onChange={(e) => {
         const campo = e.currentTarget;
         const motivo =
           campo.value && campo.value !== original.current ? motivoDataIndisponivel(campo.value) : null;
         campo.setCustomValidity(motivo ?? "");
-        if (motivo) campo.reportValidity();
+        // Digitando o ano, o valor passa por "0002", "0020"…: só avisa quando o ano está completo.
+        if (motivo && Number(campo.value.slice(0, 4)) >= 1000) campo.reportValidity();
       }}
     />
   );
