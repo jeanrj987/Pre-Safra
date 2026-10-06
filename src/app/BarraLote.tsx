@@ -95,9 +95,7 @@ export function AcoesLote({
       <span className="mx-1 hidden h-5 w-px bg-white/20 sm:block" />
       {/* Finalizar em lote só na aba Agendados: quem não foi agendado não se finaliza. */}
       {filtro.startsWith("Agendado") && <Finalizar acao={finalizar} tom="barra" autor={autor} />}
-      {(filtro === "" || filtro === "Finalizado") && (
-        <Reabrir acao={reabrir} tom="barra" autor={autor} />
-      )}
+      {filtro === "Finalizado" && <Reabrir acao={reabrir} tom="barra" autor={autor} />}
       <button
         type="button"
         onClick={limparSelecao}

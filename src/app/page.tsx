@@ -15,6 +15,7 @@ import { AcoesLote, CaixaTodos } from "./BarraLote";
 import Finalizar from "./Finalizar";
 import Reabrir from "./Reabrir";
 import {
+  COR_STATUS,
   PONTO_STATUS,
   contar,
   dataParaCampo,
@@ -49,8 +50,11 @@ export default async function Home({ searchParams }: PageProps<"/">) {
   const q = um(sp.q).trim();
   const status = um(sp.status);
   const resp = um(sp.responsavel);
-  // Online ou Presencial, o que foi agendado (ou realizado, no caso dos finalizados).
-  const formato = um(sp.formato) === "Online" || um(sp.formato) === "Presencial" ? um(sp.formato) : "";
+  // Online ou Presencial, o que foi agendado (ou realizado, no caso dos finalizados). Só existe
+  // nas abas "Agendados" e "Finalizados"; nas demais o filtro nem aparece e o parâmetro é ignorado.
+  const temFormato = status === "Agendado" || status === "Finalizado";
+  const formato =
+    temFormato && (um(sp.formato) === "Online" || um(sp.formato) === "Presencial") ? um(sp.formato) : "";
   // Só faz sentido dentro da aba "Finalizados": busca no texto do comentário de conclusão.
   const comentario = status === "Finalizado" ? um(sp.comentario).trim() : "";
 
@@ -124,9 +128,9 @@ export default async function Home({ searchParams }: PageProps<"/">) {
 
   const pct = cont.todos ? Math.round((cont.Finalizado / cont.todos) * 100) : 0;
   const filtrando = !!(q || status || resp || formato || comentario);
-  // Na aba "A Fazer" não há ação em lote (finalizar só vale para agendados; reabrir, para
-  // finalizados): sem caixas de seleção nem barra flutuante.
-  const comSelecao = status !== "A Fazer";
+  // Ação em lote só existe onde faz sentido: finalizar vale para agendados e reabrir, para
+  // finalizados. Nas demais telas (Todos, Atrasados, A Fazer) não há caixas de seleção nem barra.
+  const comSelecao = status === "Agendado" || status === "Finalizado";
   const qtdFeita = Number(feito);
   const mensagem =
     qtdFeita > 0 && MENSAGEM[acao]
@@ -176,7 +180,18 @@ export default async function Home({ searchParams }: PageProps<"/">) {
   // janela do botão "Agendar" (coluna de ações). O atraso aparece junto, já que a data não está na lista.
   const statusDaLinha = (l: (typeof linhas)[number]) => (
     <>
-      <Selo status={l.status} />
+      <div className="flex flex-wrap items-center gap-1.5">
+        <Selo status={l.status} />
+        {/* Nos finalizados o formato é o realizado; as cores seguem as dos agendados. */}
+        {l.status === "Finalizado" && (l.formato === "Online" || l.formato === "Presencial") && (
+          <span
+            className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-semibold ${COR_STATUS[`Agendado ${l.formato}`]}`}
+          >
+            <span className={`size-1.5 rounded-full ${PONTO_STATUS[`Agendado ${l.formato}`]}`} aria-hidden="true" />
+            {l.formato}
+          </span>
+        )}
+      </div>
       {l.dias ? (
         <div className="mt-1 text-xs font-medium text-atrasado-fg">{formatarAtraso(l.dias)}</div>
       ) : null}
@@ -312,19 +327,21 @@ export default async function Home({ searchParams }: PageProps<"/">) {
             enviarAoMudar
             opcoes={[{ valor: "", rotulo: "Todos os responsáveis" }, ...nomes.map((r) => ({ valor: r, rotulo: r, marca: <Avatar nome={r} /> }))]}
           />
-          <Seletor
-            nome="formato"
-            rotulo="Filtrar por formato"
-            ocultarRotulo
-            tamanho="compacto"
-            valorInicial={formato}
-            enviarAoMudar
-            opcoes={[
-              { valor: "", rotulo: "Todos os formatos" },
-              { valor: "Online", rotulo: "Online", marca: <Bolinha cor="agendado" /> },
-              { valor: "Presencial", rotulo: "Presencial", marca: <Bolinha cor="presencial" /> },
-            ]}
-          />
+          {temFormato && (
+            <Seletor
+              nome="formato"
+              rotulo="Filtrar por formato"
+              ocultarRotulo
+              tamanho="compacto"
+              valorInicial={formato}
+              enviarAoMudar
+              opcoes={[
+                { valor: "", rotulo: "Todos os formatos" },
+                { valor: "Online", rotulo: "Online", marca: <Bolinha cor="agendado" /> },
+                { valor: "Presencial", rotulo: "Presencial", marca: <Bolinha cor="presencial" /> },
+              ]}
+            />
+          )}
           {status === "Finalizado" && (
             <div className="relative min-w-56 flex-1">
               <Icone
