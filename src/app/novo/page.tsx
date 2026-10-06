@@ -17,6 +17,7 @@ import {
   listarCidadesConhecidas,
   listarConsultoresConhecidos,
   listarDuplasConhecidas,
+  listarEquipesPorRegiao,
   listarNomesResponsaveis,
   listarRegioesConhecidas,
   UFS_BRASIL,
@@ -41,6 +42,7 @@ export default async function Novo({
     usuario,
     { erroImportacao, importados, atualizados, presafras, ignoradas },
     nomes,
+    equipes,
     cidadesConhecidas,
     regioesConhecidas,
     duplasConhecidas,
@@ -49,6 +51,7 @@ export default async function Novo({
     exigirAcessoCompleto(),
     searchParams,
     listarNomesResponsaveis(),
+    listarEquipesPorRegiao(),
     listarCidadesConhecidas(),
     listarRegioesConhecidas(),
     listarDuplasConhecidas(),
@@ -182,7 +185,7 @@ export default async function Novo({
                   nome="responsavel" placeholder="Selecione o responsável"
                   rotulo="Responsável"
                   valorInicial=""
-                  opcoes={opcoesDePessoas([], nomes)}
+                  opcoes={opcoesDePessoas(equipes, nomes)}
                 />
                 <label className="block">
                   <span className="rotulo">Data prevista</span>
