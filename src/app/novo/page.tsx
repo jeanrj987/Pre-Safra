@@ -6,6 +6,8 @@ import Icone from "@/app/Icone";
 import BotaoEnviar from "@/app/BotaoEnviar";
 import CampoArquivo from "@/app/CampoArquivo";
 import CampoDataForm from "@/app/CampoDataForm";
+import Seletor from "@/app/Seletor";
+import { opcoesDeLista, opcoesDePessoas } from "@/app/seletorOpcoes";
 import { motivoDiaBloqueado } from "@/lib/diasUteis";
 import { exigirAcessoCompleto, exigirAdmin, exigirLogin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
@@ -168,15 +170,12 @@ export default async function Novo({
             <section className="space-y-4 p-5 sm:p-6">
               <h2 className="text-base font-semibold">Agendamento</h2>
               <div className="grid gap-4 sm:grid-cols-2">
-                <label className="block">
-                  <span className="rotulo">Responsável</span>
-                  <select name="responsavel" defaultValue="" className="campo">
-                    <option value="">Sem responsável</option>
-                    {nomes.map((p) => (
-                      <option key={p}>{p}</option>
-                    ))}
-                  </select>
-                </label>
+                <Seletor
+                  nome="responsavel" placeholder="Selecione o responsável"
+                  rotulo="Responsável"
+                  valorInicial=""
+                  opcoes={opcoesDePessoas([], nomes)}
+                />
                 <label className="block">
                   <span className="rotulo">Data prevista</span>
                   <CampoDataForm name="dataPrevista" />
@@ -211,61 +210,21 @@ export default async function Novo({
               <Icone nome="usuario" className="text-muted" />
               Cadastro do cliente
             </h2>
-            <label className="block">
-              <span className="rotulo">Cidade</span>
-              <select name="cidade" defaultValue="" className="campo">
-                <option value="">Sem cidade</option>
-                {cidadesConhecidas.map((nome) => (
-                  <option key={nome} value={nome}>
-                    {nome}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="block">
-              <span className="rotulo">Região</span>
-              <select name="regiao" defaultValue="" className="campo">
-                <option value="">Sem região</option>
-                {regioesConhecidas.map((nome) => (
-                  <option key={nome} value={nome}>
-                    {nome}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="block">
-              <span className="rotulo">UF</span>
-              <select name="uf" defaultValue="" className="campo">
-                <option value="">Sem UF</option>
-                {UFS_BRASIL.map((uf) => (
-                  <option key={uf} value={uf}>
-                    {uf}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="block">
-              <span className="rotulo">Atendimento</span>
-              <select name="atendente" defaultValue="" className="campo">
-                <option value="">Sem atendimento</option>
-                {duplasConhecidas.map((nome) => (
-                  <option key={nome} value={nome}>
-                    {nome}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="block">
-              <span className="rotulo">Consultor</span>
-              <select name="consultor" defaultValue="" className="campo">
-                <option value="">Sem consultor</option>
-                {consultoresConhecidos.map((nome) => (
-                  <option key={nome} value={nome}>
-                    {nome}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <Seletor nome="cidade" placeholder="Selecione a cidade" rotulo="Cidade" valorInicial="" opcoes={opcoesDeLista(cidadesConhecidas)} />
+            <Seletor nome="regiao" placeholder="Selecione a região" rotulo="Região" valorInicial="" opcoes={opcoesDeLista(regioesConhecidas)} />
+            <Seletor nome="uf" placeholder="Selecione a UF" rotulo="UF" valorInicial="" opcoes={opcoesDeLista(UFS_BRASIL)} />
+            <Seletor
+              nome="atendente" placeholder="Selecione o atendimento"
+              rotulo="Atendimento"
+              valorInicial=""
+              opcoes={opcoesDeLista(duplasConhecidas)}
+            />
+            <Seletor
+              nome="consultor" placeholder="Selecione o consultor"
+              rotulo="Consultor"
+              valorInicial=""
+              opcoes={opcoesDeLista(consultoresConhecidos)}
+            />
           </aside>
         </form>
 

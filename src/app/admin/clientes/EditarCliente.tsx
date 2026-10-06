@@ -2,6 +2,8 @@
 import { useState } from "react";
 import BotaoEnviar from "@/app/BotaoEnviar";
 import { Janela, RodapeJanela } from "@/app/Finalizar";
+import Seletor from "@/app/Seletor";
+import { comValorAtual, opcoesDeLista } from "@/app/seletorOpcoes";
 
 interface Cliente {
   id: number;
@@ -20,11 +22,6 @@ interface Listas {
   atendimentos: string[];
   consultores: string[];
 }
-
-// Lista conhecida + o valor atual, caso ele seja um dado avulso que não está nela (senão a
-// seleção "sumiria" ao abrir o formulário).
-const opcoesCom = (valor: string | null, lista: string[]) =>
-  valor && !lista.includes(valor) ? [valor, ...lista] : lista;
 
 // Popup para editar o cadastro do cliente (cidade, UF, região, atendimento, consultor) de
 // uma vez, em vez de um campo por vez direto na linha da tabela.
@@ -58,51 +55,37 @@ export default function EditarCliente({
             }}
           >
             <div className="grid gap-4 px-4 py-5 sm:px-6 sm:grid-cols-2">
-              <label className="block">
-                <span className="rotulo">Cidade</span>
-                <select name="cidade" defaultValue={cliente.cidade ?? ""} autoFocus className="campo">
-                  <option value="">Sem cidade</option>
-                  {opcoesCom(cliente.cidade, listas.cidades).map((o) => (
-                    <option key={o}>{o}</option>
-                  ))}
-                </select>
-              </label>
-              <label className="block">
-                <span className="rotulo">UF</span>
-                <select name="uf" defaultValue={cliente.uf ?? ""} className="campo">
-                  <option value="">Sem UF</option>
-                  {opcoesCom(cliente.uf, listas.ufs).map((o) => (
-                    <option key={o}>{o}</option>
-                  ))}
-                </select>
-              </label>
-              <label className="block">
-                <span className="rotulo">Região</span>
-                <select name="regiao" defaultValue={cliente.regiao ?? ""} className="campo">
-                  <option value="">Sem região</option>
-                  {opcoesCom(cliente.regiao, listas.regioes).map((o) => (
-                    <option key={o}>{o}</option>
-                  ))}
-                </select>
-              </label>
-              <label className="block">
-                <span className="rotulo">Atendimento</span>
-                <select name="atendente" defaultValue={cliente.atendente ?? ""} className="campo">
-                  <option value="">Sem atendimento</option>
-                  {opcoesCom(cliente.atendente, listas.atendimentos).map((o) => (
-                    <option key={o}>{o}</option>
-                  ))}
-                </select>
-              </label>
-              <label className="block">
-                <span className="rotulo">Consultor</span>
-                <select name="consultor" defaultValue={cliente.consultor ?? ""} className="campo">
-                  <option value="">Sem consultor</option>
-                  {opcoesCom(cliente.consultor, listas.consultores).map((o) => (
-                    <option key={o}>{o}</option>
-                  ))}
-                </select>
-              </label>
+              <Seletor
+                nome="cidade" placeholder="Selecione a cidade"
+                rotulo="Cidade"
+                valorInicial={cliente.cidade ?? ""}
+                opcoes={opcoesDeLista(comValorAtual(cliente.cidade, listas.cidades))}
+                autoFocus
+              />
+              <Seletor
+                nome="uf" placeholder="Selecione a UF"
+                rotulo="UF"
+                valorInicial={cliente.uf ?? ""}
+                opcoes={opcoesDeLista(comValorAtual(cliente.uf, listas.ufs))}
+              />
+              <Seletor
+                nome="regiao" placeholder="Selecione a região"
+                rotulo="Região"
+                valorInicial={cliente.regiao ?? ""}
+                opcoes={opcoesDeLista(comValorAtual(cliente.regiao, listas.regioes))}
+              />
+              <Seletor
+                nome="atendente" placeholder="Selecione o atendimento"
+                rotulo="Atendimento"
+                valorInicial={cliente.atendente ?? ""}
+                opcoes={opcoesDeLista(comValorAtual(cliente.atendente, listas.atendimentos))}
+              />
+              <Seletor
+                nome="consultor" placeholder="Selecione o consultor"
+                rotulo="Consultor"
+                valorInicial={cliente.consultor ?? ""}
+                opcoes={opcoesDeLista(comValorAtual(cliente.consultor, listas.consultores))}
+              />
             </div>
             <RodapeJanela onCancelar={() => setAberto(false)}>
               <BotaoEnviar pendente="Salvando…" className="btn-primario">

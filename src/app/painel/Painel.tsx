@@ -15,6 +15,8 @@ import {
   type PeriodoSafra,
 } from "@/lib/painel";
 import { nf } from "./cores";
+import Seletor, { type OpcaoSeletor } from "../Seletor";
+import { Avatar, Bolinha } from "../seletorOpcoes";
 
 const SEM_RESPONSAVEL = "Sem responsável";
 
@@ -49,52 +51,56 @@ export default function Painel({
     return { porRegiao, outros };
   }, [clientes, regioes]);
 
+  const opcoesRegiao: OpcaoSeletor[] = [
+    { valor: "", rotulo: "Todas as regiões" },
+    ...regioes.map((r) => ({ valor: r.nome, rotulo: r.nome })),
+    ...(temSemRegiao ? [{ valor: SEM_REGIAO, rotulo: SEM_REGIAO }] : []),
+  ];
+  const opcoesResponsavel: OpcaoSeletor[] = [
+    { valor: "", rotulo: "Todos os responsáveis" },
+    { valor: SEM_RESPONSAVEL, rotulo: SEM_RESPONSAVEL },
+    ...grupos.porRegiao.flatMap((g) =>
+      g.pessoas.map((p) => ({ valor: p, rotulo: p, grupo: g.nome, marca: <Avatar nome={p} /> })),
+    ),
+    ...grupos.outros.map((p) => ({ valor: p, rotulo: p, grupo: "Outros", marca: <Avatar nome={p} /> })),
+  ];
+  const opcoesFormato: OpcaoSeletor[] = [
+    { valor: "", rotulo: "Todos os formatos" },
+    { valor: "Online", rotulo: "Online", marca: <Bolinha cor="agendado" /> },
+    { valor: "Presencial", rotulo: "Presencial", marca: <Bolinha cor="presencial" /> },
+    { valor: "Não definido", rotulo: "Não definido" },
+  ];
+
   const alterar = (campo: keyof Filtros, valor: string) => setFiltros((f) => ({ ...f, [campo]: valor }));
   const filtrando = Object.values(filtros).some(Boolean);
 
   return (
     <>
       <div role="group" aria-label="Filtros do painel" className="flex flex-wrap items-center gap-2">
-        <label>
-          <span className="sr-only">Região</span>
-          <select value={filtros.regiao} onChange={(e) => alterar("regiao", e.target.value)} className="campo !h-9 !w-auto">
-            <option value="">Todas as regiões</option>
-            {regioes.map((r) => (
-              <option key={r.nome} value={r.nome}>{r.nome}</option>
-            ))}
-            {temSemRegiao && <option value={SEM_REGIAO}>{SEM_REGIAO}</option>}
-          </select>
-        </label>
-        <label>
-          <span className="sr-only">Responsável</span>
-          <select value={filtros.responsavel} onChange={(e) => alterar("responsavel", e.target.value)} className="campo !h-9 !w-auto">
-            <option value="">Todos os responsáveis</option>
-            {grupos.porRegiao.map((g) => (
-              <optgroup key={g.nome} label={g.nome}>
-                {g.pessoas.map((p) => (
-                  <option key={p}>{p}</option>
-                ))}
-              </optgroup>
-            ))}
-            {grupos.outros.length > 0 && (
-              <optgroup label="Outros">
-                {grupos.outros.map((p) => (
-                  <option key={p}>{p}</option>
-                ))}
-              </optgroup>
-            )}
-            <option value={SEM_RESPONSAVEL}>{SEM_RESPONSAVEL}</option>
-          </select>
-        </label>
-        <label>
-          <span className="sr-only">Formato</span>
-          <select value={filtros.formato} onChange={(e) => alterar("formato", e.target.value)} className="campo !h-9 !w-auto">
-            <option value="">Todos os formatos</option>
-            <option>Online</option>
-            <option>Presencial</option>
-            <option>Não definido</option>
-          </select>
-        </label>
+        <Seletor
+          rotulo="Região"
+          ocultarRotulo
+          tamanho="compacto"
+          valor={filtros.regiao}
+          onChange={(v) => alterar("regiao", v)}
+          opcoes={opcoesRegiao}
+        />
+        <Seletor
+          rotulo="Responsável"
+          ocultarRotulo
+          tamanho="compacto"
+          valor={filtros.responsavel}
+          onChange={(v) => alterar("responsavel", v)}
+          opcoes={opcoesResponsavel}
+        />
+        <Seletor
+          rotulo="Formato"
+          ocultarRotulo
+          tamanho="compacto"
+          valor={filtros.formato}
+          onChange={(v) => alterar("formato", v)}
+          opcoes={opcoesFormato}
+        />
         {filtrando && (
           <button type="button" onClick={() => setFiltros(SEM_FILTROS)} className="btn-discreto">
             Limpar filtros

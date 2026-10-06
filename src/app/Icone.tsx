@@ -93,6 +93,7 @@ const CAMINHOS = {
     </>
   ),
   menu: <path d="M4 6h16M4 12h16M4 18h16" />,
+  seta: <path d="m6 9 6 6 6-6" />,
   sol: (
     <>
       <circle cx="12" cy="12" r="4" />

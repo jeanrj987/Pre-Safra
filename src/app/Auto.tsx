@@ -16,21 +16,6 @@ export function CampoBusca(props: ComponentProps<"input">) {
   );
 }
 
-// Select que envia o formulário assim que a opção muda.
-export function SelectAuto(props: ComponentProps<"select">) {
-  return (
-    <select
-      {...props}
-      onChange={(e) => {
-        const form = e.currentTarget.form;
-        // Sem isso o foco fica no select e digitar na busca troca a opção escolhida.
-        e.currentTarget.blur();
-        form?.requestSubmit();
-      }}
-    />
-  );
-}
-
 // Botão que pede confirmação antes de enviar.
 export function BotaoConfirmar({
   mensagem,

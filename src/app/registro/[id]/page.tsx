@@ -3,6 +3,8 @@ import { notFound, redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import Shell from "@/app/Shell";
 import Selo from "@/app/Selo";
+import Seletor from "@/app/Seletor";
+import { opcoesDeLista, opcoesDePessoas } from "@/app/seletorOpcoes";
 import Icone from "@/app/Icone";
 import BotaoEnviar from "@/app/BotaoEnviar";
 import CampoDataForm from "@/app/CampoDataForm";
@@ -231,32 +233,21 @@ export default async function Registro({
             <section className="space-y-4 p-5 sm:p-6">
               <h2 className="text-base font-semibold">Agendamento</h2>
               <div className="grid gap-4 sm:grid-cols-2">
-                <label className="block">
-                  <span className="rotulo">Responsável</span>
-                  {usuario.admin ? (
-                    <select name="responsavel" defaultValue={r.responsavel ?? ""} className="campo">
-                      <option value="">Sem responsável</option>
-                      {daRegiao.length > 0 && (
-                        <optgroup label="Da região">
-                          {daRegiao.map((p) => (
-                            <option key={p}>{p}</option>
-                          ))}
-                        </optgroup>
-                      )}
-                      {outros.length > 0 && (
-                        <optgroup label={daRegiao.length ? "Outros" : "Responsáveis"}>
-                          {outros.map((p) => (
-                            <option key={p}>{p}</option>
-                          ))}
-                        </optgroup>
-                      )}
-                    </select>
-                  ) : (
+                {usuario.admin ? (
+                  <Seletor
+                    nome="responsavel" placeholder="Selecione o responsável"
+                    rotulo="Responsável"
+                    valorInicial={r.responsavel ?? ""}
+                    opcoes={opcoesDePessoas(daRegiao, outros)}
+                  />
+                ) : (
+                  <div>
+                    <span className="rotulo">Responsável</span>
                     <p className="flex h-10 items-center text-sm text-ink">
                       {r.responsavel || <span className="text-muted">Sem responsável</span>}
                     </p>
-                  )}
-                </label>
+                  </div>
+                )}
                 <label className="block">
                   <span className="rotulo">Data prevista</span>
                   <CampoDataForm
@@ -365,69 +356,36 @@ export default async function Registro({
             {r.cliente ? (
               usuario.admin ? (
                 <div className="mt-3 space-y-3">
-                  <label className="block">
-                    <span className="rotulo">Cidade</span>
-                    <select name="cidade" defaultValue={r.cliente.cidade ?? ""} className="campo">
-                      <option value="">Sem cidade</option>
-                      {opcoesCidade.map((nome) => (
-                        <option key={nome} value={nome}>
-                          {nome}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="block">
-                    <span className="rotulo">Região</span>
-                    <select name="regiao" defaultValue={r.cliente.regiao ?? ""} className="campo">
-                      <option value="">Sem região</option>
-                      {opcoesRegiao.map((nome) => (
-                        <option key={nome} value={nome}>
-                          {nome}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="block">
-                    <span className="rotulo">UF</span>
-                    <select name="uf" defaultValue={r.cliente.uf ?? ""} className="campo">
-                      <option value="">Sem UF</option>
-                      {opcoesUf.map((uf) => (
-                        <option key={uf} value={uf}>
-                          {uf}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="block">
-                    <span className="rotulo">Atendimento</span>
-                    <select
-                      name="atendente"
-                      defaultValue={r.cliente.atendente ?? ""}
-                      className="campo"
-                    >
-                      <option value="">Sem atendimento</option>
-                      {opcoesAtendimento.map((nome) => (
-                        <option key={nome} value={nome}>
-                          {nome}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="block">
-                    <span className="rotulo">Consultor</span>
-                    <select
-                      name="consultor"
-                      defaultValue={r.cliente.consultor ?? ""}
-                      className="campo"
-                    >
-                      <option value="">Sem consultor</option>
-                      {opcoesConsultor.map((nome) => (
-                        <option key={nome} value={nome}>
-                          {nome}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+                  <Seletor
+                    nome="cidade" placeholder="Selecione a cidade"
+                    rotulo="Cidade"
+                    valorInicial={r.cliente.cidade ?? ""}
+                    opcoes={opcoesDeLista(opcoesCidade)}
+                  />
+                  <Seletor
+                    nome="regiao" placeholder="Selecione a região"
+                    rotulo="Região"
+                    valorInicial={r.cliente.regiao ?? ""}
+                    opcoes={opcoesDeLista(opcoesRegiao)}
+                  />
+                  <Seletor
+                    nome="uf" placeholder="Selecione a UF"
+                    rotulo="UF"
+                    valorInicial={r.cliente.uf ?? ""}
+                    opcoes={opcoesDeLista(opcoesUf)}
+                  />
+                  <Seletor
+                    nome="atendente" placeholder="Selecione o atendimento"
+                    rotulo="Atendimento"
+                    valorInicial={r.cliente.atendente ?? ""}
+                    opcoes={opcoesDeLista(opcoesAtendimento)}
+                  />
+                  <Seletor
+                    nome="consultor" placeholder="Selecione o consultor"
+                    rotulo="Consultor"
+                    valorInicial={r.cliente.consultor ?? ""}
+                    opcoes={opcoesDeLista(opcoesConsultor)}
+                  />
                 </div>
               ) : (
                 <dl className="mt-3 space-y-3 text-sm">

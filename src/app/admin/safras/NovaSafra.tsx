@@ -3,6 +3,8 @@ import { useState } from "react";
 import BotaoEnviar from "@/app/BotaoEnviar";
 import Icone from "@/app/Icone";
 import { Janela, RodapeJanela } from "@/app/Finalizar";
+import Seletor from "@/app/Seletor";
+import { opcoesDeLista } from "@/app/seletorOpcoes";
 
 export default function NovaSafra({ acao }: { acao: (formData: FormData) => Promise<void> }) {
   const [aberto, setAberto] = useState(false);
@@ -25,16 +27,16 @@ export default function NovaSafra({ acao }: { acao: (formData: FormData) => Prom
                 <span className="rotulo">Nome</span>
                 <input name="nome" required autoFocus placeholder="Ex.: Soja 2026" className="campo" />
               </label>
-              <label className="block">
-                <span className="rotulo">
-                  Cultura <span className="font-normal text-muted">(opcional)</span>
-                </span>
-                <select name="cultura" defaultValue="" className="campo">
-                  <option value="">Sem cultura</option>
-                  <option value="Soja">Soja</option>
-                  <option value="Milho">Milho</option>
-                </select>
-              </label>
+              <Seletor
+                nome="cultura" placeholder="Selecione a cultura"
+                rotulo={
+                  <>
+                    Cultura <span className="font-normal text-muted">(opcional)</span>
+                  </>
+                }
+                valorInicial=""
+                opcoes={opcoesDeLista(["Soja", "Milho"])}
+              />
               <div className="grid gap-4 min-[420px]:grid-cols-2">
                 <label className="block">
                   <span className="rotulo">Início</span>

@@ -3,6 +3,8 @@ import { useState, type FormEvent } from "react";
 import BotaoEnviar from "./BotaoEnviar";
 import Icone from "./Icone";
 import { Janela, RodapeJanela } from "./Finalizar";
+import Seletor, { type OpcaoSeletor } from "./Seletor";
+import { Bolinha, opcoesDeLista, opcoesDePessoas } from "./seletorOpcoes";
 import { motivoDiaBloqueado } from "@/lib/diasUteis";
 import { HORARIOS } from "@/lib/horarios";
 
@@ -14,6 +16,13 @@ const STATUS: { valor: Exclude<Status, "">; rotulo: string }[] = [
 ];
 
 const campoErro = "!border-atrasado-dot";
+
+const opcoesStatus: OpcaoSeletor[] = STATUS.map((s) => ({
+  valor: s.valor,
+  rotulo: s.rotulo,
+  marca: <Bolinha cor={s.valor === "Online" ? "agendado" : "presencial"} />,
+}));
+const opcoesHorario = opcoesDeLista(HORARIOS);
 
 function Erro({ id, children }: { id: string; children: string }) {
   return (
@@ -67,7 +76,7 @@ export default function Agendar({
   const [hora, setHora] = useState(horario);
   const [status, setStatus] = useState<Status>(statusInicial);
   const [tentou, setTentou] = useState(false);
-  const resto = outros.filter((o) => !daRegiao.includes(o));
+  const opcoesResponsavel = opcoesDePessoas(daRegiao, outros);
 
   function abrir() {
     setResp(responsavel);
@@ -103,7 +112,7 @@ export default function Agendar({
     // Leva o foco para o primeiro campo com problema.
     const primeiro = (["resp", "dia", "hora", "status"] as const).find((k) => erros[k]);
     const nomeCampo = { resp: "responsavel", dia: "data", hora: "horario", status: "formato" }[primeiro!];
-    e.currentTarget.querySelector<HTMLElement>(`[name="${nomeCampo}"]`)?.focus();
+    e.currentTarget.querySelector<HTMLElement>(`[data-campo="${nomeCampo}"]`)?.focus();
   }
 
   return (
@@ -124,50 +133,40 @@ export default function Agendar({
             <input type="hidden" name="id" value={id} />
             <input type="hidden" name="voltar" value={voltar} />
             <div className="space-y-4 px-4 py-5 sm:px-6">
-              <label className="block">
-                <span className="rotulo">Responsável</span>
+              <div>
                 {podeTrocarResponsavel ? (
-                  <select
-                    name="responsavel"
-                    value={resp}
-                    onChange={(e) => setResp(e.target.value)}
-                    aria-invalid={mostrar("resp")}
-                    aria-describedby={mostrar("resp") ? "erro-resp" : undefined}
-                    className={`campo ${mostrar("resp") ? campoErro : ""}`}
-                  >
-                    <option value="">Selecione o responsável</option>
-                    {daRegiao.length > 0 && (
-                      <optgroup label="Da região">
-                        {daRegiao.map((p) => (
-                          <option key={p}>{p}</option>
-                        ))}
-                      </optgroup>
-                    )}
-                    {resto.length > 0 && (
-                      <optgroup label={daRegiao.length ? "Outros" : "Responsáveis"}>
-                        {resto.map((p) => (
-                          <option key={p}>{p}</option>
-                        ))}
-                      </optgroup>
-                    )}
-                  </select>
+                  <Seletor
+                    nome="responsavel"
+                    rotulo="Responsável"
+                    valor={resp}
+                    onChange={setResp}
+                    opcoes={opcoesResponsavel}
+                    placeholder="Selecione o responsável"
+                    icone="usuario"
+                    invalido={mostrar("resp")}
+                    descricaoId={mostrar("resp") ? "erro-resp" : undefined}
+                  />
                 ) : (
-                  <p
-                    className={`campo flex items-center ${resp ? "text-ink" : "text-muted"} ${
-                      mostrar("resp") ? campoErro : ""
-                    }`}
-                  >
-                    {resp || "Sem responsável"}
-                  </p>
+                  <>
+                    <span className="rotulo">Responsável</span>
+                    <p
+                      className={`campo flex items-center ${resp ? "text-ink" : "text-muted"} ${
+                        mostrar("resp") ? campoErro : ""
+                      }`}
+                    >
+                      {resp || "Sem responsável"}
+                    </p>
+                  </>
                 )}
                 {mostrar("resp") && <Erro id="erro-resp">{erros.resp!}</Erro>}
-              </label>
+              </div>
               <div className="grid gap-4 min-[420px]:grid-cols-2">
                 <label className="block">
                   <span className="rotulo">Data</span>
                   <input
                     type="date"
                     name="data"
+                    data-campo="data"
                     defaultValue={data}
                     onChange={(e) => setDia(e.target.value)}
                     aria-invalid={mostrar("dia")}
@@ -176,45 +175,35 @@ export default function Agendar({
                   />
                   {mostrar("dia") && <Erro id="erro-dia">{erros.dia!}</Erro>}
                 </label>
-                <label className="block">
-                  <span className="rotulo">Horário</span>
-                  <select
-                    name="horario"
-                    value={hora}
-                    onChange={(e) => setHora(e.target.value)}
-                    aria-invalid={mostrar("hora")}
-                    aria-describedby={mostrar("hora") ? "erro-hora" : undefined}
-                    className={`campo min-w-0 ${mostrar("hora") ? campoErro : ""}`}
-                  >
-                    <option value="">Selecione</option>
-                    {HORARIOS.map((h) => (
-                      <option key={h} value={h}>
-                        {h}
-                      </option>
-                    ))}
-                  </select>
+                <div>
+                  <Seletor
+                    nome="horario"
+                    rotulo="Horário"
+                    valor={hora}
+                    onChange={setHora}
+                    opcoes={opcoesHorario}
+                    placeholder="Selecione"
+                    icone="relogio"
+                    grade
+                    invalido={mostrar("hora")}
+                    descricaoId={mostrar("hora") ? "erro-hora" : undefined}
+                  />
                   {mostrar("hora") && <Erro id="erro-hora">{erros.hora!}</Erro>}
-                </label>
+                </div>
               </div>
-              <label className="block">
-                <span className="rotulo">Status</span>
-                <select
-                  name="formato"
-                  value={status}
-                  onChange={(e) => setStatus(e.target.value as Status)}
-                  aria-invalid={mostrar("status")}
-                  aria-describedby={mostrar("status") ? "erro-status" : undefined}
-                  className={`campo ${mostrar("status") ? campoErro : ""}`}
-                >
-                  <option value="">Selecione Online ou Presencial</option>
-                  {STATUS.map((s) => (
-                    <option key={s.valor} value={s.valor}>
-                      {s.rotulo}
-                    </option>
-                  ))}
-                </select>
+              <div>
+                <Seletor
+                  nome="formato"
+                  rotulo="Status"
+                  valor={status}
+                  onChange={(v) => setStatus(v as Status)}
+                  opcoes={opcoesStatus}
+                  placeholder="Selecione Online ou Presencial"
+                  invalido={mostrar("status")}
+                  descricaoId={mostrar("status") ? "erro-status" : undefined}
+                />
                 {mostrar("status") && <Erro id="erro-status">{erros.status!}</Erro>}
-              </label>
+              </div>
             </div>
             <RodapeJanela onCancelar={() => setAberto(false)}>
               {(temAgendamento || soResponsavel) && (

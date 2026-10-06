@@ -216,6 +216,15 @@ table,
   }
 }
 
+/* Lista do Seletor.tsx: aparece deslizando de leve a partir do campo (--desl vale -4px abrindo
+   para baixo e 4px abrindo para cima). */
+@keyframes seletor-abrir {
+  from {
+    opacity: 0;
+    transform: translateY(var(--desl, -4px)) scale(0.98);
+  }
+}
+
 /* Telão de ideias (/telao): a sugestão nova cai do topo da tela, dá um quique e se acomoda; o
    brilho da cor do tópico some aos poucos; depois ela flutua devagar. */
 @keyframes telao-cair {

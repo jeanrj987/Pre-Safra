@@ -1,9 +1,12 @@
 import Link from "next/link";
 import Form from "next/form";
-import { CampoBusca, SelectAuto } from "./Auto";
+import { CampoBusca } from "./Auto";
+import Seletor from "./Seletor";
+import { Avatar } from "./seletorOpcoes";
 import { normalizar, plural } from "@/lib/texto";
 import { agendarCliente, finalizarComNota, reabrirComMotivo } from "./acoes";
 import Agendar from "./Agendar";
+import LimparAgendamento from "./LimparAgendamento";
 import { exigirAcessoCompleto } from "@/lib/auth";
 import Shell from "./Shell";
 import Selo from "./Selo";
@@ -16,6 +19,7 @@ import {
   contar,
   dataParaCampo,
   formatarAtraso,
+  formatarData,
   formatarAtrasoConclusao,
   listarLinhas,
   nomesPossiveis,
@@ -301,17 +305,15 @@ export default async function Home({ searchParams }: PageProps<"/">) {
               className="campo pl-9"
             />
           </div>
-          <SelectAuto
-            name="responsavel"
-            defaultValue={resp}
-            aria-label="Filtrar por responsável"
-            className="campo w-auto max-w-full sm:min-w-52"
-          >
-            <option value="">Todos os responsáveis</option>
-            {nomes.map((r) => (
-              <option key={r}>{r}</option>
-            ))}
-          </SelectAuto>
+          <Seletor
+            nome="responsavel"
+            rotulo="Filtrar por responsável"
+            ocultarRotulo
+            tamanho="compacto"
+            valorInicial={resp}
+            enviarAoMudar
+            opcoes={[{ valor: "", rotulo: "Todos os responsáveis" }, ...nomes.map((r) => ({ valor: r, rotulo: r, marca: <Avatar nome={r} /> }))]}
+          />
           {status === "Finalizado" && (
             <div className="relative min-w-56 flex-1">
               <Icone
@@ -356,6 +358,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
                   <th scope="col" className="hidden px-3 py-2.5 @min-[1080px]:table-cell">Região</th>
                   <th scope="col" className="hidden px-3 py-2.5 @min-[1080px]:table-cell">Consultor</th>
                   <th scope="col" className="hidden px-3 py-2.5 @2xl:table-cell">Status</th>
+                  <th scope="col" className="hidden px-3 py-2.5 @2xl:table-cell">Data</th>
                   <th scope="col" className="py-2.5 pl-3 pr-4 text-right sm:pr-5">
                     <span className="sr-only">Ações</span>
                   </th>
@@ -396,7 +399,12 @@ export default async function Home({ searchParams }: PageProps<"/">) {
                           )}
                         </div>
                         {/* Em tela estreita, o status fica sob o nome */}
-                        <div className="mt-1.5 @2xl:hidden">{statusDaLinha(l)}</div>
+                        <div className="mt-1.5 @2xl:hidden">
+                          {statusDaLinha(l)}
+                          {l.dataPrevista && (
+                            <div className="mt-1 text-xs text-muted">Data: {formatarData(l.dataPrevista)}</div>
+                          )}
+                        </div>
                         {/* Sem espaço para as colunas de localização, elas viram uma linha sob o nome */}
                         {[[l.cidade, l.uf].filter(Boolean).join("/"), l.regiao, l.consultor].some(Boolean) && (
                           <div className="mt-1 text-xs text-muted @min-[1080px]:hidden">
@@ -430,6 +438,9 @@ export default async function Home({ searchParams }: PageProps<"/">) {
                       <td className="hidden px-3 py-3 align-top @2xl:table-cell">
                         {statusDaLinha(l)}
                       </td>
+                      <td className="hidden whitespace-nowrap px-3 py-3 align-top tabular-nums text-muted @2xl:table-cell">
+                        {formatarData(l.dataPrevista)}
+                      </td>
                       <td className="py-2.5 pl-3 pr-4 align-top sm:pr-5">
                         <div className="flex items-center justify-end gap-1.5">
                           {/* Finalizado não se agenda: lá aparece só o Reabrir. */}
@@ -448,6 +459,15 @@ export default async function Home({ searchParams }: PageProps<"/">) {
                               daRegiao={pessoasDaDupla(l.atendentes)}
                               outros={nomes}
                               podeTrocarResponsavel={usuario.admin}
+                            />
+                          )}
+                          {l.status !== "Finalizado" && (l.dataPrevista || l.horario || l.formato) && (
+                            <LimparAgendamento
+                              acao={agendarCliente}
+                              id={l.id}
+                              nome={l.nome}
+                              voltar={atual.toString()}
+                              limpaResponsavel={usuario.admin}
                             />
                           )}
                           {l.status === "Finalizado" ? (
@@ -472,7 +492,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
                   );
                 })}
                 <tr id="sem-resultados" hidden={linhas.length > 0}>
-                  <td colSpan={8} className="px-4 py-16 text-center">
+                  <td colSpan={9}className="px-4 py-16 text-center">
                     <div className="mx-auto grid size-10 place-items-center rounded-full bg-subtle text-muted">
                       <Icone nome="busca" className="size-5" />
                     </div>
