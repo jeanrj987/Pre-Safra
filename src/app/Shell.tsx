@@ -12,7 +12,7 @@ import BotaoTema from "./BotaoTema";
 import IndicadorLink from "./IndicadorLink";
 import SeletorSafra from "./SeletorSafra";
 
-type Pagina = "clientes" | "painel" | "novo" | "admin" | "telao";
+type Pagina = "clientes" | "painel" | "calendario" | "novo" | "admin" | "telao";
 
 type ItemNav = {
   id: Pagina;
@@ -34,6 +34,15 @@ const NAV_CLIENTES: ItemNav = { id: "clientes", href: "/", rotulo: "Clientes", r
 // Liberado para admin e para contas "somente Painel" (ex.: TV da sala) — ver
 // exigirAcessoPainel() em src/lib/auth.ts.
 const NAV_PAINEL: ItemNav = { id: "painel", href: "/painel", rotulo: "Painel", rotuloCurto: "Painel", icone: "painel" };
+// Lançamentos livres da equipe (avisos, atualizações de cliente…). Não aparece para a conta
+// "somente Painel": ver exigirAcessoCompleto() em src/lib/auth.ts.
+const NAV_CALENDARIO: ItemNav = {
+  id: "calendario",
+  href: "/calendario",
+  rotulo: "Calendário",
+  rotuloCurto: "Agenda",
+  icone: "calendario",
+};
 const NAV_NOVO: ItemNav = { id: "novo", href: "/novo", rotulo: "Novo cliente", rotuloCurto: "Novo", icone: "mais" };
 const NAV_ADMIN: ItemNav = { id: "admin", href: "/admin", rotulo: "Admin", rotuloCurto: "Admin", icone: "engrenagem" };
 // Telão de ideias do evento: QR code do formulário de sugestões + as ideias chegando ao vivo.
@@ -78,8 +87,8 @@ export default async function Shell({
   const NAV: ItemNav[] = usuario?.somentePainel
     ? [NAV_PAINEL, NAV_TELAO]
     : usuario?.admin
-      ? [NAV_CLIENTES, NAV_PAINEL, NAV_NOVO, NAV_TELAO, NAV_ADMIN]
-      : [NAV_CLIENTES, NAV_NOVO];
+      ? [NAV_CLIENTES, NAV_PAINEL, NAV_CALENDARIO, NAV_NOVO, NAV_TELAO, NAV_ADMIN]
+      : [NAV_CLIENTES, NAV_CALENDARIO, NAV_NOVO];
 
   const paginaAtual = NAV.find((n) => n.id === ativo);
 
@@ -261,10 +270,13 @@ export default async function Shell({
           // então não precisa do respiro extra embaixo, ganha espaçamento mais compacto entre as
           // seções e usa mais largura (até 1800px) para caber os 4 gráficos numa linha só em
           // telas bem largas, como a TV da sala. A lista de clientes também usa mais largura
-          // (até 1600px) para os nomes não quebrarem de linha na tabela.
+          // (até 1600px) para os nomes não quebrarem de linha na tabela. O Calendário também
+          // (sete colunas de atividades) e, como o Painel, não tem barra flutuante embaixo.
           ativo === "painel"
             ? "max-w-[1800px] space-y-4 pt-4 pb-8"
-            : ativo === "clientes"
+            : ativo === "calendario"
+              ? "max-w-[1600px] space-y-4 pt-6 pb-8"
+              : ativo === "clientes"
               ? "max-w-[1600px] space-y-6 pt-8 pb-28"
               : "max-w-7xl space-y-6 pt-8 pb-28"
         }`}

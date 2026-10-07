@@ -89,6 +89,25 @@ model PreSafra {
   @@index([safraId])
 }
 
+// Lançamento livre da aba Calendário (ex.: dia de enviar aviso, dia de atualizar o cliente).
+// Compartilhado pela equipe toda; não depende de safra nem de cliente.
+model Atividade {
+  id           Int      @id @default(autoincrement())
+  titulo       String
+  descricao    String?
+  data         DateTime @db.Date
+  // "HH:MM" livre (qualquer minuto do dia). Nulo só em atividades lançadas antes de o horário
+  // ser obrigatório.
+  horario      String?
+  concluida    Boolean  @default(false)
+  // Nome de quem lançou, como em Conclusao.autor
+  criadoPor    String?
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  @@index([data])
+}
+
 // Sugestão de tema para o FAQ, enviada pelo público via QR code (rota pública /sugestao).
 // A equipe entra em contato pelo WhatsApp depois para entender melhor a ideia.
 model Sugestao {

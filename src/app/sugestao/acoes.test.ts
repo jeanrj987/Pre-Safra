@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const banco = vi.hoisted(() => ({
-  count: vi.fn(),
   findFirst: vi.fn(),
   create: vi.fn(),
 }));
@@ -29,7 +28,6 @@ const valida = {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  banco.count.mockResolvedValue(0);
   banco.findFirst.mockResolvedValue(null);
   banco.create.mockResolvedValue({});
 });
@@ -75,13 +73,21 @@ describe("enviarSugestao", () => {
     ["nome vazio", { nome: " " }],
     ["WhatsApp inválido", { whatsapp: "12345" }],
     ["assunto vazio", { topico: "" }],
-    ["sugestão curta demais", { texto: "curta" }],
-    ["sugestão longa demais", { texto: "x".repeat(401) }],
+    ["sugestão vazia", { texto: "   " }],
   ])("rejeita %s sem tocar no banco", async (_nome, troca) => {
     const r = await enviarSugestao({ ...valida, ...troca });
     expect(r.status).toBe("erro");
-    expect(banco.count).not.toHaveBeenCalled();
+    expect(banco.findFirst).not.toHaveBeenCalled();
     expect(banco.create).not.toHaveBeenCalled();
+  });
+
+  // A sugestão não tem limite de caracteres (só não pode ficar vazia): ver o commit que tirou o limite.
+  it.each([
+    ["curta", "curta"],
+    ["muito longa", "x".repeat(5000)],
+  ])("aceita sugestão %s", async (_nome, texto) => {
+    expect(await enviarSugestao({ ...valida, texto })).toEqual({ status: "salva", revisar: false });
+    expect(banco.create).toHaveBeenCalledTimes(1);
   });
 
   it("ignora entrada que não é objeto", async () => {
@@ -94,11 +100,12 @@ describe("enviarSugestao", () => {
     expect(banco.create).not.toHaveBeenCalled();
   });
 
-  it("limita envios seguidos do mesmo WhatsApp", async () => {
-    banco.count.mockResolvedValue(5);
-    const r = await enviarSugestao(valida);
-    expect(r.status).toBe("erro");
-    expect(banco.create).not.toHaveBeenCalled();
+  // Também não há limite de envios: o mesmo WhatsApp pode mandar quantas ideias diferentes quiser.
+  it("aceita vários envios seguidos do mesmo WhatsApp", async () => {
+    for (const texto of ["primeira ideia", "segunda ideia", "terceira ideia", "quarta ideia", "quinta ideia", "sexta ideia"]) {
+      expect(await enviarSugestao({ ...valida, texto })).toEqual({ status: "salva", revisar: false });
+    }
+    expect(banco.create).toHaveBeenCalledTimes(6);
   });
 
   it("recusa a mesma sugestão repetida pelo mesmo WhatsApp", async () => {
