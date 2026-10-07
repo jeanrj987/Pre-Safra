@@ -17,7 +17,7 @@ import Paginacao from "@/app/Paginacao";
 import { AcoesLoteSugestoes, CaixaSugestao, CaixaTodas } from "./Selecao";
 import TempoTelao from "./TempoTelao";
 
-export const metadata = { title: "Sugestões · Pré-Safra" };
+export const metadata = { title: "Sugestões" };
 
 const dataHora = new Intl.DateTimeFormat("pt-BR", {
   dateStyle: "short",

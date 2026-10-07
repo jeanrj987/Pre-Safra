@@ -25,6 +25,12 @@ export const obterSafraSelecionada = cache(async () => {
   return safras.find((s) => s.id === valor) ?? safras[0];
 });
 
+// Nome do produto como aparece na tela, no menu e na aba do navegador: "Pré-Safra Soja 26/27".
+// Muda junto com a safra selecionada; sem nenhuma safra cadastrada, fica só "Pré-Safra".
+export function tituloPreSafra(safra: { nome: string } | null | undefined): string {
+  return safra ? `Pré-Safra ${safra.nome}` : "Pré-Safra";
+}
+
 export function periodoDe(safra: { inicio: Date; prazo: Date }): PeriodoSafra {
   const prazo = safra.prazo.getTime();
   return { inicio: safra.inicio.getTime(), prazo, fim: prazo + 31 * DIA };

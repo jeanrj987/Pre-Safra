@@ -1,17 +1,18 @@
 import Shell from "../Shell";
 import Painel from "./Painel";
-import { exigirAcessoPainel } from "@/lib/auth";
+import { exigirLogin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { diaMesAno, type ClientePainel } from "@/lib/painel";
 import { obterSafraSelecionada, periodoDe } from "@/lib/safra";
 import { diaHoje } from "@/lib/status";
 
-export const metadata = { title: "Painel · Pré-Safra" };
+export const metadata = { title: "Painel" };
 
 export default async function PaginaPainel() {
+  // Painel só de leitura, aberto a todo usuário logado (inclusive a conta "somente Painel" da TV).
   // Login e safra em paralelo: cada ida ao banco custa um round-trip, então sequenciar à toa
   // soma latência a cada navegação.
-  const [, safra] = await Promise.all([exigirAcessoPainel(), obterSafraSelecionada()]);
+  const [, safra] = await Promise.all([exigirLogin(), obterSafraSelecionada()]);
   if (!safra) {
     return (
       <Shell ativo="painel">

@@ -1,12 +1,13 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { autenticar, iniciarSessao } from "@/lib/auth";
+import { obterSafraSelecionada, tituloPreSafra } from "@/lib/safra";
 import BotaoEnviar from "@/app/BotaoEnviar";
 import CampoSenha from "@/app/CampoSenha";
 import Icone from "@/app/Icone";
 
 export default async function Login({ searchParams }: PageProps<"/login">) {
-  const { erro } = await searchParams;
+  const [{ erro }, safra] = await Promise.all([searchParams, obterSafraSelecionada()]);
 
   async function entrar(formData: FormData) {
     "use server";
@@ -29,7 +30,7 @@ export default async function Login({ searchParams }: PageProps<"/login">) {
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/logo-controlsoft.webp" alt="ControlSoft" className="h-9 w-auto self-start" />
         <div className="max-w-md">
-          <p className="text-sm font-medium text-brand">Pré-Safra 2026</p>
+          <p className="text-sm font-medium text-brand">{tituloPreSafra(safra)}</p>
           <h2 className="mt-3 text-4xl font-semibold leading-tight tracking-tight">
             Cada cliente pronto antes da safra começar.
           </h2>

@@ -10,12 +10,14 @@ import BotaoEnviar from "@/app/BotaoEnviar";
 import CampoDataForm from "@/app/CampoDataForm";
 import { motivoDataIndisponivel } from "@/lib/diasUteis";
 import { exigirAcessoCompleto, exigirAdmin, exigirLogin } from "@/lib/auth";
+import { assumirCliente, podeAlterarCliente, podeAssumirCliente } from "@/lib/responsavel";
 import { prisma } from "@/lib/db";
 import { calcularStatus, diasEmAtraso, mesPrevisto } from "@/lib/status";
 import {
   formatarAtraso,
   formatarDataHora,
   listarCidadesConhecidas,
+  listarComerciaisConhecidos,
   listarConsultoresConhecidos,
   listarDuplasConhecidas,
   listarEquipesPorRegiao,
@@ -23,7 +25,7 @@ import {
   listarRegioesConhecidas,
   UFS_BRASIL,
 } from "@/lib/dados";
-import { gruposDeResponsavel, type GrupoEquipe } from "@/lib/equipe";
+import { comercialDaRegiao, gruposDeResponsavel, type GrupoEquipe } from "@/lib/equipe";
 
 const texto = (f: FormData, k: string) => String(f.get(k) ?? "").trim() || null;
 
@@ -40,7 +42,7 @@ export default async function Registro({
 }: PageProps<"/registro/[id]">) {
   const usuario = await exigirAcessoCompleto();
   const { id: idStr } = await params;
-  const { salvo, conflito, diaBloqueado } = await searchParams;
+  const { salvo, conflito, diaBloqueado, semPermissao, voltar } = await searchParams;
   const id = Number(idStr);
   if (!Number.isInteger(id)) notFound();
 
@@ -54,24 +56,37 @@ export default async function Registro({
   if (!r) notFound();
 
   const usuarioAdmin = usuario.admin;
-  const [nomes, equipes, cidadesConhecidas, regioesConhecidas, duplasConhecidas, consultoresConhecidos] =
-    await Promise.all([
+  // Todos abrem o registro, mas só o admin e o responsável do cliente o editam.
+  const podeEditar = podeAlterarCliente(usuario, r.responsavel);
+  const podeAssumir = podeAssumirCliente(usuario, r.responsavel) && !r.inativo;
+  const [
+    nomes,
+    equipes,
+    cidadesConhecidas,
+    regioesConhecidas,
+    duplasConhecidas,
+    consultoresConhecidos,
+    comerciaisConhecidos,
+  ] = await Promise.all([
       listarNomesResponsaveis(),
       usuarioAdmin ? listarEquipesPorRegiao() : Promise.resolve<GrupoEquipe[]>([]),
       usuarioAdmin ? listarCidadesConhecidas() : Promise.resolve<string[]>([]),
       usuarioAdmin ? listarRegioesConhecidas() : Promise.resolve<string[]>([]),
       usuarioAdmin ? listarDuplasConhecidas() : Promise.resolve<string[]>([]),
       usuarioAdmin ? listarConsultoresConhecidos() : Promise.resolve<string[]>([]),
+      usuarioAdmin ? listarComerciaisConhecidos() : Promise.resolve<string[]>([]),
     ]);
   const opcoesCidade = comValorAtual(cidadesConhecidas, r.cliente?.cidade ?? null);
   const opcoesRegiao = comValorAtual(regioesConhecidas, r.cliente?.regiao ?? null);
   const opcoesUf = comValorAtual(UFS_BRASIL, r.cliente?.uf ?? null);
   const opcoesAtendimento = comValorAtual(duplasConhecidas, r.cliente?.atendente ?? null);
   const opcoesConsultor = comValorAtual(consultoresConhecidos, r.cliente?.consultor ?? null);
+  const opcoesComercial = comValorAtual(comerciaisConhecidos, r.cliente?.comercial ?? null);
   const pessoasDoCliente = {
     atendentes: r.cliente?.atendente ?? null,
     consultor: r.cliente?.consultor ?? null,
     regiao: r.cliente?.regiao ?? null,
+    comercial: r.cliente?.comercial ?? null,
   };
   // Responsável (só admin escolhe): a equipe da região do cliente primeiro, depois cada região.
   const gruposResponsavel = gruposDeResponsavel(pessoasDoCliente, equipes);
@@ -87,16 +102,28 @@ export default async function Registro({
   const dias = diasEmAtraso(dados);
   const mes = mesPrevisto(r.dataPrevista);
 
+  // Quem chegou pelo Calendário volta para ele (no mesmo mês) depois de salvar. Só aceita um
+  // endereço do próprio Calendário: o parâmetro vem da URL e não pode virar um redirecionamento aberto.
+  const voltarAoCalendario =
+    typeof voltar === "string" && /^\/calendario(\?mes=\d{4}-\d{2})?$/.test(voltar) ? voltar : null;
+  const sufixoVoltar = voltarAoCalendario ? `&voltar=${encodeURIComponent(voltarAoCalendario)}` : "";
+  const dataAtual = r.dataPrevista?.toISOString().slice(0, 10) ?? null;
+  const nomeManual = r.clienteNomeManual;
+
   // Um único formulário/botão salva tanto o agendamento (Pré-Safra) quanto o cadastro do
   // cliente (região, UF, equipe) — os dois viviam em formulários separados antes.
   async function salvar(formData: FormData) {
     "use server";
     const sessao = await exigirLogin();
+    // Confere no banco: a tela pode estar desatualizada e o formulário pode ser forjado.
+    const atual = await prisma.preSafra.findUnique({ where: { id }, select: { responsavel: true } });
+    if (!atual || !podeAlterarCliente(sessao, atual.responsavel)) redirect(`/registro/${id}?semPermissao=1${sufixoVoltar}`);
     const data = texto(formData, "dataPrevista");
     // Data passada, sábado, domingo e feriado não podem ser agendados; uma data antiga já salva é mantida.
-    const dataAtual = r?.dataPrevista?.toISOString().slice(0, 10) ?? null;
+    // dataAtual é calculada fora da Server Action: se ela usasse "r" aqui dentro, o registro inteiro
+    // (com Date) seria enviado ao navegador junto com a ação, e isso dá erro ao salvar.
     if (data && data !== dataAtual && motivoDataIndisponivel(data)) {
-      redirect(`/registro/${id}?diaBloqueado=1`);
+      redirect(`/registro/${id}?diaBloqueado=1${sufixoVoltar}`);
     }
     // Optimistic locking: só grava se ninguém alterou o registro desde que esta tela foi
     // carregada. Evita que duas pessoas editando o mesmo cliente ao mesmo tempo se
@@ -118,7 +145,7 @@ export default async function Registro({
         }),
       },
     });
-    if (count === 0) redirect(`/registro/${id}?conflito=1`);
+    if (count === 0) redirect(`/registro/${id}?conflito=1${sufixoVoltar}`);
 
     // Cadastro do cliente (região, UF, equipe) só aparece no formulário para admin com
     // cliente já vinculado; os demais casos não enviam clienteId.
@@ -133,12 +160,22 @@ export default async function Registro({
             regiao: texto(formData, "regiao"),
             atendente: texto(formData, "atendente"),
             consultor: texto(formData, "consultor"),
+            comercial: texto(formData, "comercial"),
           },
         });
         revalidatePath("/", "layout");
       }
     }
-    redirect(`/registro/${id}?salvo=1`);
+    redirect(voltarAoCalendario ?? `/registro/${id}?salvo=1`);
+  }
+
+  // Botão "Assumir" do aviso: fora do formulário principal (formulários não se aninham).
+  async function assumir() {
+    "use server";
+    const sessao = await exigirAcessoCompleto();
+    await assumirCliente(sessao, id);
+    revalidatePath("/", "layout");
+    redirect(`/registro/${id}`);
   }
 
   // Cliente adicionado à mão (formulário "Novo cliente") ainda não tem um cadastro de
@@ -146,7 +183,6 @@ export default async function Registro({
   async function cadastrarCliente() {
     "use server";
     await exigirAdmin();
-    const nomeManual = r?.clienteNomeManual;
     if (!nomeManual) redirect(`/registro/${id}`);
     const cliente = await prisma.cliente.upsert({
       where: { nome: nomeManual },
@@ -166,19 +202,20 @@ export default async function Registro({
     ["Região", r.cliente?.regiao],
     ["UF", r.cliente?.uf],
     ["Consultor", r.cliente?.consultor],
+    ["Comercial", r.cliente?.comercial || comercialDaRegiao(r.cliente?.regiao ?? null)],
     ["Atendimento", r.cliente?.atendente],
   ] as const;
   const atualizado = formatarDataHora(r.atualizadoEm);
 
   return (
-    <Shell ativo="clientes">
+    <Shell ativo={voltarAoCalendario ? "calendario" : "clientes"}>
       <div className="space-y-3">
         <Link
-          href="/"
+          href={voltarAoCalendario ?? "/"}
           className="inline-flex items-center gap-1.5 text-sm font-medium text-muted transition hover:text-ink"
         >
           <Icone nome="voltar" />
-          Clientes
+          {voltarAoCalendario ? "Calendário" : "Clientes"}
         </Link>
         <h1 className="text-2xl font-semibold tracking-tight">{nome}</h1>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -216,6 +253,28 @@ export default async function Registro({
         </p>
       )}
 
+      {(!podeEditar || semPermissao) && (
+        <div
+          role={semPermissao ? "alert" : "status"}
+          className={`flex items-center gap-2 rounded-lg px-4 py-3 text-sm font-medium ${
+            semPermissao ? "bg-atrasado-bg text-atrasado-fg" : "border border-line bg-subtle text-muted"
+          }`}
+        >
+          <Icone nome={semPermissao ? "alerta" : "info"} />
+          {semPermissao ? "Nada foi salvo: " : ""}
+          {r.responsavel
+            ? `Só o responsável por este cliente (${r.responsavel}) ou um administrador pode alterar o registro, finalizar e reabrir. Você pode apenas visualizar.`
+            : "Este cliente ainda não tem responsável, então só um administrador altera o registro. Você pode apenas visualizar."}
+          {podeAssumir && (
+            <form action={assumir} className="ml-auto">
+              <BotaoEnviar pendente="Assumindo…" className="btn-contorno">
+                Assumir este cliente
+              </BotaoEnviar>
+            </form>
+          )}
+        </div>
+      )}
+
       {diaBloqueado && (
         <p
           role="alert"
@@ -235,10 +294,18 @@ export default async function Registro({
         {usuario.admin && r.cliente && (
           <input type="hidden" name="clienteId" value={r.cliente.id} />
         )}
+        {/* Sem permissão, os campos ficam desabilitados e não há botão de salvar. */}
+        <fieldset disabled={!podeEditar} className="contents">
         <div className="space-y-6">
           <div className="card divide-y divide-line">
             <section className="space-y-4 p-5 sm:p-6">
               <h2 className="text-base font-semibold">Agendamento</h2>
+              {r.agendadoPor && r.agendadoEm && r.formato && (
+                <p className="-mt-2 text-xs text-muted">
+                  Agendado por <span className="font-medium text-ink">{r.agendadoPor}</span> em{" "}
+                  {formatarDataHora(r.agendadoEm)}
+                </p>
+              )}
               <div className="grid gap-4 sm:grid-cols-2">
                 {usuario.admin ? (
                   <Seletor
@@ -299,7 +366,7 @@ export default async function Registro({
             </section>
 
             <div className="flex items-center justify-end gap-2 rounded-b-xl bg-canvas px-5 py-4 sm:px-6">
-              <Link href="/" className="btn-contorno">
+              <Link href={voltarAoCalendario ?? "/"} className="btn-contorno">
                 Voltar
               </Link>
               {usuario.admin && !r.cliente && (
@@ -312,7 +379,7 @@ export default async function Registro({
                   Criar cadastro
                 </BotaoEnviar>
               )}
-              <BotaoEnviar className="btn-primario">Salvar alterações</BotaoEnviar>
+              {podeEditar && <BotaoEnviar className="btn-primario">Salvar alterações</BotaoEnviar>}
             </div>
           </div>
 
@@ -393,6 +460,12 @@ export default async function Registro({
                     valorInicial={r.cliente.consultor ?? ""}
                     opcoes={opcoesDeLista(opcoesConsultor)}
                   />
+                  <Seletor
+                    nome="comercial" placeholder="Selecione o comercial"
+                    rotulo="Comercial"
+                    valorInicial={r.cliente.comercial ?? ""}
+                    opcoes={opcoesDeLista(opcoesComercial)}
+                  />
                 </div>
               ) : (
                 <dl className="mt-3 space-y-3 text-sm">
@@ -427,6 +500,7 @@ export default async function Registro({
 
           <p className="px-1 text-xs text-muted">Última alteração em {atualizado}</p>
         </aside>
+        </fieldset>
       </form>
     </Shell>
   );

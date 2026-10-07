@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { exigirAdmin } from "@/lib/auth";
 import { hashSenha } from "@/lib/senha";
 import { prisma } from "@/lib/db";
+import { listarNomesResponsaveis } from "@/lib/dados";
 import BotaoAcao from "@/app/BotaoAcao";
 import BotaoExcluir from "@/app/BotaoExcluir";
 import Icone from "@/app/Icone";
@@ -10,7 +11,7 @@ import EditarUsuario from "./EditarUsuario";
 import NovoUsuario from "./NovoUsuario";
 import RedefinirSenha from "./RedefinirSenha";
 
-export const metadata = { title: "Usuários · Pré-Safra" };
+export const metadata = { title: "Usuários" };
 
 export default async function AdminUsuarios({
   searchParams,
@@ -19,7 +20,10 @@ export default async function AdminUsuarios({
 }) {
   const eu = await exigirAdmin();
   const { erro } = await searchParams;
-  const usuarios = await prisma.usuario.findMany({ orderBy: { nome: "asc" } });
+  const [usuarios, nomesResponsaveis] = await Promise.all([
+    prisma.usuario.findMany({ orderBy: { nome: "asc" } }),
+    listarNomesResponsaveis(),
+  ]);
 
   async function criarUsuario(formData: FormData) {
     "use server";
@@ -55,10 +59,18 @@ export default async function AdminUsuarios({
     const papel = String(formData.get("papel") ?? "comum");
     const admin = papel === "admin";
     const somentePainel = papel === "painel";
+    const nomeResponsavel = String(formData.get("nomeResponsavel") ?? "").trim() || null;
     if (!nome || !email) return { erro: "Preencha o nome e o e-mail." };
 
     const alvo = await prisma.usuario.findUnique({ where: { id } });
     if (!alvo) return { erro: "Usuário não encontrado." };
+
+    // A ligação tem que ser um nome da lista de responsáveis (ou o que já estava salvo, se saiu da lista).
+    if (nomeResponsavel && nomeResponsavel !== alvo.nomeResponsavel) {
+      if (!(await listarNomesResponsaveis()).includes(nomeResponsavel)) {
+        return { erro: "Escolha um nome da lista de responsáveis." };
+      }
+    }
 
     const existente = await prisma.usuario.findUnique({ where: { email } });
     if (existente && existente.id !== id) return { erro: "Já existe um usuário com esse e-mail." };
@@ -74,7 +86,7 @@ export default async function AdminUsuarios({
       }
     }
 
-    await prisma.usuario.update({ where: { id }, data: { nome, email, admin, somentePainel } });
+    await prisma.usuario.update({ where: { id }, data: { nome, email, admin, somentePainel, nomeResponsavel } });
     revalidatePath("/admin/usuarios");
     return {};
   }
@@ -153,6 +165,7 @@ export default async function AdminUsuarios({
               <th scope="col" className="px-4 py-2.5 sm:px-5">Nome</th>
               <th scope="col" className="hidden px-3 py-2.5 @2xl:table-cell">E-mail</th>
               <th scope="col" className="hidden px-3 py-2.5 @2xl:table-cell">Papel</th>
+              <th scope="col" className="hidden px-3 py-2.5 @2xl:table-cell">Responsável</th>
               <th scope="col" className="hidden px-3 py-2.5 @2xl:table-cell">Situação</th>
               <th scope="col" className="py-2.5 pl-3 pr-4 text-right sm:pr-5">
                 <span className="sr-only">Ações</span>
@@ -173,10 +186,16 @@ export default async function AdminUsuarios({
                     {u.admin ? "Admin" : u.somentePainel ? "Somente Painel" : "Comum"} ·{" "}
                     {u.ativo ? "Ativo" : "Inativo"}
                   </div>
+                  <div className="mt-0.5 text-xs font-normal text-muted @2xl:hidden">
+                    <LigacaoResponsavel usuario={u} nomes={nomesResponsaveis} />
+                  </div>
                 </td>
                 <td className="hidden px-3 py-3 align-top text-muted @2xl:table-cell">{u.email}</td>
                 <td className="hidden px-3 py-3 align-top @2xl:table-cell">
                   {u.admin ? "Admin" : u.somentePainel ? "Somente Painel" : "Comum"}
+                </td>
+                <td className="hidden px-3 py-3 align-top @2xl:table-cell">
+                  <LigacaoResponsavel usuario={u} nomes={nomesResponsaveis} />
                 </td>
                 <td className="hidden px-3 py-3 align-top @2xl:table-cell">{u.ativo ? "Ativo" : "Inativo"}</td>
                 <td className="py-2.5 pl-3 pr-4 text-right align-top sm:pr-5">
@@ -198,7 +217,9 @@ export default async function AdminUsuarios({
                         nome: u.nome,
                         email: u.email,
                         papel: u.admin ? "admin" : u.somentePainel ? "painel" : "comum",
+                        nomeResponsavel: u.nomeResponsavel ?? "",
                       }}
+                      nomes={nomesResponsaveis}
                       salvar={editarUsuario.bind(null, u.id)}
                     />
                     {u.id !== eu.id && (
@@ -216,5 +237,32 @@ export default async function AdminUsuarios({
         </table>
       </div>
     </section>
+  );
+}
+
+// Com quem esta conta se liga na lista de responsáveis. Admin altera tudo e não precisa de ligação;
+// o aviso aparece quando o nome ligado saiu da lista (ex.: depois de uma nova importação), caso em
+// que a pessoa deixaria de conseguir alterar os próprios clientes sem ninguém notar.
+function LigacaoResponsavel({
+  usuario,
+  nomes,
+}: {
+  usuario: { admin: boolean; somentePainel: boolean; nomeResponsavel: string | null };
+  nomes: string[];
+}) {
+  if (usuario.somentePainel) return <span className="text-muted">—</span>;
+  if (!usuario.nomeResponsavel) {
+    return usuario.admin ? (
+      <span className="text-muted">Não precisa</span>
+    ) : (
+      <span className="text-atrasado-fg">Sem ligação: só visualiza</span>
+    );
+  }
+  const naLista = nomes.includes(usuario.nomeResponsavel);
+  return (
+    <span className={naLista ? "text-ink" : "text-atrasado-fg"}>
+      {usuario.nomeResponsavel}
+      {!naLista && " (não está mais na lista de responsáveis)"}
+    </span>
   );
 }

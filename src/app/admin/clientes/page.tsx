@@ -4,6 +4,7 @@ import { exigirAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import {
   listarCidadesConhecidas,
+  listarComerciaisConhecidos,
   listarConsultoresConhecidos,
   listarDuplasConhecidas,
   listarRegioesConhecidas,
@@ -15,10 +16,11 @@ import Selo from "@/app/Selo";
 import { CampoBusca } from "@/app/Auto";
 import EditarCliente from "./EditarCliente";
 import InativarCliente from "./InativarCliente";
-import { inativarCliente, reativarCliente, salvarCadastro } from "./acoes";
+import BotaoExcluir from "@/app/BotaoExcluir";
+import { excluirClienteDaSafra, inativarCliente, reativarCliente, salvarCadastro } from "./acoes";
 import { obterSafraSelecionada } from "@/lib/safra";
 
-export const metadata = { title: "Clientes · Pré-Safra" };
+export const metadata = { title: "Clientes" };
 
 const TAMANHO_PAGINA = 50;
 
@@ -37,6 +39,7 @@ export default async function AdminClientes({
     regioesConhecidas,
     duplasConhecidas,
     consultoresConhecidos,
+    comerciaisConhecidos,
     safra,
   ] = await Promise.all([
     exigirAdmin(),
@@ -46,6 +49,7 @@ export default async function AdminClientes({
     listarRegioesConhecidas(),
     listarDuplasConhecidas(),
     listarConsultoresConhecidos(),
+    listarComerciaisConhecidos(),
     obterSafraSelecionada(),
   ]);
   // Inativação vale para o Pré-Safra do cliente na safra selecionada no topo da tela.
@@ -65,6 +69,7 @@ export default async function AdminClientes({
     regioes: regioesConhecidas,
     atendimentos: duplasConhecidas,
     consultores: consultoresConhecidos,
+    comerciais: comerciaisConhecidos,
   };
 
   const semRegiaoTotal = clientes.filter((c) => !c.regiao).length;
@@ -172,6 +177,7 @@ export default async function AdminClientes({
                 <th scope="col" className="hidden px-3 py-2.5 @min-[1100px]:table-cell">Região</th>
                 <th scope="col" className="hidden px-3 py-2.5 @min-[1100px]:table-cell">Atendimento</th>
                 <th scope="col" className="hidden px-3 py-2.5 @min-[1100px]:table-cell">Consultor</th>
+                <th scope="col" className="hidden px-3 py-2.5 @min-[1100px]:table-cell">Comercial</th>
                 <th scope="col" className="hidden px-3 py-2.5 @2xl:table-cell">
                   Situação{safra ? ` · ${safra.nome}` : ""}
                 </th>
@@ -203,9 +209,9 @@ export default async function AdminClientes({
                     {c.nome}
                     {/* Sem espaço para as colunas, os dados do cadastro viram linhas sob o nome */}
                     <div className="mt-1 space-y-0.5 text-xs font-normal text-muted @min-[1100px]:hidden">
-                      {[[c.cidade, c.uf].filter(Boolean).join("/"), c.atendente, c.consultor].some(Boolean) && (
+                      {[[c.cidade, c.uf].filter(Boolean).join("/"), c.atendente, c.consultor, c.comercial].some(Boolean) && (
                         <div>
-                          {[[c.cidade, c.uf].filter(Boolean).join("/"), c.atendente, c.consultor]
+                          {[[c.cidade, c.uf].filter(Boolean).join("/"), c.atendente, c.consultor, c.comercial]
                             .filter(Boolean)
                             .join(" · ")}
                         </div>
@@ -231,6 +237,7 @@ export default async function AdminClientes({
                   </td>
                   <td className="hidden px-3 py-3 text-muted @min-[1100px]:table-cell">{c.atendente || "—"}</td>
                   <td className="hidden px-3 py-3 text-muted @min-[1100px]:table-cell">{c.consultor || "—"}</td>
+                  <td className="hidden px-3 py-3 text-muted @min-[1100px]:table-cell">{c.comercial || "—"}</td>
                   <td className="hidden px-3 py-3 @2xl:table-cell">{situacao}</td>
                   <td className="py-2.5 pl-3 pr-4 text-right align-top sm:pr-5">
                     <div className="flex items-center justify-end gap-1.5">
@@ -242,7 +249,28 @@ export default async function AdminClientes({
                           reativar={reativarCliente.bind(null, ps.id)}
                         />
                       ) : null}
-                      <EditarCliente cliente={c} listas={listas} salvar={salvarCadastro.bind(null, c.id)} />
+                      {ps && safra ? (
+                        <form action={excluirClienteDaSafra.bind(null, ps.id)} className="inline">
+                          <BotaoExcluir
+                            mensagem={`Excluir ${c.nome} da safra ${safra.nome}? Apaga o agendamento, as observações e o histórico de conclusão dele nesta safra. O cadastro do cliente e as outras safras não são afetados. Isso não pode ser desfeito. Para apenas tirá-lo da lista, use Inativar.`}
+                          />
+                        </form>
+                      ) : null}
+                      {/* Só os campos do cadastro: o registro do Prisma traz datas (criadoEm/atualizadoEm), que não vão para um componente de cliente. */}
+                      <EditarCliente
+                        cliente={{
+                          id: c.id,
+                          nome: c.nome,
+                          cidade: c.cidade,
+                          uf: c.uf,
+                          regiao: c.regiao,
+                          atendente: c.atendente,
+                          consultor: c.consultor,
+                          comercial: c.comercial,
+                        }}
+                        listas={listas}
+                        salvar={salvarCadastro.bind(null, c.id)}
+                      />
                     </div>
                   </td>
                 </tr>

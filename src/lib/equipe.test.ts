@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { comercialDaRegiao, equipeDoCliente, equipesPorRegiao, gruposDeResponsavel } from "./equipe";
+import {
+  comercialDaRegiao,
+  equipeDoCliente,
+  equipesPorRegiao,
+  gruposDeResponsavel,
+  regioesDoAtendente,
+} from "./equipe";
 
 const oeste = { atendentes: "Amanda Albano e Cauê", consultor: "André", regiao: "Oeste MT a RO/AC" };
 const leste = { atendentes: "Gabriel e Samuel", consultor: "André", regiao: "Leste MT a TO/GO/MG" };
@@ -30,6 +36,25 @@ describe("equipe da região", () => {
       { nome: "André", papel: "Atendente · Consultor" },
       { nome: "Cauê", papel: "Atendente" },
     ]);
+  });
+});
+
+describe("regiões do atendente", () => {
+  const clientes = [oeste, leste, sorriso, { ...oeste, regiao: null }];
+  it("é a região em que o nome está na dupla, sem diferenciar maiúsculas e acentos", () => {
+    expect([...regioesDoAtendente("Cauê", clientes)]).toEqual(["Oeste MT a RO/AC"]);
+    expect([...regioesDoAtendente(" caue ", clientes)]).toEqual(["Oeste MT a RO/AC"]);
+    expect([...regioesDoAtendente("Jean", clientes)]).toEqual(["Sorriso e Região"]);
+  });
+  it("quem está em mais de uma dupla tem mais de uma região", () => {
+    const outra = { atendentes: "Jean e Gabriel", consultor: null, regiao: "Norte MT a PA/RR" };
+    expect([...regioesDoAtendente("Jean", [...clientes, outra])].sort()).toEqual(["Norte MT a PA/RR", "Sorriso e Região"]);
+  });
+  it("consultor, comercial, sem nome ligado ou fora de qualquer dupla não têm região", () => {
+    expect(regioesDoAtendente("André", clientes).size).toBe(0);
+    expect(regioesDoAtendente("Pablo", clientes).size).toBe(0);
+    expect(regioesDoAtendente(null, clientes).size).toBe(0);
+    expect(regioesDoAtendente("", clientes).size).toBe(0);
   });
 });
 

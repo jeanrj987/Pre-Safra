@@ -13,6 +13,7 @@ interface Cliente {
   regiao: string | null;
   atendente: string | null;
   consultor: string | null;
+  comercial: string | null;
 }
 
 interface Listas {
@@ -21,10 +22,11 @@ interface Listas {
   regioes: string[];
   atendimentos: string[];
   consultores: string[];
+  comerciais: string[];
 }
 
 // Popup para editar o cadastro do cliente (cidade, UF, região, atendimento, consultor) de
-// uma vez, em vez de um campo por vez direto na linha da tabela.
+// uma vez, em vez de um campo por vez direto na linha da tabela. (Mesmo com comercial.)
 export default function EditarCliente({
   cliente,
   listas,
@@ -86,6 +88,12 @@ export default function EditarCliente({
                 rotulo="Consultor"
                 valorInicial={cliente.consultor ?? ""}
                 opcoes={opcoesDeLista(comValorAtual(cliente.consultor, listas.consultores))}
+              />
+              <Seletor
+                nome="comercial" placeholder="Selecione o comercial"
+                rotulo="Comercial"
+                valorInicial={cliente.comercial ?? ""}
+                opcoes={opcoesDeLista(comValorAtual(cliente.comercial, listas.comerciais))}
               />
             </div>
             <RodapeJanela onCancelar={() => setAberto(false)}>

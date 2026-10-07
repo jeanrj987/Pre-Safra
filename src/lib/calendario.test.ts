@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  agendamentosDoCalendario,
   chaveMes,
   mesDe,
   mesVizinho,
   motivoDataAtividade,
   motivoHorarioAtividade,
+  podeAlterarAtividade,
   proximoDiaLivre,
   semanasDoMes,
 } from "./calendario";
@@ -105,11 +107,103 @@ describe("motivoHorarioAtividade", () => {
   });
 });
 
+describe("agendamentosDoCalendario", () => {
+  const base = {
+    nome: "Cliente",
+    horario: null,
+    formato: null,
+    configuradoSistema: false,
+    inativo: false,
+    responsavel: null,
+  };
+  const dia = (iso: string) => new Date(`${iso}T00:00:00Z`);
+
+  it("mostra agendados (online e presencial), atrasados e finalizados, cada um com o seu status", () => {
+    const lista = agendamentosDoCalendario(
+      [
+        { ...base, id: 1, dataPrevista: dia("2026-10-08"), formato: "Online" },
+        { ...base, id: 2, dataPrevista: dia("2026-10-09"), formato: "Presencial" },
+        { ...base, id: 3, dataPrevista: dia("2026-10-05") }, // data passada, sem finalizar
+        { ...base, id: 4, dataPrevista: dia("2026-10-02"), formato: "Online", configuradoSistema: true },
+      ],
+      agora,
+    );
+    expect(lista.map((a) => [a.id, a.status])).toEqual([
+      [4, "Finalizado"],
+      [3, "Atrasado"],
+      [1, "Agendado Online"],
+      [2, "Agendado Presencial"],
+    ]);
+  });
+
+  it("não mostra A Fazer, inativos nem clientes sem data", () => {
+    const lista = agendamentosDoCalendario(
+      [
+        { ...base, id: 1, dataPrevista: dia("2026-10-08") }, // com data mas sem formato: A Fazer
+        { ...base, id: 2, dataPrevista: dia("2026-10-08"), formato: "Online", inativo: true },
+        { ...base, id: 3, dataPrevista: null, formato: "Online" },
+        { ...base, id: 4, dataPrevista: null, configuradoSistema: true },
+      ],
+      agora,
+    );
+    expect(lista).toEqual([]);
+  });
+
+  it("agendado para hoje continua agendado; vira atrasado só no dia seguinte", () => {
+    const [hoje] = agendamentosDoCalendario([{ ...base, id: 1, dataPrevista: dia("2026-10-07"), formato: "Online" }], agora);
+    expect(hoje.status).toBe("Agendado Online");
+    const [amanha] = agendamentosDoCalendario(
+      [{ ...base, id: 1, dataPrevista: dia("2026-10-07"), formato: "Online" }],
+      new Date("2026-10-08T15:00:00Z"),
+    );
+    expect(amanha.status).toBe("Atrasado");
+  });
+
+  it("ordena por data, depois horário (sem horário primeiro) e nome", () => {
+    const lista = agendamentosDoCalendario(
+      [
+        { ...base, id: 1, nome: "B", dataPrevista: dia("2026-10-08"), horario: "09:00", formato: "Online" },
+        { ...base, id: 2, nome: "A", dataPrevista: dia("2026-10-08"), horario: "08:00", formato: "Online" },
+        { ...base, id: 3, nome: "C", dataPrevista: dia("2026-10-08"), horario: null, formato: "Online" },
+        { ...base, id: 4, nome: "D", dataPrevista: dia("2026-10-07"), horario: "16:00", formato: "Online" },
+      ],
+      agora,
+    );
+    expect(lista.map((a) => a.id)).toEqual([4, 3, 2, 1]);
+  });
+});
+
 describe("proximoDiaLivre", () => {
   it("devolve o próprio dia quando ele está livre", () => {
     expect(proximoDiaLivre("2026-10-07", agora)).toBe("2026-10-07");
   });
   it("pula fim de semana e feriado", () => {
     expect(proximoDiaLivre("2026-10-10", agora)).toBe("2026-10-13"); // sáb, dom e o feriado de segunda
+  });
+});
+
+describe("podeAlterarAtividade", () => {
+  const maria = { id: 1, nome: "Maria", admin: false };
+  const admin = { id: 9, nome: "Chefe", admin: true };
+
+  it("o dono altera a própria atividade", () => {
+    expect(podeAlterarAtividade(maria, { criadoPorId: 1, criadoPor: "Maria" })).toBe(true);
+  });
+  it("outro usuário comum não altera a atividade do colega", () => {
+    expect(podeAlterarAtividade(maria, { criadoPorId: 2, criadoPor: "Jean" })).toBe(false);
+  });
+  it("o admin altera a de qualquer pessoa", () => {
+    expect(podeAlterarAtividade(admin, { criadoPorId: 2, criadoPor: "Jean" })).toBe(true);
+    expect(podeAlterarAtividade(admin, { criadoPorId: null, criadoPor: null })).toBe(true);
+  });
+  it("com o id do dono gravado, o nome igual não basta", () => {
+    expect(podeAlterarAtividade(maria, { criadoPorId: 2, criadoPor: "Maria" })).toBe(false);
+  });
+  it("nas atividades antigas (sem id) vale o nome, sem diferenciar maiúsculas", () => {
+    expect(podeAlterarAtividade(maria, { criadoPorId: null, criadoPor: " maria " })).toBe(true);
+    expect(podeAlterarAtividade(maria, { criadoPorId: null, criadoPor: "Jean" })).toBe(false);
+  });
+  it("atividade antiga sem dono nenhum só o admin altera", () => {
+    expect(podeAlterarAtividade(maria, { criadoPorId: null, criadoPor: null })).toBe(false);
   });
 });

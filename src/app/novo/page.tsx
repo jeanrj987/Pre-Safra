@@ -9,12 +9,13 @@ import CampoDataForm from "@/app/CampoDataForm";
 import Seletor from "@/app/Seletor";
 import { opcoesDeLista, opcoesDePessoas } from "@/app/seletorOpcoes";
 import { motivoDataIndisponivel } from "@/lib/diasUteis";
-import { exigirAcessoCompleto, exigirAdmin, exigirLogin } from "@/lib/auth";
+import { exigirAcessoCompleto, exigirAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { obterSafraSelecionada } from "@/lib/safra";
 import { ErroPlanilhaInvalida, importarClientesDaPlanilha } from "@/lib/importarPlanilha";
 import {
   listarCidadesConhecidas,
+  listarComerciaisConhecidos,
   listarConsultoresConhecidos,
   listarDuplasConhecidas,
   listarEquipesPorRegiao,
@@ -47,6 +48,7 @@ export default async function Novo({
     regioesConhecidas,
     duplasConhecidas,
     consultoresConhecidos,
+    comerciaisConhecidos,
   ] = await Promise.all([
     exigirAcessoCompleto(),
     searchParams,
@@ -56,11 +58,12 @@ export default async function Novo({
     listarRegioesConhecidas(),
     listarDuplasConhecidas(),
     listarConsultoresConhecidos(),
+    listarComerciaisConhecidos(),
   ]);
 
   async function criar(formData: FormData) {
     "use server";
-    await exigirLogin();
+    const sessao = await exigirAcessoCompleto();
     const nome = String(formData.get("nome") ?? "").trim();
     const safra = await obterSafraSelecionada();
     if (!nome || !safra) redirect("/novo");
@@ -82,6 +85,7 @@ export default async function Novo({
         regiao: texto(formData, "regiao") ?? undefined,
         atendente: texto(formData, "atendente") ?? undefined,
         consultor: texto(formData, "consultor") ?? undefined,
+        comercial: texto(formData, "comercial") ?? undefined,
       },
       create: {
         nome,
@@ -90,6 +94,7 @@ export default async function Novo({
         regiao: texto(formData, "regiao"),
         atendente: texto(formData, "atendente"),
         consultor: texto(formData, "consultor"),
+        comercial: texto(formData, "comercial"),
       },
     });
 
@@ -104,7 +109,8 @@ export default async function Novo({
       data: {
         clienteId: cliente.id,
         safraId: safra.id,
-        responsavel: texto(formData, "responsavel"),
+        // Só o admin escolhe o responsável; o usuário comum cria o cliente já como responsável por ele.
+        responsavel: sessao.admin ? texto(formData, "responsavel") : sessao.nomeResponsavel,
         dataPrevista: dataPrevista ? new Date(`${dataPrevista}T00:00:00Z`) : null,
         observacoes,
       },
@@ -181,12 +187,26 @@ export default async function Novo({
             <section className="space-y-4 p-5 sm:p-6">
               <h2 className="text-base font-semibold">Agendamento</h2>
               <div className="grid gap-4 sm:grid-cols-2">
-                <Seletor
-                  nome="responsavel" placeholder="Selecione o responsável"
-                  rotulo="Responsável"
-                  valorInicial=""
-                  opcoes={opcoesDePessoas(equipes, nomes)}
-                />
+                {usuario.admin ? (
+                  <Seletor
+                    nome="responsavel" placeholder="Selecione o responsável"
+                    rotulo="Responsável"
+                    valorInicial=""
+                    opcoes={opcoesDePessoas(equipes, nomes)}
+                  />
+                ) : (
+                  <div>
+                    <span className="rotulo">Responsável</span>
+                    <p className="flex h-10 items-center text-sm text-ink">
+                      {usuario.nomeResponsavel ?? <span className="text-muted">Sem responsável</span>}
+                    </p>
+                    <span className="block text-xs text-muted">
+                      {usuario.nomeResponsavel
+                        ? "Você será o responsável por este cliente."
+                        : "Sua conta não está ligada a um responsável; um administrador define depois."}
+                    </span>
+                  </div>
+                )}
                 <label className="block">
                   <span className="rotulo">Data prevista</span>
                   <CampoDataForm name="dataPrevista" />
@@ -236,6 +256,12 @@ export default async function Novo({
               valorInicial=""
               opcoes={opcoesDeLista(consultoresConhecidos)}
             />
+            <Seletor
+              nome="comercial" placeholder="Selecione o comercial"
+              rotulo="Comercial"
+              valorInicial=""
+              opcoes={opcoesDeLista(comerciaisConhecidos)}
+            />
           </aside>
         </form>
 
@@ -245,8 +271,8 @@ export default async function Novo({
               <h2 className="text-base font-semibold">Importar planilha</h2>
               <p className="mt-1 text-sm text-muted">
                 Envie uma planilha .xlsx com a coluna &quot;Cliente&quot; e, opcionalmente,
-                &quot;Cidade&quot;, &quot;UF&quot;, &quot;Região&quot;, &quot;Atendente&quot; e
-                &quot;Consultor&quot;. Clientes novos são cadastrados, clientes já existentes
+                &quot;Cidade&quot;, &quot;UF&quot;, &quot;Região&quot;, &quot;Atendente&quot;,
+                &quot;Consultor&quot; e &quot;Comercial&quot;. Clientes novos são cadastrados, clientes já existentes
                 têm esses dados atualizados, e todos entram na safra selecionada no momento.{" "}
                 <a href="/modelo-importacao-clientes.xlsx" download className="font-medium text-primary hover:underline">
                   Baixar planilha modelo

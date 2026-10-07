@@ -17,6 +17,10 @@ model Usuario {
   // Conta restrita ao Painel (ex.: TV da sala) — não vê Clientes, Novo cliente nem Admin,
   // mesmo sem ser admin. Ver exigirAcessoPainel()/exigirAcessoCompleto() em src/lib/auth.ts.
   somentePainel Boolean  @default(false)
+  // Como esta pessoa aparece na lista de responsáveis dos clientes (ex.: "Maria"), escolhido por um
+  // admin em Admin → Usuários. Usuário comum só altera os clientes cujo responsável é este nome;
+  // vazio = só vê. Ver podeAlterarCliente() em src/lib/responsavel.ts.
+  nomeResponsavel String?
   ativo         Boolean  @default(true)
   criadoEm      DateTime @default(now())
   atualizadoEm  DateTime @updatedAt
@@ -47,6 +51,8 @@ model Cliente {
   consultor    String?
   // Dupla de atendentes da região (ex.: "Maria e Jean")
   atendente    String?
+  // Comercial responsável pelo cliente; vazio = vale o comercial da região (COMERCIAL_POR_REGIAO)
+  comercial    String?
   gerente      String?
   criadoEm     DateTime   @default(now())
   atualizadoEm DateTime   @updatedAt
@@ -73,6 +79,10 @@ model PreSafra {
   formato              Formato?
   configuradoSistema    Boolean     @default(false)
   melhoriasApresentadas Boolean     @default(false)
+  // Quem fez o agendamento atual e quando; nulo se foi feito antes destes campos existirem ou se
+  // o cliente não está agendado. O agendamento é aberto a todos os usuários (ver src/lib/responsavel.ts).
+  agendadoPor           String?
+  agendadoEm            DateTime?
   // Cliente que não fará o Pré-Safra: sai da lista principal, mas pode ser reativado
   inativo               Boolean     @default(false)
   observacoes           String?
@@ -100,8 +110,11 @@ model Atividade {
   // ser obrigatório.
   horario      String?
   concluida    Boolean  @default(false)
-  // Nome de quem lançou, como em Conclusao.autor
+  // Nome de quem lançou, como em Conclusao.autor (só para exibição)
   criadoPor    String?
+  // Dono da atividade: só ele (ou um admin) pode editar, concluir ou excluir; os demais só veem.
+  // Nulo nas lançadas antes deste campo existir — nelas vale o nome (ver podeAlterarAtividade()).
+  criadoPorId  Int?
   criadoEm     DateTime @default(now())
   atualizadoEm DateTime @updatedAt
 

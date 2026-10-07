@@ -36,6 +36,8 @@ interface LinhaPlanilha {
   regiao: string | null;
   atendente: string | null;
   consultor: string | null;
+  // undefined = a planilha não tem a coluna "Comercial": o valor já cadastrado não é alterado
+  comercial: string | null | undefined;
 }
 
 // Lançado quando a planilha em si é inválida (não quando uma linha isolada tem problema) —
@@ -70,6 +72,7 @@ async function lerLinhas(buffer: ArrayBuffer): Promise<LeituraPlanilha> {
   const colRegiao = colunas.get("regiao");
   const colAtendente = colunas.get("atendente");
   const colConsultor = colunas.get("consultor");
+  const colComercial = colunas.get("comercial");
 
   const linhas = new Map<string, LinhaPlanilha>();
   let linhasIgnoradas = 0;
@@ -92,7 +95,8 @@ async function lerLinhas(buffer: ArrayBuffer): Promise<LeituraPlanilha> {
     const cidade = colCidade ? texto(row.getCell(colCidade).value) || null : null;
     const uf = colUf ? texto(row.getCell(colUf).value).toUpperCase() || null : null;
     const consultor = colConsultor ? texto(row.getCell(colConsultor).value) || null : null;
-    linhas.set(nome, { nome, cidade, uf, regiao, atendente, consultor });
+    const comercial = colComercial ? texto(row.getCell(colComercial).value) || null : undefined;
+    linhas.set(nome, { nome, cidade, uf, regiao, atendente, consultor, comercial });
   });
   return { linhas: [...linhas.values()], linhasIgnoradas };
 }
@@ -117,7 +121,16 @@ export async function importarClientesDaPlanilha(
   }
 
   const existentes = await prisma.cliente.findMany({
-    select: { id: true, nome: true, cidade: true, uf: true, regiao: true, atendente: true, consultor: true },
+    select: {
+      id: true,
+      nome: true,
+      cidade: true,
+      uf: true,
+      regiao: true,
+      atendente: true,
+      consultor: true,
+      comercial: true,
+    },
   });
   const porNome = new Map(existentes.map((c) => [c.nome, c]));
 
@@ -131,6 +144,7 @@ export async function importarClientesDaPlanilha(
         regiao: l.regiao,
         atendente: l.atendente,
         consultor: l.consultor,
+        comercial: l.comercial,
       })),
       skipDuplicates: true,
     });
@@ -144,21 +158,23 @@ export async function importarClientesDaPlanilha(
         c.uf !== l.uf ||
         c.regiao !== l.regiao ||
         c.atendente !== l.atendente ||
-        c.consultor !== l.consultor)
+        c.consultor !== l.consultor ||
+        (l.comercial !== undefined && c.comercial !== l.comercial))
     );
   });
-  // Um updateMany por combinação de cidade/UF/região/atendente/consultor, em vez de um
-  // update por cliente.
-  type Dados = Pick<LinhaPlanilha, "cidade" | "uf" | "regiao" | "atendente" | "consultor">;
+  // Um updateMany por combinação de cidade/UF/região/atendente/consultor/comercial, em vez de
+  // um update por cliente.
+  type Dados = Pick<LinhaPlanilha, "cidade" | "uf" | "regiao" | "atendente" | "consultor" | "comercial">;
   const grupos = new Map<string, Dados & { nomes: string[] }>();
   for (const l of mudam) {
-    const k = `${l.cidade}|${l.uf}|${l.regiao}|${l.atendente}|${l.consultor}`;
+    const k = `${l.cidade}|${l.uf}|${l.regiao}|${l.atendente}|${l.consultor}|${l.comercial}`;
     const g = grupos.get(k) ?? {
       cidade: l.cidade,
       uf: l.uf,
       regiao: l.regiao,
       atendente: l.atendente,
       consultor: l.consultor,
+      comercial: l.comercial,
       nomes: [],
     };
     g.nomes.push(l.nome);

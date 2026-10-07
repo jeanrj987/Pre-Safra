@@ -3,7 +3,7 @@ import QRCode from "qrcode";
 import { carregarTelao } from "@/lib/telao";
 import Telao from "./Telao";
 
-export const metadata = { title: "Telão de ideias · Pré-Safra", robots: { index: false } };
+export const metadata = { title: "Telão de ideias", robots: { index: false } };
 
 // Página PÚBLICA de propósito: fica aberta no projetor do evento sem ninguém precisar entrar
 // (há um botão para ela na tela de login). Só expõe primeiro nome, assunto e texto das ideias

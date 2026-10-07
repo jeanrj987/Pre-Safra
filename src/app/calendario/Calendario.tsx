@@ -1,9 +1,11 @@
 "use client";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useState, useTransition, type FormEvent } from "react";
 import { Janela, RodapeJanela } from "@/app/Finalizar";
 import Icone from "@/app/Icone";
 import {
+  type AgendamentoCalendario,
   DIAS_SEMANA_CURTO,
   dataPorExtenso,
   motivoDataAtividade,
@@ -23,6 +25,13 @@ export interface AtividadeCalendario {
   horario: string | null;
   concluida: boolean;
   criadoPor: string | null;
+  /** Só o dono (ou um admin) altera; para os demais a atividade é só de leitura. */
+  podeEditar: boolean;
+}
+
+/** Agendamento de cliente já com a classe da bolinha do status (a mesma da tabela de clientes). */
+export interface AgendamentoNaTela extends AgendamentoCalendario {
+  ponto: string;
 }
 
 type JanelaAberta = { tipo: "nova"; data: string } | { tipo: "editar"; atividade: AtividadeCalendario };
@@ -32,29 +41,63 @@ export default function Calendario({
   mesAtual,
   hoje,
   atividades,
+  agendamentos,
+  legenda,
+  safra,
 }: {
   semanas: string[][];
   /** 1 a 12: os dias de outros meses aparecem esmaecidos */
   mesAtual: number;
   hoje: string;
   atividades: AtividadeCalendario[];
+  agendamentos: AgendamentoNaTela[];
+  legenda: { rotulo: string; ponto: string }[];
+  /** Nome da safra selecionada (de onde vêm os clientes); nulo se ainda não há safra. */
+  safra: string | null;
 }) {
   const [janela, setJanela] = useState<JanelaAberta | null>(null);
+  // Dia ("aaaa-mm-dd") cuja janela "todos os itens" está aberta (o "+N" da célula).
+  const [diaAberto, setDiaAberto] = useState<string | null>(null);
+  const [mostrarClientes, setMostrarClientes] = useState(true);
 
   const porDia = new Map<string, AtividadeCalendario[]>();
   for (const a of atividades) porDia.set(a.data, [...(porDia.get(a.data) ?? []), a]);
+  const clientesPorDia = new Map<string, AgendamentoNaTela[]>();
+  if (mostrarClientes) {
+    for (const c of agendamentos) clientesPorDia.set(c.data, [...(clientesPorDia.get(c.data) ?? []), c]);
+  }
 
   return (
     <>
-      <div className="flex justify-end">
-        <button
-          type="button"
-          onClick={() => setJanela({ tipo: "nova", data: proximoDiaLivre(hoje) })}
-          className="btn-primario"
-        >
-          <Icone nome="mais" />
-          Nova atividade
-        </button>
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted">
+          {safra && <span className="font-medium text-ink">Clientes da safra {safra}:</span>}
+          {legenda.map((l) => (
+            <span key={l.rotulo} className="inline-flex items-center gap-1.5">
+              <span className={`size-2.5 rounded-full ${l.ponto}`} aria-hidden="true" />
+              {l.rotulo}
+            </span>
+          ))}
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            aria-pressed={mostrarClientes}
+            onClick={() => setMostrarClientes((v) => !v)}
+            className="btn-contorno"
+          >
+            <Icone nome={mostrarClientes ? "olho" : "olhoFechado"} />
+            Clientes
+          </button>
+          <button
+            type="button"
+            onClick={() => setJanela({ tipo: "nova", data: proximoDiaLivre(hoje) })}
+            className="btn-primario"
+          >
+            <Icone nome="mais" />
+            Nova atividade
+          </button>
+        </div>
       </div>
 
       <div className="card overflow-hidden">
@@ -75,16 +118,38 @@ export default function Calendario({
                 ehHoje={dia === hoje}
                 hoje={hoje}
                 atividades={porDia.get(dia) ?? []}
+                clientes={clientesPorDia.get(dia) ?? []}
                 primeira={j === 0}
                 onNova={() => setJanela({ tipo: "nova", data: dia })}
                 onAbrir={(atividade) => setJanela({ tipo: "editar", atividade })}
+                onVerTodos={() => setDiaAberto(dia)}
               />
             ))}
           </div>
         ))}
       </div>
 
-      {janela && (
+      {diaAberto && (
+        <JanelaDia
+          dia={diaAberto}
+          hoje={hoje}
+          itens={juntarItens(porDia.get(diaAberto) ?? [], clientesPorDia.get(diaAberto) ?? [])}
+          onFechar={() => setDiaAberto(null)}
+          onNova={() => {
+            setDiaAberto(null);
+            setJanela({ tipo: "nova", data: diaAberto });
+          }}
+          onAbrir={(atividade) => {
+            setDiaAberto(null);
+            setJanela({ tipo: "editar", atividade });
+          }}
+        />
+      )}
+
+      {janela?.tipo === "editar" && !janela.atividade.podeEditar && (
+        <JanelaLeitura atividade={janela.atividade} onFechar={() => setJanela(null)} />
+      )}
+      {janela && !(janela.tipo === "editar" && !janela.atividade.podeEditar) && (
         <JanelaAtividade
           // A chave refaz o formulário quando se troca de atividade/dia, em vez de reaproveitar o anterior
           key={janela.tipo === "nova" ? `nova-${janela.data}` : `editar-${janela.atividade.id}`}
@@ -102,31 +167,39 @@ function Dia({
   ehHoje,
   hoje,
   atividades,
+  clientes,
   primeira,
   onNova,
   onAbrir,
+  onVerTodos,
 }: {
   dia: string;
   dentroDoMes: boolean;
   ehHoje: boolean;
   hoje: string;
   atividades: AtividadeCalendario[];
+  clientes: AgendamentoNaTela[];
   primeira: boolean;
   onNova: () => void;
   onAbrir: (a: AtividadeCalendario) => void;
+  onVerTodos: () => void;
 }) {
   const numero = Number(dia.slice(8, 10));
   // Mesmas regras do agendamento de clientes: dia passado, fim de semana e feriado não recebem
   // atividade nova (as que já estão neles continuam aparecendo e podem ser editadas).
   const bloqueio = motivoDataIndisponivel(dia);
+  const itens = juntarItens(atividades, clientes);
+  const visiveis = itens.slice(0, MAX_POR_DIA);
+  const escondidos = itens.length - visiveis.length;
   return (
-    // O clique na área vazia da célula também lança uma atividade; o botão do número faz o mesmo
-    // para quem usa teclado.
+    // A célula tem altura fixa: o que não cabe vira "+N" (abre a janela do dia), então a grade nunca
+    // muda de tamanho. O clique na área vazia da célula também lança uma atividade; o botão do
+    // número faz o mesmo para quem usa teclado.
     <div
       onClick={(e) => {
         if (!bloqueio && e.target === e.currentTarget) onNova();
       }}
-      className={`group min-h-24 min-w-0 p-1 lg:min-h-36 lg:p-1.5 ${bloqueio ? "" : "cursor-pointer"} ${
+      className={`group h-36 min-w-0 overflow-hidden p-1 lg:h-40 lg:p-1.5 ${bloqueio ? "" : "cursor-pointer"} ${
         primeira ? "" : "border-l border-line"
       } ${dentroDoMes ? "" : "bg-subtle/60"}`}
     >
@@ -151,13 +224,136 @@ function Dia({
         </button>
       </div>
       <ul className="space-y-1">
-        {atividades.map((a) => (
-          <li key={a.id}>
-            <Chip atividade={a} atrasada={!a.concluida && a.data < hoje} onAbrir={() => onAbrir(a)} />
+        {visiveis.map((item) => (
+          <li key={item.chave}>
+            <ItemDoDia item={item} hoje={hoje} onAbrir={onAbrir} />
+          </li>
+        ))}
+        {escondidos > 0 && (
+          <li>
+            <button
+              type="button"
+              onClick={onVerTodos}
+              aria-label={`Ver os ${itens.length} itens de ${dataPorExtenso(dia)}`}
+              title="Ver todos os itens deste dia"
+              className="w-full cursor-pointer rounded-md px-1.5 py-0.5 text-left text-[11px] font-semibold leading-tight text-primary transition hover:bg-primary-soft lg:text-xs"
+            >
+              +{escondidos}
+            </button>
+          </li>
+        )}
+      </ul>
+    </div>
+  );
+}
+
+// Quantos itens a célula mostra antes de virar "+N". Com a altura fixa da célula (h-36/lg:h-40),
+// três itens e a linha do "+N" cabem sem cortar.
+const MAX_POR_DIA = 3;
+
+interface ItemDia {
+  chave: string;
+  horario: string;
+  atividade: AtividadeCalendario | null;
+  cliente: AgendamentoNaTela | null;
+}
+
+// Atividades e clientes juntos, por horário (sem horário primeiro). A ordenação é estável, então
+// no mesmo horário a atividade vem antes do cliente.
+function juntarItens(atividades: AtividadeCalendario[], clientes: AgendamentoNaTela[]): ItemDia[] {
+  return [
+    ...atividades.map((a) => ({ chave: `a${a.id}`, horario: a.horario ?? "", atividade: a, cliente: null })),
+    ...clientes.map((c) => ({ chave: `c${c.id}`, horario: c.horario ?? "", atividade: null, cliente: c })),
+  ].sort((x, y) => x.horario.localeCompare(y.horario));
+}
+
+function ItemDoDia({
+  item,
+  hoje,
+  onAbrir,
+}: {
+  item: ItemDia;
+  hoje: string;
+  onAbrir: (a: AtividadeCalendario) => void;
+}) {
+  const a = item.atividade;
+  if (a) return <Chip atividade={a} atrasada={!a.concluida && a.data < hoje} onAbrir={() => onAbrir(a)} />;
+  return <ChipCliente cliente={item.cliente!} />;
+}
+
+// Todos os itens de um dia (o "+N" da célula), na ordem do dia, com a mesma aparência da grade.
+function JanelaDia({
+  dia,
+  hoje,
+  itens,
+  onFechar,
+  onNova,
+  onAbrir,
+}: {
+  dia: string;
+  hoje: string;
+  itens: ItemDia[];
+  onFechar: () => void;
+  onNova: () => void;
+  onAbrir: (a: AtividadeCalendario) => void;
+}) {
+  const bloqueio = motivoDataIndisponivel(dia);
+  return (
+    <Janela
+      icone="calendario"
+      titulo={dataPorExtenso(dia)}
+      subtitulo={`${itens.length} ${itens.length === 1 ? "item" : "itens"}`}
+      onFechar={onFechar}
+    >
+      <ul className="max-h-[60dvh] space-y-1.5 overflow-y-auto px-4 py-5 text-sm sm:px-6">
+        {itens.map((item) => (
+          <li key={item.chave}>
+            <ItemDoDia item={item} hoje={hoje} onAbrir={onAbrir} />
           </li>
         ))}
       </ul>
-    </div>
+      <div className="flex flex-wrap justify-end gap-2 rounded-b-xl border-t border-line bg-canvas px-4 py-4 sm:px-6">
+        <button type="button" onClick={onFechar} className="btn-contorno">
+          Fechar
+        </button>
+        <button
+          type="button"
+          onClick={onNova}
+          disabled={!!bloqueio}
+          title={bloqueio ?? undefined}
+          className="btn-primario"
+        >
+          <Icone nome="mais" />
+          Nova atividade
+        </button>
+      </div>
+    </Janela>
+  );
+}
+
+// Cliente com Pré-Safra neste dia: a bolinha tem a cor do status (azul agendado online, roxo
+// presencial, vermelho atrasado, verde finalizado), igual à tabela de clientes, e o status também
+// vai em texto para quem não distingue cores. Abre o registro do cliente.
+function ChipCliente({ cliente: c }: { cliente: AgendamentoNaTela }) {
+  // O registro recebe de onde veio (o mesmo mês do Calendário) para voltar para cá ao salvar.
+  const mes = useSearchParams().get("mes");
+  const voltar = mes && /^\d{4}-\d{2}$/.test(mes) ? `/calendario?mes=${mes}` : "/calendario";
+  const detalhe = `${c.nome} — ${c.status}${c.responsavel ? ` · ${c.responsavel}` : ""}`;
+  return (
+    <Link
+      href={`/registro/${c.id}?voltar=${encodeURIComponent(voltar)}`}
+      title={detalhe}
+      className={`flex min-w-0 items-center gap-1.5 rounded-md border border-line bg-surface px-1.5 py-0.5 text-[11px] leading-tight transition hover:bg-subtle lg:text-xs ${
+        c.status === "Finalizado" ? "opacity-70" : ""
+      }`}
+    >
+      <span className={`size-2.5 shrink-0 rounded-full ${c.ponto}`} aria-hidden="true" />
+      <span className="min-w-0 flex-1 truncate font-medium">
+        {c.horario && <span className="tabular-nums">{c.horario} </span>}
+        {c.nome}
+        <span className="sr-only"> ({c.status})</span>
+      </span>
+    </Link>
   );
 }
 
@@ -184,9 +380,18 @@ function Chip({
         role="checkbox"
         aria-checked={a.concluida}
         aria-label={a.concluida ? `Reabrir "${a.titulo}"` : `Marcar "${a.titulo}" como feita`}
-        title={a.concluida ? "Feita — clique para reabrir" : atrasada ? "Atrasada — clique para marcar como feita" : "Marcar como feita"}
+        disabled={!a.podeEditar}
+        title={
+          !a.podeEditar
+            ? `Só ${a.criadoPor ?? "quem lançou"} ou um administrador pode alterar`
+            : a.concluida
+              ? "Feita — clique para reabrir"
+              : atrasada
+                ? "Atrasada — clique para marcar como feita"
+                : "Marcar como feita"
+        }
         onClick={() => iniciar(() => alternarConclusao(a.id, !a.concluida))}
-        className="grid size-4 shrink-0 cursor-pointer place-items-center rounded-full border border-current"
+        className={`grid size-4 shrink-0 place-items-center rounded-full border border-current ${a.podeEditar ? "cursor-pointer" : "cursor-default"}`}
       >
         {a.concluida && <Icone nome="check" className="size-3" />}
       </button>
@@ -211,6 +416,41 @@ function Erro({ id, children }: { id: string; children: string }) {
     <span id={id} role="alert" className="mt-1 block text-xs font-medium text-atrasado-fg">
       {children}
     </span>
+  );
+}
+
+// Atividade lançada por outra pessoa: todos podem ver, mas só o dono (ou um admin) altera.
+function JanelaLeitura({ atividade: a, onFechar }: { atividade: AtividadeCalendario; onFechar: () => void }) {
+  return (
+    <Janela icone="calendario" titulo={a.titulo} subtitulo={dataPorExtenso(a.data)} onFechar={onFechar}>
+      <div className="space-y-4 px-4 py-5 text-sm sm:px-6">
+        <dl className="grid gap-4 min-[420px]:grid-cols-2">
+          <div>
+            <dt className="rotulo">Horário</dt>
+            <dd className="tabular-nums">{a.horario ?? "Dia inteiro"}</dd>
+          </div>
+          <div>
+            <dt className="rotulo">Situação</dt>
+            <dd>{a.concluida ? "Já foi feita" : "Pendente"}</dd>
+          </div>
+        </dl>
+        {a.descricao && (
+          <div>
+            <dt className="rotulo">Detalhes</dt>
+            <dd className="whitespace-pre-wrap">{a.descricao}</dd>
+          </div>
+        )}
+        <p className="text-xs text-muted">
+          Lançada por <span className="font-medium text-ink">{a.criadoPor ?? "autor não registrado"}</span>. Só quem
+          lançou (ou um administrador) pode alterar.
+        </p>
+      </div>
+      <div className="flex justify-end rounded-b-xl border-t border-line bg-canvas px-4 py-4 sm:px-6">
+        <button type="button" onClick={onFechar} className="btn-contorno">
+          Fechar
+        </button>
+      </div>
+    </Janela>
   );
 }
 

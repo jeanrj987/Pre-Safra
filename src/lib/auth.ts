@@ -14,8 +14,10 @@ export interface UsuarioSessao {
   nome: string;
   email: string;
   admin: boolean;
-  /** Conta restrita ao Painel (ex.: TV da sala) — ver exigirAcessoPainel/exigirAcessoCompleto. */
+  /** Conta restrita ao Painel (ex.: TV da sala) — ver exigirAcessoCompleto (o Painel, só de leitura, é aberto a todos os usuários). */
   somentePainel: boolean;
+  /** Nome ligado à conta na lista de responsáveis; só quem tem pode alterar clientes (além do admin). */
+  nomeResponsavel: string | null;
 }
 
 // A assinatura inclui o senhaHash atual: trocar a senha ou desativar o usuário invalida
@@ -79,6 +81,7 @@ const carregarSessao = cache(async (): Promise<UsuarioSessao | null> => {
     email: usuario.email,
     admin: usuario.admin,
     somentePainel: usuario.somentePainel,
+    nomeResponsavel: usuario.nomeResponsavel?.trim() || null,
   };
 });
 
@@ -99,13 +102,6 @@ export async function exigirLogin(): Promise<UsuarioSessao> {
 export async function exigirAdmin(): Promise<UsuarioSessao> {
   const usuario = await exigirLogin();
   if (!usuario.admin) redirect("/");
-  return usuario;
-}
-
-// Painel: liberado para admin e para a conta restrita "somente Painel" (ex.: TV da sala).
-export async function exigirAcessoPainel(): Promise<UsuarioSessao> {
-  const usuario = await exigirLogin();
-  if (!usuario.admin && !usuario.somentePainel) redirect("/");
   return usuario;
 }
 

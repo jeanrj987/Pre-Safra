@@ -10,16 +10,22 @@ interface Usuario {
   nome: string;
   email: string;
   papel: Papel;
+  /** Nome ligado à conta na lista de responsáveis; vazio se ainda não foi ligada. */
+  nomeResponsavel: string;
 }
 
-// Botão "Editar": abre uma janela para o admin corrigir nome, e-mail e papel do usuário.
+// Botão "Editar": abre uma janela para o admin corrigir nome, e-mail, papel e a ligação com a lista
+// de responsáveis do usuário.
 // A ação devolve a mensagem de erro (ex.: e-mail já usado) para mostrar dentro da própria
 // janela, em vez de redirecionar e deixar o aviso escondido atrás dela.
 export default function EditarUsuario({
   usuario,
+  nomes,
   salvar,
 }: {
   usuario: Usuario;
+  /** Nomes da lista de responsáveis dos clientes, para escolher a quem esta conta corresponde. */
+  nomes: string[];
   salvar: (formData: FormData) => Promise<{ erro?: string }>;
 }) {
   const [aberto, setAberto] = useState(false);
@@ -82,6 +88,20 @@ export default function EditarUsuario({
                 />
               </label>
               <SeletorPapel padrao={usuario.papel} />
+              <label className="block">
+                <span className="rotulo">Aparece como responsável</span>
+                <select name="nomeResponsavel" defaultValue={usuario.nomeResponsavel} className="campo">
+                  <option value="">Nenhum (só visualiza os clientes)</option>
+                  {/* Ligação antiga cujo nome saiu da lista continua escolhível, para não ser trocada sem querer ao salvar. */}
+                  {[...new Set([...nomes, ...(usuario.nomeResponsavel ? [usuario.nomeResponsavel] : [])])].map((n) => (
+                    <option key={n}>{n}</option>
+                  ))}
+                </select>
+                <span className="mt-1 block text-xs text-muted">
+                  O usuário comum só altera os clientes em que este nome é o responsável; os demais ele apenas vê.
+                  Administradores alteram todos e não precisam de ligação.
+                </span>
+              </label>
             </div>
             <RodapeJanela onCancelar={fechar}>
               <BotaoEnviar pendente="Salvando…" className="btn-primario">

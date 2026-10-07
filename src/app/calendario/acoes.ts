@@ -1,8 +1,9 @@
 "use server";
 import { revalidatePath } from "next/cache";
 import { exigirAcessoCompleto } from "@/lib/auth";
-import { motivoDataAtividade, motivoHorarioAtividade } from "@/lib/calendario";
+import { motivoDataAtividade, motivoHorarioAtividade, podeAlterarAtividade } from "@/lib/calendario";
 import { prisma } from "@/lib/db";
+import type { Atividade } from "@/generated/prisma/client";
 
 // Server Actions da aba Calendário. As regras de data e horário são as mesmas do agendamento de
 // clientes (ver src/lib/calendario.ts). A janela já mostra os erros campo a campo; aqui o servidor
@@ -44,18 +45,33 @@ export async function criarAtividade(formData: FormData): Promise<string | null>
   const campos = lerCampos(formData);
   if ("erro" in campos) return campos.erro;
 
-  await prisma.atividade.create({ data: { ...campos, criadoPor: sessao.nome } });
+  await prisma.atividade.create({ data: { ...campos, criadoPor: sessao.nome, criadoPorId: sessao.id } });
   revalidatePath("/calendario");
   return null;
 }
 
+// Todos veem todas as atividades, mas só o dono (ou um admin) altera. Vale para as três ações
+// abaixo: o botão escondido na tela não basta, a Server Action pode ser chamada direto.
+const SEM_PERMISSAO = "Só quem lançou a atividade (ou um administrador) pode alterá-la.";
+
+async function buscarParaAlterar(
+  id: number,
+  usuario: { id: number; nome: string; admin: boolean },
+): Promise<{ erro: string } | { atividade: Atividade }> {
+  const atividade = await prisma.atividade.findUnique({ where: { id } });
+  if (!atividade) return { erro: "Atividade não encontrada. Ela pode ter sido excluída por outra pessoa." };
+  if (!podeAlterarAtividade(usuario, atividade)) return { erro: SEM_PERMISSAO };
+  return { atividade };
+}
+
 export async function editarAtividade(formData: FormData): Promise<string | null> {
-  await exigirAcessoCompleto();
+  const sessao = await exigirAcessoCompleto();
   const id = Number(formData.get("id"));
   if (!Number.isInteger(id)) return "Atividade não encontrada.";
 
-  const existente = await prisma.atividade.findUnique({ where: { id }, select: { data: true, horario: true } });
-  if (!existente) return "Atividade não encontrada. Ela pode ter sido excluída por outra pessoa.";
+  const busca = await buscarParaAlterar(id, sessao);
+  if ("erro" in busca) return busca.erro;
+  const existente = busca.atividade;
 
   const campos = lerCampos(formData, { data: isoDe(existente.data), horario: existente.horario });
   if ("erro" in campos) return campos.erro;
@@ -71,15 +87,19 @@ export async function editarAtividade(formData: FormData): Promise<string | null
 // Marca/desmarca como feita direto no calendário, sem abrir a janela de edição (e sem revalidar
 // data e horário: marcar uma atividade atrasada como feita tem que ser sempre possível).
 export async function alternarConclusao(id: number, concluida: boolean): Promise<void> {
-  await exigirAcessoCompleto();
+  const sessao = await exigirAcessoCompleto();
   if (!Number.isInteger(id)) return;
+  const busca = await buscarParaAlterar(id, sessao);
+  if ("erro" in busca) return;
   await prisma.atividade.updateMany({ where: { id }, data: { concluida } });
   revalidatePath("/calendario");
 }
 
 export async function excluirAtividade(id: number): Promise<void> {
-  await exigirAcessoCompleto();
+  const sessao = await exigirAcessoCompleto();
   if (!Number.isInteger(id)) return;
+  const busca = await buscarParaAlterar(id, sessao);
+  if ("erro" in busca) return;
   await prisma.atividade.deleteMany({ where: { id } });
   revalidatePath("/calendario");
 }

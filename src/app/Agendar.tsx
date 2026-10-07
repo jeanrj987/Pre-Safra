@@ -33,11 +33,11 @@ function Erro({ id, children }: { id: string; children: string }) {
   );
 }
 
-// Botão "Agendar" na coluna de ações de cada cliente: abre uma janela para definir responsável, data,
+// Botão "Agendar" (ou "Reagendar", se o cliente já tem agendamento) na coluna de ações de cada cliente: abre uma janela para definir responsável, data,
 // horário e status (Agendado Online / Agendado Presencial) e grava tudo de uma vez: o cliente
 // vai para a guia Agendados. Os quatro campos são obrigatórios: ao salvar com algo faltando, a
-// janela marca o campo e explica o motivo, sem enviar nada. Quem já tem agendamento ganha o botão
-// "Remover agendamento", que o devolve a "A Fazer".
+// janela marca o campo e explica o motivo, sem enviar nada. Quem já tem agendamento e pode removê-lo
+// (admin ou responsável do cliente) ganha o botão "Remover agendamento", que o devolve a "A Fazer".
 export default function Agendar({
   acao,
   id,
@@ -50,6 +50,8 @@ export default function Agendar({
   grupos,
   outros,
   podeTrocarResponsavel,
+  podeRemover,
+  assumeAoAgendar = false,
 }: {
   acao: (formData: FormData) => Promise<void>;
   id: number;
@@ -67,9 +69,14 @@ export default function Agendar({
   /** Nomes sem região (ex.: quem já foi escolhido antes), listados no fim. */
   outros: string[];
   podeTrocarResponsavel: boolean;
+  /** Só o admin e o responsável do cliente removem o agendamento; para os demais o botão some. */
+  podeRemover: boolean;
+  /** Cliente sem responsável e usuário comum: o responsável mostrado é ele, que assume o cliente ao salvar. */
+  assumeAoAgendar?: boolean;
 }) {
   const statusInicial: Status = previsao;
   const temAgendamento = !!(previsao || data || horario);
+  const verbo = temAgendamento ? "Reagendar" : "Agendar";
   // Quem ficou só com o responsável (sem data/horário/formato, ex.: dado de antes de a remoção
   // limpar o responsável) também precisa de um jeito de zerar — só o admin, que é quem o define.
   const soResponsavel = !temAgendamento && podeTrocarResponsavel && !!responsavel;
@@ -134,15 +141,15 @@ export default function Agendar({
       <button
         type="button"
         onClick={abrir}
-        title={`Agendar ${nome}`}
-        aria-label={`Agendar ${nome}`}
+        title={`${verbo} ${nome}`}
+        aria-label={`${verbo} ${nome}`}
         className="btn-contorno btn-sm shrink-0"
       >
         <Icone nome="calendario" className="size-3.5" />
-        Agendar
+        {verbo}
       </button>
       {aberto && (
-        <Janela icone="calendario" titulo="Agendar cliente" subtitulo={nome} onFechar={() => setAberto(false)}>
+        <Janela icone="calendario" titulo={`${verbo} cliente`} subtitulo={nome} onFechar={() => setAberto(false)}>
           <form action={acao} onSubmit={validar} noValidate>
             <input type="hidden" name="id" value={id} />
             <input type="hidden" name="voltar" value={voltar} />
@@ -174,6 +181,11 @@ export default function Agendar({
                       {resp || "Sem responsável"}
                     </p>
                   </>
+                )}
+                {assumeAoAgendar && (
+                  <span className="mt-1 block text-xs text-muted">
+                    Este cliente não tem responsável: ao agendar, você passa a ser o responsável por ele.
+                  </span>
                 )}
                 {mostrar("resp") && <Erro id="erro-resp">{erros.resp!}</Erro>}
               </div>
@@ -226,7 +238,7 @@ export default function Agendar({
               </div>
             </div>
             <RodapeJanela onCancelar={() => setAberto(false)}>
-              {(temAgendamento || soResponsavel) && (
+              {podeRemover && (temAgendamento || soResponsavel) && (
                 <button
                   type="submit"
                   name="remover"

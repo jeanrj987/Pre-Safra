@@ -21,12 +21,45 @@ export default function CampoData({
   const [bloqueio, setBloqueio] = useState<string | null>(null);
   // Última data válida: para onde o campo volta quando a escolhida é recusada.
   const ultimaValida = useRef(valor);
+  // Digitando "22", o dia passa por "02": a data só é conferida e salva quando a digitação para
+  // (ou ao sair do campo). Senão o valor parcial seria recusado e o campo voltaria atrás.
+  const espera = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!bloqueio) return;
     const t = setTimeout(() => setBloqueio(null), 5000);
     return () => clearTimeout(t);
   }, [bloqueio]);
+
+  useEffect(
+    () => () => {
+      if (espera.current) clearTimeout(espera.current);
+    },
+    [],
+  );
+
+  function tratar(campo: HTMLInputElement) {
+    const data = campo.value;
+    // Enquanto se digita, a data pode estar incompleta (o navegador informa ""):
+    // só limpa a data se o campo foi esvaziado, e nunca grava uma data pela metade.
+    if (!data && !campo.validity.valid) return;
+    const motivo = data ? motivoDiaBloqueado(data) : null;
+    if (motivo) {
+      campo.value = ultimaValida.current;
+      setBloqueio(motivo);
+      return;
+    }
+    setBloqueio(null);
+    setErro(false);
+    iniciar(async () => {
+      try {
+        await salvar(id, data);
+        ultimaValida.current = data;
+      } catch {
+        setErro(true);
+      }
+    });
+  }
 
   return (
     <div className="relative">
@@ -39,26 +72,17 @@ export default function CampoData({
         title={erro ? "Não foi possível salvar. Tente de novo." : undefined}
         onChange={(e) => {
           const campo = e.currentTarget;
-          const data = campo.value;
-          // Enquanto se digita, a data pode estar incompleta (o navegador informa ""):
-          // só limpa a data se o campo foi esvaziado, e nunca grava uma data pela metade.
-          if (!data && !campo.validity.valid) return;
-          const motivo = data ? motivoDiaBloqueado(data) : null;
-          if (motivo) {
-            campo.value = ultimaValida.current;
-            setBloqueio(motivo);
-            return;
-          }
-          setBloqueio(null);
-          setErro(false);
-          iniciar(async () => {
-            try {
-              await salvar(id, data);
-              ultimaValida.current = data;
-            } catch {
-              setErro(true);
-            }
-          });
+          if (espera.current) clearTimeout(espera.current);
+          espera.current = setTimeout(() => {
+            espera.current = null;
+            tratar(campo);
+          }, 700);
+        }}
+        onBlur={(e) => {
+          if (!espera.current) return;
+          clearTimeout(espera.current);
+          espera.current = null;
+          tratar(e.currentTarget);
         }}
         // Enter dentro do campo não pode disparar a ação em lote do formulário da lista.
         onKeyDown={(e) => {

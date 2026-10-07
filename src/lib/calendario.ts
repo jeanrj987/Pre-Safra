@@ -4,6 +4,62 @@
 
 import { motivoDataIndisponivel } from "./diasUteis";
 import { motivoHorarioPassado } from "./horarios";
+import { calcularStatus, STATUS_AGENDADOS, type StatusPreSafra } from "./status";
+
+/**
+ * Situações do Pré-Safra de um cliente que aparecem no calendário: os agendados (online e
+ * presencial), os atrasados e os finalizados (que continuam marcados no dia em que estavam
+ * agendados, já como finalizados). "A Fazer" e "Inativo" não entram.
+ */
+export const STATUS_NO_CALENDARIO: readonly StatusPreSafra[] = [...STATUS_AGENDADOS, "Atrasado", "Finalizado"];
+
+/** Linha do Pré-Safra com o que o calendário precisa para decidir se mostra o cliente. */
+export interface RegistroParaCalendario {
+  id: number;
+  nome: string;
+  dataPrevista: Date | null;
+  horario: string | null;
+  formato: string | null;
+  configuradoSistema: boolean;
+  inativo: boolean;
+  responsavel: string | null;
+}
+
+export interface AgendamentoCalendario {
+  id: number;
+  nome: string;
+  /** "aaaa-mm-dd" */
+  data: string;
+  /** "hh:mm"; nulo se o cliente tem data mas não tem horário */
+  horario: string | null;
+  responsavel: string | null;
+  status: StatusPreSafra;
+}
+
+/** Os clientes que entram no calendário, cada um no dia da sua data prevista, com o status de hoje. */
+export function agendamentosDoCalendario(
+  registros: RegistroParaCalendario[],
+  agora: Date = new Date(),
+): AgendamentoCalendario[] {
+  const lista: AgendamentoCalendario[] = [];
+  for (const r of registros) {
+    if (!r.dataPrevista) continue;
+    const status = calcularStatus(r, agora);
+    if (!STATUS_NO_CALENDARIO.includes(status)) continue;
+    lista.push({
+      id: r.id,
+      nome: r.nome,
+      data: r.dataPrevista.toISOString().slice(0, 10),
+      horario: r.horario,
+      responsavel: r.responsavel,
+      status,
+    });
+  }
+  return lista.sort(
+    (a, b) =>
+      a.data.localeCompare(b.data) || (a.horario ?? "").localeCompare(b.horario ?? "") || a.nome.localeCompare(b.nome, "pt-BR"),
+  );
+}
 
 // Diferente do agendamento de clientes (grade fixa de hora em hora), o horário da atividade é
 // livre: qualquer "hh:mm" do dia, como 08:30 ou 14:45.
@@ -103,6 +159,21 @@ export function motivoHorarioAtividade(
   if (original && data === original.data && horario === original.horario) return null;
   if (!HORARIO_LIVRE.test(horario)) return "Informe um horário válido, como 08:30.";
   return motivoHorarioPassado(data, horario, agora);
+}
+
+/**
+ * Quem pode editar, concluir ou excluir uma atividade: o admin e o próprio dono. Todos os usuários
+ * veem todas as atividades, mas só mexem nas que lançaram. Nas atividades antigas, sem o id do
+ * dono, vale o nome de quem lançou.
+ */
+export function podeAlterarAtividade(
+  usuario: { id: number; nome: string; admin: boolean },
+  atividade: { criadoPorId: number | null; criadoPor: string | null },
+): boolean {
+  if (usuario.admin) return true;
+  if (atividade.criadoPorId !== null) return atividade.criadoPorId === usuario.id;
+  const nome = (t: string) => t.trim().toLowerCase();
+  return !!atividade.criadoPor && nome(atividade.criadoPor) === nome(usuario.nome);
 }
 
 /** Primeiro dia, a partir de `hoje`, em que se pode lançar uma atividade (pula fim de semana e feriado). */

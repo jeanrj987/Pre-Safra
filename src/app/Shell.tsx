@@ -4,7 +4,12 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { encerrarSessao, usuarioAtual } from "@/lib/auth";
-import { listarSafrasAtivas, obterSafraSelecionada, selecionarSafraCookie } from "@/lib/safra";
+import {
+  listarSafrasAtivas,
+  obterSafraSelecionada,
+  selecionarSafraCookie,
+  tituloPreSafra,
+} from "@/lib/safra";
 import { COOKIE_TEMA } from "@/lib/tema";
 import Icone, { type NomeIcone } from "./Icone";
 import BotaoSidebar from "./BotaoSidebar";
@@ -31,8 +36,7 @@ type ItemNav = {
 const COOKIE_SIDEBAR = "presafra_sidebar_colapsada";
 
 const NAV_CLIENTES: ItemNav = { id: "clientes", href: "/", rotulo: "Clientes", rotuloCurto: "Clientes", icone: "lista" };
-// Liberado para admin e para contas "somente Painel" (ex.: TV da sala) — ver
-// exigirAcessoPainel() em src/lib/auth.ts.
+// Só de leitura, liberado a todos os usuários (a conta "somente Painel", ex.: TV da sala, só vê isto e o Telão).
 const NAV_PAINEL: ItemNav = { id: "painel", href: "/painel", rotulo: "Painel", rotuloCurto: "Painel", icone: "painel" };
 // Lançamentos livres da equipe (avisos, atualizações de cliente…). Não aparece para a conta
 // "somente Painel": ver exigirAcessoCompleto() em src/lib/auth.ts.
@@ -46,7 +50,7 @@ const NAV_CALENDARIO: ItemNav = {
 const NAV_NOVO: ItemNav = { id: "novo", href: "/novo", rotulo: "Novo cliente", rotuloCurto: "Novo", icone: "mais" };
 const NAV_ADMIN: ItemNav = { id: "admin", href: "/admin", rotulo: "Admin", rotuloCurto: "Admin", icone: "engrenagem" };
 // Telão de ideias do evento: QR code do formulário de sugestões + as ideias chegando ao vivo.
-// Mesmo acesso do Painel (admin e contas "somente Painel"), ver exigirAcessoPainel().
+// Admin e contas "somente Painel" (ex.: TV da sala).
 const NAV_TELAO: ItemNav = {
   id: "telao",
   href: "/telao",
@@ -88,7 +92,7 @@ export default async function Shell({
     ? [NAV_PAINEL, NAV_TELAO]
     : usuario?.admin
       ? [NAV_CLIENTES, NAV_PAINEL, NAV_CALENDARIO, NAV_NOVO, NAV_TELAO, NAV_ADMIN]
-      : [NAV_CLIENTES, NAV_CALENDARIO, NAV_NOVO];
+      : [NAV_CLIENTES, NAV_PAINEL, NAV_CALENDARIO, NAV_NOVO];
 
   const paginaAtual = NAV.find((n) => n.id === ativo);
 
@@ -120,8 +124,8 @@ export default async function Shell({
         </div>
 
         <nav aria-label="Principal" className="flex-1 space-y-1 px-3 py-4">
-          <p className="px-2 pb-1 text-[11px] font-semibold uppercase tracking-wider text-white/40 group-data-[colapsada=true]/shell:hidden">
-            Pré-Safra
+          <p className="truncate px-2 pb-1 text-[11px] font-semibold uppercase tracking-wider text-white/40 group-data-[colapsada=true]/shell:hidden">
+            {tituloPreSafra(safraAtual)}
           </p>
           {NAV.map((n) => {
             const atual = ativo === n.id;
@@ -201,8 +205,8 @@ export default async function Shell({
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/logo-controlsoft.webp" alt="ControlSoft" className="h-6 w-auto sm:h-7" />
             <span className="hidden h-5 w-px bg-white/20 sm:block" />
-            <span className="hidden text-sm font-semibold text-white/90 sm:block">
-              Pré-Safra
+            <span className="hidden max-w-40 truncate text-sm font-semibold text-white/90 sm:block">
+              {tituloPreSafra(safraAtual)}
             </span>
           </Link>
 

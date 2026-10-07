@@ -29,8 +29,12 @@ export default function CampoDataForm({
         const motivo =
           campo.value && campo.value !== original.current ? motivoDataIndisponivel(campo.value) : null;
         campo.setCustomValidity(motivo ?? "");
-        // Digitando o ano, o valor passa por "0002", "0020"…: só avisa quando o ano está completo.
-        if (motivo && Number(campo.value.slice(0, 4)) >= 1000) campo.reportValidity();
+      }}
+      // Avisar só ao sair do campo (ou ao tentar enviar): digitando "22", o dia passa por "02" e um
+      // aviso na hora interromperia a digitação.
+      onBlur={(e) => {
+        const campo = e.currentTarget;
+        if (!campo.validity.valid && Number(campo.value.slice(0, 4)) >= 1000) campo.reportValidity();
       }}
     />
   );

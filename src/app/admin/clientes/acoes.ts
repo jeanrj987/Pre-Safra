@@ -15,6 +15,7 @@ export async function salvarCadastro(id: number, formData: FormData) {
       regiao: texto(formData, "regiao"),
       atendente: texto(formData, "atendente"),
       consultor: texto(formData, "consultor"),
+      comercial: texto(formData, "comercial"),
     },
   });
   revalidatePath("/admin/clientes");
@@ -31,6 +32,15 @@ export async function inativarCliente(preSafraId: number, formData: FormData) {
     where: { id: preSafraId },
     data: { inativo: true, motivoInativacao: motivo },
   });
+  revalidatePath("/admin/clientes");
+  revalidatePath("/", "layout");
+}
+
+// Tira o cliente só da safra selecionada: apaga o Pré-Safra dele nela (com o histórico de
+// conclusões, que sai em cascata). O cadastro do cliente e as outras safras ficam intactos.
+export async function excluirClienteDaSafra(preSafraId: number) {
+  await exigirAdmin();
+  await prisma.preSafra.deleteMany({ where: { id: preSafraId } });
   revalidatePath("/admin/clientes");
   revalidatePath("/", "layout");
 }

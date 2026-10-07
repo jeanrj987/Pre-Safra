@@ -13,7 +13,7 @@ import ExcluirSafra from "./ExcluirSafra";
 
 const MOTIVO_EM_USO = "Esta é a safra selecionada agora.";
 
-export const metadata = { title: "Safras · Pré-Safra" };
+export const metadata = { title: "Safras" };
 
 export default async function AdminSafras({
   searchParams,
@@ -66,17 +66,25 @@ export default async function AdminSafras({
     redirect(`/admin/safras?criada=${count}`);
   }
 
-  async function editarPeriodo(id: number, formData: FormData) {
+  // Devolve o texto do erro (a janela de EditarSafra o mostra e continua aberta) ou null se salvou.
+  async function editarSafra(id: number, formData: FormData): Promise<string | null> {
     "use server";
     await exigirAdmin();
+    const nome = String(formData.get("nome") ?? "").trim();
+    const cultura = String(formData.get("cultura") ?? "").trim() || null;
     const inicioTexto = String(formData.get("inicio") ?? "");
     const prazoTexto = String(formData.get("prazo") ?? "");
     const inicio = inicioTexto ? new Date(`${inicioTexto}T00:00:00Z`) : null;
     const prazo = prazoTexto ? new Date(`${prazoTexto}T00:00:00Z`) : null;
-    if (!inicio || !prazo || prazo <= inicio) return;
-    await prisma.safra.update({ where: { id }, data: { inicio, prazo } });
+    if (!nome) return "Informe o nome da safra.";
+    if (!inicio || !prazo) return "Informe o início e o prazo.";
+    if (prazo <= inicio) return "O prazo precisa ser depois do início.";
+    const outra = await prisma.safra.findFirst({ where: { nome, NOT: { id } } });
+    if (outra) return "Já existe outra safra com esse nome.";
+    await prisma.safra.update({ where: { id }, data: { nome, cultura, inicio, prazo } });
     revalidatePath("/admin/safras");
     revalidatePath("/", "layout");
+    return null;
   }
 
   async function alternarAtiva(id: number, ativa: boolean) {
@@ -179,27 +187,26 @@ export default async function AdminSafras({
                         {s.cultura ? `${s.cultura} · ` : ""}
                         {s.ativa ? "Ativa" : "Inativa"}
                       </div>
-                      <div className="mt-1 text-sm font-normal @2xl:hidden">
-                        <EditarSafra
-                          exibicao={`${formatarData(s.inicio)} – ${formatarData(s.prazo)}`}
-                          inicio={dataParaCampo(s.inicio)}
-                          prazo={dataParaCampo(s.prazo)}
-                          salvar={editarPeriodo.bind(null, s.id)}
-                        />
+                      <div className="mt-1 text-sm font-normal tabular-nums @2xl:hidden">
+                        {formatarData(s.inicio)} – {formatarData(s.prazo)}
                       </div>
                     </td>
                     <td className="hidden px-3 py-3 align-top text-muted @2xl:table-cell">{s.cultura || "—"}</td>
-                    <td className="hidden px-3 py-3 align-top @2xl:table-cell">
-                      <EditarSafra
-                        exibicao={`${formatarData(s.inicio)} – ${formatarData(s.prazo)}`}
-                        inicio={dataParaCampo(s.inicio)}
-                        prazo={dataParaCampo(s.prazo)}
-                        salvar={editarPeriodo.bind(null, s.id)}
-                      />
+                    <td className="hidden px-3 py-3 align-top tabular-nums @2xl:table-cell">
+                      {formatarData(s.inicio)} – {formatarData(s.prazo)}
                     </td>
                     <td className="hidden px-3 py-3 align-top @2xl:table-cell">{s.ativa ? "Ativa" : "Inativa"}</td>
                     <td className="py-2.5 pl-3 pr-4 text-right align-top sm:pr-5">
                       <div className="flex items-center justify-end gap-1.5">
+                        <EditarSafra
+                          safra={{
+                            nome: s.nome,
+                            cultura: s.cultura,
+                            inicio: dataParaCampo(s.inicio),
+                            prazo: dataParaCampo(s.prazo),
+                          }}
+                          salvar={editarSafra.bind(null, s.id)}
+                        />
                         <form action={alternarAtiva.bind(null, s.id, !s.ativa)}>
                           <BotaoAcao
                             type="submit"

@@ -3,7 +3,7 @@ import FormSugestao from "./FormSugestao";
 
 // Página PÚBLICA (aberta pelo QR code do evento): não pede login e não usa o Shell do app.
 export const metadata: Metadata = {
-  title: "Sugira um tema para o FAQ",
+  title: { absolute: "Sugira um tema para o FAQ" },
   description: "Diga qual dúvida ou tema deveria ter no FAQ da ControlSoft.",
   robots: { index: false, follow: false },
 };

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Form from "next/form";
 import { CampoBusca } from "./Auto";
-import { equipesPorRegiao, gruposDeResponsavel } from "@/lib/equipe";
+import { equipesPorRegiao, gruposDeResponsavel, regioesDoAtendente } from "@/lib/equipe";
 import Seletor from "./Seletor";
 import { Avatar, Bolinha } from "./seletorOpcoes";
 import { normalizar, plural } from "@/lib/texto";
@@ -9,6 +9,7 @@ import { agendarCliente, finalizarComNota, reabrirComMotivo } from "./acoes";
 import Agendar from "./Agendar";
 import LimparAgendamento from "./LimparAgendamento";
 import { exigirAcessoCompleto } from "@/lib/auth";
+import { podeAgendarCliente, podeAlterarCliente, podeAssumirCliente } from "@/lib/responsavel";
 import Shell from "./Shell";
 import Selo from "./Selo";
 import Icone from "./Icone";
@@ -27,7 +28,7 @@ import {
   nomesPossiveis,
 } from "@/lib/dados";
 import { STATUS_AGENDADOS } from "@/lib/status";
-import { obterSafraSelecionada } from "@/lib/safra";
+import { obterSafraSelecionada, tituloPreSafra } from "@/lib/safra";
 
 // "Agendado" agrupa "Agendado Online" e "Agendado Presencial" (card Agendados).
 type FiltroStatus = "Atrasado" | "A Fazer" | "Agendado" | "Finalizado";
@@ -55,6 +56,12 @@ export default async function Home({ searchParams }: PageProps<"/">) {
       (Array.isArray(sp.responsavel) ? sp.responsavel : [sp.responsavel ?? ""]).map((r) => r.trim()).filter(Boolean),
     ),
   ];
+  // Várias regiões de uma vez, igual ao responsável (?regiao=A&regiao=B).
+  const regioesSel = [
+    ...new Set(
+      (Array.isArray(sp.regiao) ? sp.regiao : [sp.regiao ?? ""]).map((r) => r.trim()).filter(Boolean),
+    ),
+  ];
   // Online ou Presencial, o que foi agendado (ou realizado, no caso dos finalizados). Só existe
   // nas abas "Agendados" e "Finalizados"; nas demais o filtro nem aparece e o parâmetro é ignorado.
   const temFormato = status === "Agendado" || status === "Finalizado";
@@ -80,6 +87,16 @@ export default async function Home({ searchParams }: PageProps<"/">) {
   const nomes = nomesPossiveis(todas);
   // Equipe de cada região, para o responsável do Agendar: a da região do cliente primeiro, depois as outras.
   const equipes = equipesPorRegiao(todas);
+  // Regiões para filtrar (só as que têm clientes ativos) e as do próprio usuário, cujos clientes vêm primeiro.
+  const regioes = [
+    ...new Set(todas.filter((l) => l.status !== "Inativo" && l.regiao).map((l) => l.regiao as string)),
+  ].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  const minhasRegioes = regioesDoAtendente(usuario.nomeResponsavel, todas);
+  // Todos veem e agendam qualquer cliente; finalizar e reabrir são do admin e do responsável do
+  // cliente, e quem não tem responsável pode ser assumido por quem tem conta ligada a um nome.
+  const podeAlterar = (l: { responsavel: string | null }) => podeAlterarCliente(usuario, l.responsavel);
+  const podeAgendar = (l: { responsavel: string | null }) => podeAgendarCliente(usuario, l.responsavel);
+  const podeAssumir = (l: { responsavel: string | null }) => podeAssumirCliente(usuario, l.responsavel);
 
   // Inativos não aparecem aqui: são inativados e reativados em Admin → Clientes.
   const bateStatus = (s: string) =>
@@ -95,9 +112,16 @@ export default async function Home({ searchParams }: PageProps<"/">) {
       (!q || normalizar(l.nome).includes(normalizar(q))) &&
       bateStatus(l.status) &&
       (resps.length === 0 || (!!l.responsavel && resps.includes(l.responsavel))) &&
+      (regioesSel.length === 0 || (!!l.regiao && regioesSel.includes(l.regiao))) &&
       (!formato || l.formato === formato) &&
       (!comentario || (!!l.observacao && normalizar(l.observacao).includes(normalizar(comentario)))),
   );
+  // Os clientes da região do usuário vêm primeiro; dentro de cada bloco a ordem original se mantém
+  // (a ordenação é estável) e nada é escondido.
+  if (minhasRegioes.size > 0) {
+    const daMinhaRegiao = (l: { regiao: string | null }) => (l.regiao && minhasRegioes.has(l.regiao) ? 0 : 1);
+    filtradas.sort((a, b) => daMinhaRegiao(a) - daMinhaRegiao(b));
+  }
 
   // Página fora do intervalo (ex.: filtro mudou e sobrou menos página do que antes) cai na
   // última válida em vez de mostrar uma lista vazia.
@@ -113,6 +137,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
     if (q) p.set("q", q);
     if (status) p.set("status", status);
     resps.forEach((r) => p.append("responsavel", r));
+    regioesSel.forEach((r) => p.append("regiao", r));
     if (formato) p.set("formato", formato);
     if (comentario) p.set("comentario", comentario);
     if (paginaAtual > 1) p.set("pagina", String(paginaAtual));
@@ -137,7 +162,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
   const pct = pctDe(cont.Finalizado);
   // Todo card termina com a fatia que representa no total, igual ao de Finalizados.
   const doTotal = (n: number) => `${pctDe(n)}% do total`;
-  const filtrando = !!(q || status || resps.length > 0 || formato || comentario);
+  const filtrando = !!(q || status || resps.length > 0 || regioesSel.length > 0 || formato || comentario);
   // Ação em lote só existe onde faz sentido: finalizar vale para agendados e reabrir, para
   // finalizados. Nas demais telas (Todos, Atrasados, A Fazer) não há caixas de seleção nem barra.
   const comSelecao = status === "Agendado" || status === "Finalizado";
@@ -221,7 +246,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Clientes</h1>
           <p className="mt-1 text-sm text-muted">
-            Acompanhamento do Pré-Safra 2026 · {plural(cont.todos, "cliente ativo", "clientes ativos")}
+            Acompanhamento do {tituloPreSafra(safra)} ·{plural(cont.todos, "cliente ativo", "clientes ativos")}
           </p>
         </div>
         <Link href="/novo" className="btn-primario">
@@ -229,6 +254,18 @@ export default async function Home({ searchParams }: PageProps<"/">) {
           Novo cliente
         </Link>
       </div>
+
+      {!usuario.admin && !usuario.nomeResponsavel && (
+        <p
+          role="status"
+          className="flex items-center gap-2 rounded-lg border border-line bg-subtle px-4 py-3 text-sm text-muted"
+        >
+          <Icone nome="info" />
+          Sua conta ainda não está ligada a um responsável. Você agenda os clientes que já têm responsável, mas não
+          consegue assumir clientes nem finalizá-los. Peça a um administrador para ligá-la ao seu nome em Admin →
+          Usuários.
+        </p>
+      )}
 
       {mensagem && (
         <p
@@ -334,6 +371,18 @@ export default async function Home({ searchParams }: PageProps<"/">) {
             enviarAoMudar
             opcoes={nomes.map((r) => ({ valor: r, rotulo: r, marca: <Avatar nome={r} /> }))}
           />
+          <Seletor
+            nome="regiao"
+            rotulo="Filtrar por região"
+            ocultarRotulo
+            tamanho="compacto"
+            multiplo
+            valoresIniciais={regioesSel}
+            unidadePlural="regiões"
+            placeholder="Todas as regiões"
+            enviarAoMudar
+            opcoes={regioes.map((r) => ({ valor: r, rotulo: r }))}
+          />
           {temFormato && (
             <Seletor
               nome="formato"
@@ -374,8 +423,10 @@ export default async function Home({ searchParams }: PageProps<"/">) {
           )}
         </Form>
 
-        {/* Marcações valem só para este card + responsável + formato; busca e página não contam. */}
-        <RecorteSelecao recorte={[status, [...resps].sort().join(","), formato].join("|")} />
+        {/* Marcações valem só para este card + responsável + região + formato; busca e página não contam. */}
+        <RecorteSelecao
+          recorte={[status, [...resps].sort().join(","), [...regioesSel].sort().join(","), formato].join("|")}
+        />
         <form action={finalizarComNota}>
           <input type="hidden" name="voltar" value={atual.toString()} />
           <div className="@container overflow-x-auto">
@@ -410,14 +461,17 @@ export default async function Home({ searchParams }: PageProps<"/">) {
                     >
                       {comSelecao && (
                         <td className="py-3 pl-4 pr-1 align-top sm:pl-5">
-                          <input
-                            type="checkbox"
-                            name="ids"
-                            value={l.id}
-                            data-cliente={l.nome}
-                            aria-label={`Selecionar ${l.nome}`}
-                            className="mt-1 size-4 cursor-pointer accent-primary"
-                          />
+                          {/* Só quem pode alterar o cliente o marca para as ações em lote. */}
+                          {podeAlterar(l) && (
+                            <input
+                              type="checkbox"
+                              name="ids"
+                              value={l.id}
+                              data-cliente={l.nome}
+                              aria-label={`Selecionar ${l.nome}`}
+                              className="mt-1 size-4 cursor-pointer accent-primary"
+                            />
+                          )}
                         </td>
                       )}
                       <td className={`w-full max-w-0 py-3 pr-3 align-top ${comSelecao ? "pl-3" : "pl-4 sm:pl-5"} @2xl:w-auto @2xl:min-w-64 @2xl:max-w-64 @min-[1300px]:max-w-72`}>
@@ -480,14 +534,23 @@ export default async function Home({ searchParams }: PageProps<"/">) {
                       </td>
                       <td className="py-2.5 pl-3 pr-4 align-top sm:pr-5">
                         <div className="flex items-center justify-end gap-1.5">
+                          {!podeAlterar(l) && (
+                            <span
+                              title="Só o responsável (ou um administrador) finaliza e reabre este cliente"
+                              className="max-w-40 truncate text-xs text-muted"
+                            >
+                              {l.responsavel ? `Responsável: ${l.responsavel}` : "Sem responsável"}
+                            </span>
+                          )}
                           {/* Finalizado não se agenda: lá aparece só o Reabrir. */}
-                          {l.status !== "Finalizado" && (
+                          {podeAgendar(l) && l.status !== "Finalizado" && (
                             <Agendar
                               acao={agendarCliente}
                               id={l.id}
                               nome={l.nome}
                               voltar={atual.toString()}
-                              responsavel={l.responsavel ?? ""}
+                              responsavel={l.responsavel ?? (podeAssumir(l) ? (usuario.nomeResponsavel ?? "") : "")}
+                              assumeAoAgendar={podeAssumir(l)}
                               data={dataParaCampo(l.dataPrevista)}
                               horario={l.horario ?? ""}
                               previsao={
@@ -496,9 +559,10 @@ export default async function Home({ searchParams }: PageProps<"/">) {
                               grupos={gruposDeResponsavel(l, equipes)}
                               outros={nomes}
                               podeTrocarResponsavel={usuario.admin}
+                              podeRemover={podeAlterar(l)}
                             />
                           )}
-                          {l.status !== "Finalizado" && (l.dataPrevista || l.horario || l.formato) && (
+                          {podeAlterar(l) && l.status !== "Finalizado" && (l.dataPrevista || l.horario || l.formato) && (
                             <LimparAgendamento
                               acao={agendarCliente}
                               id={l.id}
@@ -507,7 +571,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
                               limpaResponsavel={usuario.admin}
                             />
                           )}
-                          {l.status === "Finalizado" ? (
+                          {!podeAlterar(l) ? null : l.status === "Finalizado" ? (
                             <Reabrir
                               acao={reabrirComMotivo}
                               id={l.id}

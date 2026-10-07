@@ -1,6 +1,6 @@
 // Uso: npm run importar -- [caminho.xlsx] [nomeDaSafra] [--simular] [--criar | --criar=<nome> ...]
 // A planilha precisa de uma coluna "Cliente" e, opcionalmente, "Cidade", "UF", "Região",
-// "Atendente" e "Consultor".
+// "Atendente", "Consultor" e "Comercial" (sem a coluna, o comercial já cadastrado não muda).
 // Reexecutável: não duplica clientes nem registros de Pré-Safra; só atualiza os dados de cadastro.
 // Com --simular, mostra o que seria feito sem gravar nada.
 // Clientes que estão na planilha e não no banco só são criados com --criar (todos) ou com
@@ -52,6 +52,7 @@ interface Linha {
   regiao: string | null;
   atendente: string | null;
   consultor: string | null;
+  comercial: string | null | undefined;
   ambigua: boolean;
 }
 
@@ -68,6 +69,7 @@ async function lerPlanilha(): Promise<Linha[]> {
   const colRegiao = colunas.get("regiao");
   const colAtendente = colunas.get("atendente");
   const colConsultor = colunas.get("consultor");
+  const colComercial = colunas.get("comercial");
 
   const linhas = new Map<string, Linha>();
   ws.eachRow((row, n) => {
@@ -84,7 +86,8 @@ async function lerPlanilha(): Promise<Linha[]> {
     const cidade = colCidade ? texto(row.getCell(colCidade).value) || null : null;
     const uf = colUf ? texto(row.getCell(colUf).value).toUpperCase() || null : null;
     const consultor = colConsultor ? texto(row.getCell(colConsultor).value) || null : null;
-    linhas.set(nome, { nome, cidade, uf, regiao, atendente, consultor, ambigua });
+    const comercial = colComercial ? texto(row.getCell(colComercial).value) || null : undefined;
+    linhas.set(nome, { nome, cidade, uf, regiao, atendente, consultor, comercial, ambigua });
   });
   return [...linhas.values()];
 }
@@ -104,7 +107,16 @@ async function main() {
   }
 
   const existentes = await prisma.cliente.findMany({
-    select: { id: true, nome: true, cidade: true, uf: true, regiao: true, atendente: true, consultor: true },
+    select: {
+      id: true,
+      nome: true,
+      cidade: true,
+      uf: true,
+      regiao: true,
+      atendente: true,
+      consultor: true,
+      comercial: true,
+    },
   });
   const porNome = new Map(existentes.map((c) => [c.nome, c]));
   const nomesPlanilha = new Set(linhas.map((l) => l.nome));
@@ -119,7 +131,8 @@ async function main() {
         c.uf !== l.uf ||
         c.regiao !== l.regiao ||
         c.atendente !== l.atendente ||
-        c.consultor !== l.consultor)
+        c.consultor !== l.consultor ||
+        (l.comercial !== undefined && c.comercial !== l.comercial))
     );
   });
   const semRegiao = linhas.filter((l) => !l.regiao);
@@ -135,7 +148,7 @@ async function main() {
 
   console.log(`${simular ? "[SIMULAÇÃO] " : ""}${linhas.length} clientes na planilha (${arquivo}).`);
   console.log("Por região:", Object.fromEntries(porRegiao));
-  console.log(`${simular ? "Seriam atualizados" : "Serão atualizados"} (cidade/UF/região/atendente/consultor): ${mudam.length} cliente(s) já cadastrados.`);
+  console.log(`${simular ? "Seriam atualizados" : "Serão atualizados"} (cidade/UF/região/atendente/consultor/comercial): ${mudam.length} cliente(s) já cadastrados.`);
   console.log(
     `Na planilha e fora do banco: ${novos.length} (serão criados: ${novos.filter((l) => deveCriar(l.nome)).length}; use --criar ou --criar=<nome> para criar)`,
     novos.map((l) => `${deveCriar(l.nome) ? "[criar] " : ""}${l.nome}`),
@@ -155,18 +168,19 @@ async function main() {
     return;
   }
 
-  // Um updateMany por combinação de cidade/UF/região/atendente/consultor, em vez de um
-  // update por cliente.
-  type Dados = Pick<Linha, "cidade" | "uf" | "regiao" | "atendente" | "consultor">;
+  // Um updateMany por combinação de cidade/UF/região/atendente/consultor/comercial, em vez de
+  // um update por cliente.
+  type Dados = Pick<Linha, "cidade" | "uf" | "regiao" | "atendente" | "consultor" | "comercial">;
   const grupos = new Map<string, Dados & { nomes: string[] }>();
   for (const l of mudam) {
-    const k = `${l.cidade}|${l.uf}|${l.regiao}|${l.atendente}|${l.consultor}`;
+    const k = `${l.cidade}|${l.uf}|${l.regiao}|${l.atendente}|${l.consultor}|${l.comercial}`;
     const g = grupos.get(k) ?? {
       cidade: l.cidade,
       uf: l.uf,
       regiao: l.regiao,
       atendente: l.atendente,
       consultor: l.consultor,
+      comercial: l.comercial,
       nomes: [],
     };
     g.nomes.push(l.nome);
@@ -186,6 +200,7 @@ async function main() {
         regiao: l.regiao,
         atendente: l.atendente,
         consultor: l.consultor,
+        comercial: l.comercial,
       })),
       skipDuplicates: true,
     });

@@ -1,4 +1,5 @@
 import { nomeCurtoRegiao, pessoasDaDupla } from "./painel";
+import { normalizar } from "./texto";
 
 // Quem atende cada região, para montar a lista de responsável: os atendentes (dupla), o
 // consultor e o comercial. A lista mostra primeiro a equipe da região do cliente ("Da região")
@@ -18,6 +19,8 @@ export interface EquipeCliente {
   atendentes: string | null;
   consultor: string | null;
   regiao: string | null;
+  /** Comercial cadastrado no cliente; sem ele, vale o comercial da região. */
+  comercial?: string | null;
 }
 
 /** Uma pessoa e o que ela é na região: "Atendente", "Consultor", "Comercial" (ou combinados). */
@@ -46,7 +49,7 @@ export function equipeDoCliente(c: EquipeCliente): PessoaEquipe[] {
   const pares: [string | null | undefined, Papel][] = [
     ...pessoasDaDupla(c.atendentes).map((p): [string, Papel] => [p, "Atendente"]),
     [c.consultor, "Consultor"],
-    [comercialDaRegiao(c.regiao), "Comercial"],
+    [c.comercial?.trim() || comercialDaRegiao(c.regiao), "Comercial"],
   ];
   const papeis = new Map<string, Set<Papel>>();
   for (const [bruto, papel] of pares) {
@@ -61,18 +64,45 @@ export function equipeDoCliente(c: EquipeCliente): PessoaEquipe[] {
 }
 
 /**
- * A equipe de cada região que aparece nos clientes, da maior para a menor. O consultor é o que
- * mais se repete entre os clientes da região (na planilha é um só por região).
+ * Regiões em que a pessoa é atendente, isto é, em que o nome dela está na dupla. Quem não tem
+ * nome ligado, ou não aparece em nenhuma dupla (admin, consultor, comercial), não tem região.
+ */
+export function regioesDoAtendente(nome: string | null, clientes: Pick<EquipeCliente, "atendentes" | "regiao">[]): Set<string> {
+  const regioes = new Set<string>();
+  if (!nome?.trim()) return regioes;
+  for (const c of clientes) {
+    if (c.regiao && pessoasDaDupla(c.atendentes).some((p) => normalizar(p) === normalizar(nome.trim()))) {
+      regioes.add(c.regiao);
+    }
+  }
+  return regioes;
+}
+
+/**
+ * A equipe de cada região que aparece nos clientes, da maior para a menor. O consultor e o
+ * comercial são os que mais se repetem entre os clientes da região (na planilha é um só por região).
  */
 export function equipesPorRegiao(clientes: EquipeCliente[]): GrupoEquipe[] {
-  const regioes = new Map<string, { total: number; atendentes: string | null; consultores: Map<string, number> }>();
+  const maisComum = (contagem: Map<string, number>) =>
+    [...contagem].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "pt-BR"))[0]?.[0] ?? null;
+  const regioes = new Map<
+    string,
+    { total: number; atendentes: string | null; consultores: Map<string, number>; comerciais: Map<string, number> }
+  >();
   for (const c of clientes) {
     if (!c.regiao) continue;
-    const r = regioes.get(c.regiao) ?? { total: 0, atendentes: c.atendentes, consultores: new Map() };
+    const r = regioes.get(c.regiao) ?? {
+      total: 0,
+      atendentes: c.atendentes,
+      consultores: new Map(),
+      comerciais: new Map(),
+    };
     r.total++;
     r.atendentes ??= c.atendentes;
     const consultor = c.consultor?.trim();
     if (consultor) r.consultores.set(consultor, (r.consultores.get(consultor) ?? 0) + 1);
+    const comercial = c.comercial?.trim();
+    if (comercial) r.comerciais.set(comercial, (r.comerciais.get(comercial) ?? 0) + 1);
     regioes.set(c.regiao, r);
   }
   return [...regioes]
@@ -81,7 +111,8 @@ export function equipesPorRegiao(clientes: EquipeCliente[]): GrupoEquipe[] {
       titulo: regiao,
       pessoas: equipeDoCliente({
         atendentes: r.atendentes,
-        consultor: [...r.consultores].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "pt-BR"))[0]?.[0] ?? null,
+        consultor: maisComum(r.consultores),
+        comercial: maisComum(r.comerciais),
         regiao,
       }),
     }));
