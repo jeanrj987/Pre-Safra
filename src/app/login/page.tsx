@@ -38,7 +38,7 @@ export default async function Login({ searchParams }: PageProps<"/login">) {
             Acompanhe prazos, responsáveis e o andamento de todos os clientes em um só lugar.
           </p>
         </div>
-        <p className="text-xs text-white/50">Uso interno · equipe de atendimento</p>
+        <p className="text-xs text-white/50">Uso Interno. Atendimento ao Cliente</p>
       </aside>
 
       <section className="flex items-center justify-center p-6">
