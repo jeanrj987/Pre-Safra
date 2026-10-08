@@ -25,7 +25,9 @@ export default async function AdminUsuarios({
     listarNomesResponsaveis(),
   ]);
 
-  async function criarUsuario(formData: FormData) {
+  // Devolve o erro (em vez de redirecionar) para a janela de novo usuário mostrá-lo no lugar;
+  // se deu certo, a janela fecha.
+  async function criarUsuario(formData: FormData): Promise<{ erro?: string }> {
     "use server";
     await exigirAdmin();
     const nome = String(formData.get("nome") ?? "").trim();
@@ -36,14 +38,21 @@ export default async function AdminUsuarios({
     const papel = String(formData.get("papel") ?? "comum");
     const admin = papel === "admin";
     const somentePainel = papel === "painel";
-    const existente = email ? await prisma.usuario.findUnique({ where: { email } }) : null;
-    if (!nome || !email || senha.length < 10 || existente) {
-      redirect("/admin/usuarios?erro=1");
+    const nomeResponsavel = String(formData.get("nomeResponsavel") ?? "").trim() || null;
+    if (!nome || !email) return { erro: "Preencha o nome e o e-mail." };
+    if (senha.length < 10) return { erro: "A senha precisa ter pelo menos 10 caracteres." };
+    if (await prisma.usuario.findUnique({ where: { email } })) {
+      return { erro: "Já existe um usuário com esse e-mail." };
+    }
+    // A ligação tem que ser um nome da lista de responsáveis.
+    if (nomeResponsavel && !(await listarNomesResponsaveis()).includes(nomeResponsavel)) {
+      return { erro: "Escolha um nome da lista de responsáveis." };
     }
     await prisma.usuario.create({
-      data: { nome, email, senhaHash: await hashSenha(senha), admin, somentePainel },
+      data: { nome, email, senhaHash: await hashSenha(senha), admin, somentePainel, nomeResponsavel },
     });
     revalidatePath("/admin/usuarios");
+    return {};
   }
 
   // Devolve o erro (em vez de redirecionar) para a janela de edição mostrá-lo no lugar.
@@ -143,7 +152,7 @@ export default async function AdminUsuarios({
     <section className="card">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-4 py-3.5 sm:px-5">
         <h2 className="text-base font-semibold">Usuários</h2>
-        <NovoUsuario acao={criarUsuario} />
+        <NovoUsuario acao={criarUsuario} nomes={nomesResponsaveis} />
       </div>
 
       {erro && (
@@ -152,9 +161,7 @@ export default async function AdminUsuarios({
           className="mx-4 mt-4 flex items-center gap-2 rounded-lg bg-atrasado-bg px-3 py-2 text-sm font-medium text-atrasado-fg sm:mx-5"
         >
           <Icone nome="alerta" />
-          {erro === "senha"
-            ? "A senha precisa ter pelo menos 10 caracteres."
-            : "Não foi possível criar o usuário. Confira o e-mail (pode já estar cadastrado) e a senha (mínimo de 10 caracteres)."}
+          A senha precisa ter pelo menos 10 caracteres.
         </p>
       )}
 

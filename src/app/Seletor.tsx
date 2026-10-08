@@ -111,6 +111,8 @@ export default function Seletor({
   const [aberto, setAberto] = useState(false);
   const [ativo, setAtivo] = useState(0);
   const [acima, setAcima] = useState(false);
+  // Lista alinhada à borda direita do campo, quando alinhar à esquerda a faria passar da tela.
+  const [alinhaDireita, setAlinhaDireita] = useState(false);
   // Altura máxima da parte rolável da lista, ajustada ao espaço que existe ao abrir.
   const [listaMax, setListaMax] = useState(ALTURA_MAXIMA);
   const [termo, setTermo] = useState("");
@@ -150,6 +152,10 @@ export default function Seletor({
   // Opção de valor vazio ("Todos os responsáveis", nos filtros) é uma escolha válida, mas aparece apagada no campo.
   const apagado = !atual || (!multiplo && atual.valor === "");
   const t = TAMANHOS[tamanho];
+  // Filtro de seleção múltipla: o texto do botão muda a cada marcação ("Leste MT…" → "2 regiões").
+  // Com largura livre, o botão encolhia e crescia, empurrando o filtro e a lista; fixa, nada se mexe.
+  const classeGatilho = tamanho === "compacto" && multiplo ? t.gatilho.replace("!w-auto", "!w-56") : t.gatilho;
+  const classePainel = alinhaDireita ? t.painel.replace("left-0", "right-0") : t.painel;
 
   // Fecha ao clicar fora (o foco não sai do botão ao clicar na lista, ver onMouseDown abaixo).
   useEffect(() => {
@@ -191,6 +197,8 @@ export default function Seletor({
       const emCima = campo.top - (janela?.top ?? 0) - 8;
       const paraCima = abaixo < altura && emCima > abaixo;
       setAcima(paraCima);
+      // Largura máxima da lista nos tamanhos que não ocupam a largura do campo: 20rem (320px).
+      setAlinhaDireita(tamanho !== "normal" && campo.left + 320 > window.innerWidth - 8);
       setListaMax(Math.max(MENOR_LISTA, Math.min(ALTURA_MAXIMA, (paraCima ? emCima : abaixo) - extras - 8)));
     }
     setTermo(digitou);
@@ -351,7 +359,7 @@ export default function Seletor({
             else fechar(false);
           }}
           onKeyDown={teclar}
-          className={`flex cursor-pointer items-center gap-2 text-left ${t.gatilho} ${
+          className={`flex cursor-pointer items-center gap-2 text-left ${classeGatilho} ${
             aberto && tamanho !== "pilula" ? "!border-primary outline-2 outline-offset-0 outline-primary/30" : ""
           } ${invalido ? "!border-atrasado-dot" : ""}`}
         >
@@ -378,7 +386,7 @@ export default function Seletor({
               if ((e.target as HTMLElement).tagName !== "INPUT") e.preventDefault();
             }}
             style={{ "--desl": acima ? "4px" : "-4px" } as CSSProperties}
-            className={`absolute z-30 overflow-hidden rounded-xl border border-line bg-surface shadow-pop [animation:seletor-abrir_120ms_ease-out] ${t.painel} ${
+            className={`absolute z-30 overflow-hidden rounded-xl border border-line bg-surface shadow-pop [animation:seletor-abrir_120ms_ease-out] ${classePainel} ${
               acima ? "bottom-full mb-1.5 origin-bottom" : "top-full mt-1.5 origin-top"
             }`}
           >

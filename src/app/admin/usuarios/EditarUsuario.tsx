@@ -4,6 +4,7 @@ import BotaoAcao from "@/app/BotaoAcao";
 import BotaoEnviar from "@/app/BotaoEnviar";
 import Icone from "@/app/Icone";
 import { Janela, RodapeJanela } from "@/app/Finalizar";
+import SeletorNomeResponsavel from "./SeletorNomeResponsavel";
 import SeletorPapel, { type Papel } from "./SeletorPapel";
 
 interface Usuario {
@@ -88,20 +89,8 @@ export default function EditarUsuario({
                 />
               </label>
               <SeletorPapel padrao={usuario.papel} />
-              <label className="block">
-                <span className="rotulo">Aparece como responsável</span>
-                <select name="nomeResponsavel" defaultValue={usuario.nomeResponsavel} className="campo">
-                  <option value="">Nenhum (só visualiza os clientes)</option>
-                  {/* Ligação antiga cujo nome saiu da lista continua escolhível, para não ser trocada sem querer ao salvar. */}
-                  {[...new Set([...nomes, ...(usuario.nomeResponsavel ? [usuario.nomeResponsavel] : [])])].map((n) => (
-                    <option key={n}>{n}</option>
-                  ))}
-                </select>
-                <span className="mt-1 block text-xs text-muted">
-                  O usuário comum só altera os clientes em que este nome é o responsável; os demais ele apenas vê.
-                  Administradores alteram todos e não precisam de ligação.
-                </span>
-              </label>
+              {/* Ligação antiga cujo nome saiu da lista continua escolhível, para não ser trocada sem querer ao salvar. */}
+              <SeletorNomeResponsavel nomes={nomes} atual={usuario.nomeResponsavel} />
             </div>
             <RodapeJanela onCancelar={fechar}>
               <BotaoEnviar pendente="Salvando…" className="btn-primario">
