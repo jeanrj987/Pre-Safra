@@ -94,7 +94,7 @@ export default async function PaginaCalendario({
   return (
     <Shell ativo="calendario">
       <NavegacaoMes
-        titulo={`${NOMES_MES[mes.mes - 1]} de ${mes.ano}`}
+        titulo={`${NOMES_MES[mes.mes - 1]}/${mes.ano}`}
         anterior={href(mesVizinho(mes, -1))}
         proximo={href(mesVizinho(mes, 1))}
       />

@@ -7,8 +7,6 @@ import Seletor from "@/app/Seletor";
 import { opcoesDeLista, opcoesDePessoas } from "@/app/seletorOpcoes";
 import Icone from "@/app/Icone";
 import BotaoEnviar from "@/app/BotaoEnviar";
-import CampoDataForm from "@/app/CampoDataForm";
-import { motivoDataIndisponivel } from "@/lib/diasUteis";
 import { exigirAcessoCompleto, exigirAdmin, exigirLogin } from "@/lib/auth";
 import { assumirCliente, podeAlterarCliente, podeAssumirCliente } from "@/lib/responsavel";
 import { prisma } from "@/lib/db";
@@ -42,7 +40,7 @@ export default async function Registro({
 }: PageProps<"/registro/[id]">) {
   const usuario = await exigirAcessoCompleto();
   const { id: idStr } = await params;
-  const { salvo, conflito, diaBloqueado, semPermissao, voltar } = await searchParams;
+  const { salvo, conflito, semPermissao, voltar } = await searchParams;
   const id = Number(idStr);
   if (!Number.isInteger(id)) notFound();
 
@@ -107,7 +105,6 @@ export default async function Registro({
   const voltarAoCalendario =
     typeof voltar === "string" && /^\/calendario(\?mes=\d{4}-\d{2})?$/.test(voltar) ? voltar : null;
   const sufixoVoltar = voltarAoCalendario ? `&voltar=${encodeURIComponent(voltarAoCalendario)}` : "";
-  const dataAtual = r.dataPrevista?.toISOString().slice(0, 10) ?? null;
   const nomeManual = r.clienteNomeManual;
 
   // Um único formulário/botão salva tanto o agendamento (Pré-Safra) quanto o cadastro do
@@ -118,13 +115,6 @@ export default async function Registro({
     // Confere no banco: a tela pode estar desatualizada e o formulário pode ser forjado.
     const atual = await prisma.preSafra.findUnique({ where: { id }, select: { responsavel: true } });
     if (!atual || !podeAlterarCliente(sessao, atual.responsavel)) redirect(`/registro/${id}?semPermissao=1${sufixoVoltar}`);
-    const data = texto(formData, "dataPrevista");
-    // Data passada, sábado, domingo e feriado não podem ser agendados; uma data antiga já salva é mantida.
-    // dataAtual é calculada fora da Server Action: se ela usasse "r" aqui dentro, o registro inteiro
-    // (com Date) seria enviado ao navegador junto com a ação, e isso dá erro ao salvar.
-    if (data && data !== dataAtual && motivoDataIndisponivel(data)) {
-      redirect(`/registro/${id}?diaBloqueado=1${sufixoVoltar}`);
-    }
     // Optimistic locking: só grava se ninguém alterou o registro desde que esta tela foi
     // carregada. Evita que duas pessoas editando o mesmo cliente ao mesmo tempo se
     // sobrescrevam silenciosamente (era o problema #1 da planilha antiga).
@@ -135,7 +125,7 @@ export default async function Registro({
         // Só admin define/altera o responsável; se um usuário comum enviar o campo mesmo
         // assim (ele não aparece no formulário dele), o servidor ignora.
         ...(sessao.admin && { responsavel: texto(formData, "responsavel") }),
-        dataPrevista: data ? new Date(`${data}T00:00:00Z`) : null,
+        // O agendamento (data, horário, formato) é feito só pelo botão "Agendar" da lista de clientes.
         observacoes: texto(formData, "observacoes"),
         // A seção de conclusão só existe no formulário de clientes finalizados; nos demais,
         // mantém o que já estava salvo (o status não é alterado aqui). As observações da
@@ -275,17 +265,6 @@ export default async function Registro({
         </div>
       )}
 
-      {diaBloqueado && (
-        <p
-          role="alert"
-          className="flex items-center gap-2 rounded-lg bg-atrasado-bg px-4 py-3 text-sm font-medium text-atrasado-fg"
-        >
-          <Icone nome="alerta" />
-          Nada foi salvo: a data prevista não pode ser retroativa, sábado, domingo nem
-          feriado. Escolha outro dia.
-        </p>
-      )}
-
       <form
         action={salvar}
         className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_18rem]"
@@ -299,37 +278,21 @@ export default async function Registro({
         <div className="space-y-6">
           <div className="card divide-y divide-line">
             <section className="space-y-4 p-5 sm:p-6">
-              <h2 className="text-base font-semibold">Agendamento</h2>
-              {r.agendadoPor && r.agendadoEm && r.formato && (
-                <p className="-mt-2 text-xs text-muted">
-                  Agendado por <span className="font-medium text-ink">{r.agendadoPor}</span> em{" "}
-                  {formatarDataHora(r.agendadoEm)}
-                </p>
+              {usuario.admin ? (
+                <Seletor
+                  nome="responsavel" placeholder="Selecione o responsável"
+                  rotulo="Responsável"
+                  valorInicial={r.responsavel ?? ""}
+                  opcoes={opcoesDePessoas(gruposResponsavel, nomes)}
+                />
+              ) : (
+                <div>
+                  <span className="rotulo">Responsável</span>
+                  <p className="flex h-10 items-center text-sm text-ink">
+                    {r.responsavel || <span className="text-muted">Sem responsável</span>}
+                  </p>
+                </div>
               )}
-              <div className="grid gap-4 sm:grid-cols-2">
-                {usuario.admin ? (
-                  <Seletor
-                    nome="responsavel" placeholder="Selecione o responsável"
-                    rotulo="Responsável"
-                    valorInicial={r.responsavel ?? ""}
-                    opcoes={opcoesDePessoas(gruposResponsavel, nomes)}
-                  />
-                ) : (
-                  <div>
-                    <span className="rotulo">Responsável</span>
-                    <p className="flex h-10 items-center text-sm text-ink">
-                      {r.responsavel || <span className="text-muted">Sem responsável</span>}
-                    </p>
-                  </div>
-                )}
-                <label className="block">
-                  <span className="rotulo">Data prevista</span>
-                  <CampoDataForm
-                    name="dataPrevista"
-                    defaultValue={r.dataPrevista?.toISOString().slice(0, 10) ?? ""}
-                  />
-                </label>
-              </div>
             </section>
 
             {/* A conclusão é marcada na lista de clientes; aqui só se detalha depois de finalizado */}

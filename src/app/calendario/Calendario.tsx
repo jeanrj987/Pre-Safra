@@ -199,18 +199,18 @@ function Dia({
       onClick={(e) => {
         if (!bloqueio && e.target === e.currentTarget) onNova();
       }}
-      className={`group h-36 min-w-0 overflow-hidden p-1 lg:h-40 lg:p-1.5 ${bloqueio ? "" : "cursor-pointer"} ${
+      className={`group h-28 min-w-0 overflow-hidden p-1 ${bloqueio ? "" : "cursor-pointer"} ${
         primeira ? "" : "border-l border-line"
       } ${dentroDoMes ? "" : "bg-subtle/60"}`}
     >
-      <div className="mb-1 flex justify-center lg:justify-start">
+      <div className="mb-0.5 flex justify-center lg:justify-start">
         <button
           type="button"
           onClick={onNova}
           disabled={!!bloqueio}
           aria-label={`Nova atividade em ${dataPorExtenso(dia)}`}
           title={bloqueio ?? "Nova atividade neste dia"}
-          className={`grid size-7 place-items-center rounded-full text-sm font-medium transition ${
+          className={`grid size-6 place-items-center rounded-full text-sm font-medium transition ${
             ehHoje
               ? "bg-primary text-white"
               : bloqueio
@@ -247,9 +247,9 @@ function Dia({
   );
 }
 
-// Quantos itens a célula mostra antes de virar "+N". Com a altura fixa da célula (h-36/lg:h-40),
-// três itens e a linha do "+N" cabem sem cortar.
-const MAX_POR_DIA = 3;
+// Quantos itens a célula mostra antes de virar "+N". Com a altura fixa da célula (h-28), dois
+// itens e a linha do "+N" cabem sem cortar, e as seis semanas do mês cabem na tela sem rolagem.
+const MAX_POR_DIA = 2;
 
 interface ItemDia {
   chave: string;
