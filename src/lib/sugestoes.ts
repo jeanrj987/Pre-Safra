@@ -6,7 +6,11 @@ import { normalizar } from "@/lib/texto";
 export const LIMITES = {
   nome: { min: 2, max: 60 },
   topico: { min: 2, max: 40 },
+  texto: { max: 2000 },
 } as const;
+
+/** Envios aceitos por WhatsApp na última hora e, somando todo mundo, no último minuto (abuso do formulário público). */
+export const LIMITE_ENVIOS = { porWhatsappPorHora: 20, totalPorMinuto: 60 } as const;
 
 /** Grade de cada página do telão: 5 colunas x 6 linhas, o que ainda se lê bem no projetor. */
 export const GRADE_TELAO = { colunas: 5, linhas: 6 } as const;

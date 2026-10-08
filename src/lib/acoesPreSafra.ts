@@ -41,26 +41,33 @@ export async function finalizarPendentes({
   }
   if (idsPendentes.length === 0) return { feitos: 0, faltaFormato: false };
 
-  await prisma.$transaction([
-    ...idsPendentes.map((id) =>
-      prisma.preSafra.update({
-        where: { id },
+  // A condição configuradoSistema: false vai na própria gravação: se outra pessoa finalizou o
+  // mesmo cliente entre a leitura acima e esta transação, ele é pulado (sem entrada duplicada).
+  const feitos = await prisma.$transaction(async (tx) => {
+    const finalizados: number[] = [];
+    for (const id of idsPendentes) {
+      const { count } = await tx.preSafra.updateMany({
+        where: { id, configuradoSistema: false },
         data: {
           configuradoSistema: true,
           melhoriasApresentadas: melhoriasDe(id),
           formato: formatoDe(id),
         },
-      }),
-    ),
-    prisma.conclusao.createMany({
-      data: idsPendentes.map((preSafraId) => ({
-        preSafraId,
-        observacao: observacaoDe(preSafraId),
-        autor,
-      })),
-    }),
-  ]);
-  return { feitos: idsPendentes.length, faltaFormato: false };
+      });
+      if (count > 0) finalizados.push(id);
+    }
+    if (finalizados.length > 0) {
+      await tx.conclusao.createMany({
+        data: finalizados.map((preSafraId) => ({
+          preSafraId,
+          observacao: observacaoDe(preSafraId),
+          autor,
+        })),
+      });
+    }
+    return finalizados.length;
+  }, { timeout: 20_000 }); // um update por cliente, em lote grande passa dos 5 s padrão
+  return { feitos, faltaFormato: false };
 }
 
 // Reabre os ids informados (voltando a "A Fazer") e grava o motivo na finalização que estava em vigor (a que ainda
@@ -75,22 +82,30 @@ export async function reabrirIds({
   autor: string;
 }): Promise<number> {
   if (ids.length === 0) return 0;
-  await prisma.$transaction([
-    // Volta para "A Fazer": sem formato (previsão/realizado) nem horário, o cliente precisa ser
-    // agendado de novo. Uma data prevista já vencida também sai (senão ele voltaria como
-    // "Atrasado", não "A Fazer"); data futura é mantida.
-    prisma.preSafra.updateMany({
-      where: { id: { in: ids } },
-      data: { configuradoSistema: false, formato: null, horario: null },
-    }),
-    prisma.preSafra.updateMany({
-      where: { id: { in: ids }, dataPrevista: { lt: new Date(diaHoje(new Date())) } },
-      data: { dataPrevista: null },
-    }),
+  // Todos os passos exigem o cliente ainda finalizado, e a bandeira configuradoSistema só vira
+  // false no último (a ordem importa): quem já foi reaberto ou reagendado por outra pessoa, com
+  // a tela desatualizada, não tem o agendamento novo apagado. O retorno é o que realmente mudou.
+  const [, , { count }] = await prisma.$transaction([
     prisma.conclusao.updateMany({
-      where: { preSafraId: { in: ids }, reabertoEm: null },
+      where: { preSafraId: { in: ids }, reabertoEm: null, preSafra: { configuradoSistema: true } },
       data: { reabertoEm: new Date(), reabertoPor: autor, motivoReabertura: motivo },
     }),
+    // Uma data prevista já vencida sai (senão o cliente voltaria como "Atrasado", não "A Fazer");
+    // data futura é mantida.
+    prisma.preSafra.updateMany({
+      where: {
+        id: { in: ids },
+        configuradoSistema: true,
+        dataPrevista: { lt: new Date(diaHoje(new Date())) },
+      },
+      data: { dataPrevista: null },
+    }),
+    // Volta para "A Fazer": sem formato (previsão/realizado) nem horário, o cliente precisa ser
+    // agendado de novo.
+    prisma.preSafra.updateMany({
+      where: { id: { in: ids }, configuradoSistema: true },
+      data: { configuradoSistema: false, formato: null, horario: null },
+    }),
   ]);
-  return ids.length;
+  return count;
 }

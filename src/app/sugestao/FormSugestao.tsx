@@ -102,6 +102,7 @@ export default function FormSugestao() {
           value={texto}
           onChange={(e) => mudarTexto(e.target.value)}
           required
+          maxLength={LIMITES.texto.max}
           rows={4}
           placeholder="Que dúvida ou tema deveria ter no FAQ?"
           className={CAMPO}

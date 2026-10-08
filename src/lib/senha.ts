@@ -3,17 +3,26 @@
 // scripts (tsx) fora do runtime do Next, como scripts/criar-usuario.ts.
 import { randomBytes, scrypt, timingSafeEqual } from "node:crypto";
 
-const N = 16384;
+// N=2^17, r=8, p=1: o mínimo recomendado pela OWASP para scrypt (usa uns 128 MiB por hash).
+const N = 131072;
 const R = 8;
 const P = 1;
 const KEYLEN = 64;
+// O limite padrão do Node (32 MiB) recusaria N=2^17; vale também para hashes antigos, de custo menor.
+const MAXMEM = 256 * 1024 * 1024;
 
 // util.promisify perde a sobrecarga com `options` (o TS só enxerga a de 3 argumentos),
 // então a promise é feita à mão em vez de promisify(scrypt).
 function scryptAsync(senha: string, salt: Buffer, keylen: number, opts: { N: number; r: number; p: number }): Promise<Buffer> {
   return new Promise((resolve, reject) => {
-    scrypt(senha, salt, keylen, opts, (erro, chave) => (erro ? reject(erro) : resolve(chave)));
+    scrypt(senha, salt, keylen, { ...opts, maxmem: MAXMEM }, (erro, chave) => (erro ? reject(erro) : resolve(chave)));
   });
+}
+
+/** O hash guardado foi feito com custo menor que o atual? Quem faz o login deve gerar um novo. */
+export function precisaRehash(armazenado: string): boolean {
+  const [algo, n, r, p] = armazenado.split(":");
+  return algo !== "scrypt" || Number(n) !== N || Number(r) !== R || Number(p) !== P;
 }
 
 // Guarda N/r/p no próprio hash para poder subir o custo no futuro sem invalidar hashes antigos.

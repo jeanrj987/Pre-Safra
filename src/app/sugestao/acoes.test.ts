@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const banco = vi.hoisted(() => ({
   findFirst: vi.fn(),
+  count: vi.fn(),
   create: vi.fn(),
 }));
 
@@ -29,6 +30,7 @@ const valida = {
 beforeEach(() => {
   vi.clearAllMocks();
   banco.findFirst.mockResolvedValue(null);
+  banco.count.mockResolvedValue(0);
   banco.create.mockResolvedValue({});
 });
 
@@ -81,13 +83,34 @@ describe("enviarSugestao", () => {
     expect(banco.create).not.toHaveBeenCalled();
   });
 
-  // A sugestão não tem limite de caracteres (só não pode ficar vazia): ver o commit que tirou o limite.
+  // A sugestão não tem mínimo (só não pode ficar vazia), mas passa de 2000 caracteres é recusada.
   it.each([
     ["curta", "curta"],
-    ["muito longa", "x".repeat(5000)],
+    ["no limite de 2000 caracteres", "x".repeat(2000)],
   ])("aceita sugestão %s", async (_nome, texto) => {
     expect(await enviarSugestao({ ...valida, texto })).toEqual({ status: "salva", revisar: false });
     expect(banco.create).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejeita sugestão com mais de 2000 caracteres sem tocar no banco", async () => {
+    const r = await enviarSugestao({ ...valida, texto: "x".repeat(2001) });
+    expect(r).toEqual({ status: "erro", mensagem: expect.stringContaining("2000") });
+    expect(banco.count).not.toHaveBeenCalled();
+    expect(banco.create).not.toHaveBeenCalled();
+  });
+
+  it("recusa o envio quando o WhatsApp passou do limite por hora", async () => {
+    banco.count.mockResolvedValueOnce(20).mockResolvedValueOnce(0);
+    const r = await enviarSugestao(valida);
+    expect(r.status).toBe("erro");
+    expect(banco.create).not.toHaveBeenCalled();
+  });
+
+  it("recusa o envio quando o total do último minuto passou do limite", async () => {
+    banco.count.mockResolvedValueOnce(0).mockResolvedValueOnce(60);
+    const r = await enviarSugestao(valida);
+    expect(r.status).toBe("erro");
+    expect(banco.create).not.toHaveBeenCalled();
   });
 
   it("ignora entrada que não é objeto", async () => {
@@ -100,7 +123,7 @@ describe("enviarSugestao", () => {
     expect(banco.create).not.toHaveBeenCalled();
   });
 
-  // Também não há limite de envios: o mesmo WhatsApp pode mandar quantas ideias diferentes quiser.
+  // O mesmo WhatsApp pode mandar várias ideias diferentes (o teto por hora é folgado).
   it("aceita vários envios seguidos do mesmo WhatsApp", async () => {
     for (const texto of ["primeira ideia", "segunda ideia", "terceira ideia", "quarta ideia", "quinta ideia", "sexta ideia"]) {
       expect(await enviarSugestao({ ...valida, texto })).toEqual({ status: "salva", revisar: false });

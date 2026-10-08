@@ -7,7 +7,7 @@ import Seletor from "@/app/Seletor";
 import { opcoesDeLista, opcoesDePessoas } from "@/app/seletorOpcoes";
 import Icone from "@/app/Icone";
 import BotaoEnviar from "@/app/BotaoEnviar";
-import { exigirAcessoCompleto, exigirAdmin, exigirLogin } from "@/lib/auth";
+import { exigirAcessoCompleto, exigirAdmin } from "@/lib/auth";
 import { assumirCliente, podeAlterarCliente, podeAssumirCliente } from "@/lib/responsavel";
 import { prisma } from "@/lib/db";
 import { calcularStatus, diasEmAtraso, mesPrevisto } from "@/lib/status";
@@ -111,7 +111,8 @@ export default async function Registro({
   // cliente (região, UF, equipe) — os dois viviam em formulários separados antes.
   async function salvar(formData: FormData) {
     "use server";
-    const sessao = await exigirLogin();
+    // Conta "somente Painel" não edita registro, mesmo com nome de responsável ligado.
+    const sessao = await exigirAcessoCompleto();
     // Confere no banco: a tela pode estar desatualizada e o formulário pode ser forjado.
     const atual = await prisma.preSafra.findUnique({ where: { id }, select: { responsavel: true } });
     if (!atual || !podeAlterarCliente(sessao, atual.responsavel)) redirect(`/registro/${id}?semPermissao=1${sufixoVoltar}`);
@@ -119,6 +120,8 @@ export default async function Registro({
     // carregada. Evita que duas pessoas editando o mesmo cliente ao mesmo tempo se
     // sobrescrevam silenciosamente (era o problema #1 da planilha antiga).
     const versaoEsperada = new Date(String(formData.get("versao")));
+    // Formulário forjado ou corrompido: Invalid Date faria o Prisma lançar erro (500).
+    if (Number.isNaN(versaoEsperada.getTime())) redirect(`/registro/${id}?conflito=1${sufixoVoltar}`);
     const { count } = await prisma.preSafra.updateMany({
       where: { id, atualizadoEm: versaoEsperada },
       data: {

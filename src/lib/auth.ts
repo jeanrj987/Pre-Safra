@@ -1,13 +1,13 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { cache } from "react";
 import { prisma } from "@/lib/db";
-import { verificarSenha } from "@/lib/senha";
+import { hashSenha, precisaRehash, verificarSenha } from "@/lib/senha";
 import { limparTentativasLogin, loginBloqueado, registrarFalhaLogin } from "@/lib/limitador";
 
 const COOKIE = "presafra_sessao";
-const SEIS_MESES = 60 * 60 * 24 * 180;
+const VALIDADE_SEGUNDOS = 60 * 60 * 24 * 30;
 
 export interface UsuarioSessao {
   id: number;
@@ -22,10 +22,12 @@ export interface UsuarioSessao {
 
 // A assinatura inclui o senhaHash atual: trocar a senha ou desativar o usuário invalida
 // qualquer sessão antiga automaticamente, sem precisar de uma tabela de sessões revogadas.
-function assinatura(id: number, senhaHash: string): string {
+// Inclui também a validade (exp, em segundos): ela vale dentro do valor assinado, então um
+// cookie copiado deixa de funcionar na data, mesmo que o navegador o mantenha.
+function assinatura(id: number, exp: number, senhaHash: string): string {
   const segredo = process.env.AUTH_SECRET;
   if (!segredo) throw new Error("AUTH_SECRET não configurado");
-  return createHmac("sha256", segredo).update(`sessao-v2:${id}:${senhaHash}`).digest("hex");
+  return createHmac("sha256", segredo).update(`sessao-v3:${id}:${exp}:${senhaHash}`).digest("hex");
 }
 
 function iguais(a: string, b: string): boolean {
@@ -41,21 +43,46 @@ export async function autenticar(email: string, senha: string) {
   if (loginBloqueado(chave)) return null;
 
   const usuario = await prisma.usuario.findUnique({ where: { email: chave } });
-  const valido = !!usuario?.ativo && (await verificarSenha(senha, usuario.senhaHash));
-  if (!valido) {
+  // Sem usuário (ou inativo), confere contra um hash falso mesmo assim: o tempo de resposta não
+  // revela se o e-mail existe.
+  const senhaConfere = await verificarSenha(senha, usuario?.senhaHash ?? (await obterHashFalso()));
+  if (!usuario?.ativo || !senhaConfere) {
     registrarFalhaLogin(chave);
     return null;
   }
   limparTentativasLogin(chave);
-  return usuario;
+  return atualizarCustoDoHash(usuario, senha);
+}
+
+let hashFalso: Promise<string> | undefined;
+const obterHashFalso = () => (hashFalso ??= hashSenha(randomBytes(16).toString("hex")));
+
+// Hash antigo (custo menor) é refeito com o custo atual no primeiro login bem-sucedido. A
+// gravação só vale se a senha não mudou nesse meio tempo. Como o cookie depende do senhaHash,
+// as sessões abertas em outros aparelhos desse usuário caem uma vez.
+async function atualizarCustoDoHash<T extends { id: number; senhaHash: string }>(usuario: T, senha: string): Promise<T> {
+  if (!precisaRehash(usuario.senhaHash)) return usuario;
+  try {
+    const novo = await hashSenha(senha);
+    const { count } = await prisma.usuario.updateMany({
+      where: { id: usuario.id, senhaHash: usuario.senhaHash },
+      data: { senhaHash: novo },
+    });
+    return count > 0 ? { ...usuario, senhaHash: novo } : usuario;
+  } catch (e) {
+    // O login já foi validado; falhar em modernizar o hash não pode derrubá-lo.
+    console.error("Falha ao atualizar o hash da senha", e);
+    return usuario;
+  }
 }
 
 export async function iniciarSessao(usuario: { id: number; senhaHash: string }) {
-  (await cookies()).set(COOKIE, `${usuario.id}.${assinatura(usuario.id, usuario.senhaHash)}`, {
+  const exp = Math.floor(Date.now() / 1000) + VALIDADE_SEGUNDOS;
+  (await cookies()).set(COOKIE, `${usuario.id}.${exp}.${assinatura(usuario.id, exp, usuario.senhaHash)}`, {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
-    maxAge: SEIS_MESES,
+    maxAge: VALIDADE_SEGUNDOS,
     path: "/",
   });
 }
@@ -69,12 +96,15 @@ export async function encerrarSessao() {
 const carregarSessao = cache(async (): Promise<UsuarioSessao | null> => {
   const valor = (await cookies()).get(COOKIE)?.value;
   if (!valor) return null;
-  const [idTexto, assinaturaRecebida] = valor.split(".");
+  // Cookies do formato antigo (id.assinatura) não têm 3 partes: caem aqui e pedem novo login.
+  const [idTexto, expTexto, assinaturaRecebida] = valor.split(".");
   const id = Number(idTexto);
-  if (!Number.isInteger(id) || !assinaturaRecebida) return null;
+  const exp = Number(expTexto);
+  if (!Number.isInteger(id) || !Number.isInteger(exp) || !assinaturaRecebida) return null;
+  if (exp < Date.now() / 1000) return null;
   const usuario = await prisma.usuario.findUnique({ where: { id } });
   if (!usuario || !usuario.ativo) return null;
-  if (!iguais(assinaturaRecebida, assinatura(usuario.id, usuario.senhaHash))) return null;
+  if (!iguais(assinaturaRecebida, assinatura(usuario.id, exp, usuario.senhaHash))) return null;
   return {
     id: usuario.id,
     nome: usuario.nome,

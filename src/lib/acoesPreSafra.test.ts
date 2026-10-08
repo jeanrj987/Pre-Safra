@@ -120,6 +120,19 @@ describe("reabrirIds", () => {
     expect(registro?.conclusoes[0].motivoReabertura).toBe("motivo do teste");
   });
 
+  it("não mexe em quem não está finalizado (agendamento feito por outra pessoa fica intacto)", async () => {
+    await prisma.preSafra.update({
+      where: { id: idB },
+      data: { configuradoSistema: false, formato: "Presencial", horario: "10:00", dataPrevista: new Date("2099-02-02") },
+    });
+    const feitos = await reabrirIds({ ids: [idB], motivo: "tela desatualizada", autor: "Teste" });
+    expect(feitos).toBe(0);
+
+    const registro = await prisma.preSafra.findUnique({ where: { id: idB } });
+    expect(registro?.formato).toBe("Presencial");
+    expect(registro?.horario).toBe("10:00");
+  });
+
   it("finalizar de novo depois de reaberto cria uma SEGUNDA entrada no histórico", async () => {
     const r = await finalizarPendentes({
       ids: [idA],

@@ -16,11 +16,16 @@ import { idsPermitidos, podeAgendarCliente, podeAlterarCliente } from "@/lib/res
 // esconder o botão na tela não basta, a Server Action pode ser chamada direto. Contas "somente
 // Painel" não têm acesso a nenhuma delas (exigirAcessoCompleto).
 
+// Teto de ids por chamada: a tela nunca manda mais que uma página de clientes, então um lote
+// maior é formulário forjado e viraria uma consulta gigante.
+const MAX_IDS = 500;
+
 const idsDe = (formData: FormData, campo: string) =>
   formData
     .getAll(campo)
+    .slice(0, MAX_IDS)
     .map(Number)
-    .filter((n) => Number.isInteger(n));
+    .filter((n) => Number.isInteger(n) && n > 0);
 
 const textoDe = (formData: FormData, campo: string) =>
   String(formData.get(campo) ?? "").trim() || null;

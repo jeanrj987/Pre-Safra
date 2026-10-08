@@ -3,7 +3,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { listarPerguntasFaq } from "@/lib/faq";
 import { acharPerguntaParecida } from "@/lib/similaridade";
-import { LIMITES, limparTexto, normalizarTopico } from "@/lib/sugestoes";
+import { LIMITE_ENVIOS, LIMITES, limparTexto, normalizarTopico } from "@/lib/sugestoes";
 import { normalizarWhatsapp } from "@/lib/whatsapp";
 
 export type Resultado =
@@ -16,6 +16,19 @@ export type Resultado =
 const erro = (mensagem: string): Resultado => ({ status: "erro", mensagem });
 
 const UM_DIA_MS = 24 * 60 * 60 * 1000;
+const UMA_HORA_MS = 60 * 60 * 1000;
+const UM_MINUTO_MS = 60 * 1000;
+
+// Sem Redis: conta no próprio banco (índices em criadoEm e em whatsapp+criadoEm). O teto por
+// WhatsApp é folgado para quem tem várias ideias; o geral segura quem varia o número.
+async function excedeuLimiteDeEnvios(whatsapp: string): Promise<boolean> {
+  const agora = Date.now();
+  const [doNumero, total] = await Promise.all([
+    prisma.sugestao.count({ where: { whatsapp, criadoEm: { gte: new Date(agora - UMA_HORA_MS) } } }),
+    prisma.sugestao.count({ where: { criadoEm: { gte: new Date(agora - UM_MINUTO_MS) } } }),
+  ]);
+  return doNumero >= LIMITE_ENVIOS.porWhatsappPorHora || total >= LIMITE_ENVIOS.totalPorMinuto;
+}
 
 // Rota PÚBLICA de propósito (qualquer pessoa com o QR code envia): por isso valida tudo no
 // servidor e ignora o que o cliente disser sobre tamanhos.
@@ -43,10 +56,18 @@ export async function enviarSugestao(entrada: unknown): Promise<Resultado> {
   if (topico.length < LIMITES.topico.min || topico.length > LIMITES.topico.max) {
     return erro(`Informe o assunto em até ${LIMITES.topico.max} caracteres.`);
   }
-  // O texto da sugestão não tem mínimo nem máximo de caracteres, só não pode ficar vazio
+  // O texto da sugestão não tem mínimo, só não pode ficar vazio; o máximo evita que alguém
+  // encha o banco e o telão (rota pública).
   if (!texto) return erro("Descreva sua sugestão.");
+  if (texto.length > LIMITES.texto.max) {
+    return erro(`A sugestão pode ter no máximo ${LIMITES.texto.max} caracteres.`);
+  }
 
   try {
+    if (await excedeuLimiteDeEnvios(whatsapp)) {
+      return erro("Muitos envios em pouco tempo. Aguarde alguns minutos e tente de novo.");
+    }
+
     const repetida = await prisma.sugestao.findFirst({
       where: { whatsapp, texto, criadoEm: { gte: new Date(Date.now() - UM_DIA_MS) } },
       select: { id: true },
