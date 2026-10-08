@@ -2,7 +2,7 @@
 // campo de data do navegador) e meses "aaaa-mm", calculados em UTC — sem hora, para não depender
 // do fuso do servidor (mesmo padrão de src/lib/diasUteis.ts).
 
-import { motivoDataIndisponivel } from "./diasUteis";
+import { motivoDataForaDoPrazo } from "./diasUteis";
 import { motivoHorarioPassado } from "./horarios";
 import { calcularStatus, STATUS_AGENDADOS, type StatusPreSafra } from "./status";
 
@@ -134,9 +134,10 @@ export function semanasDoMes({ ano, mes }: MesCalendario): string[][] {
   return semanas;
 }
 
-// As atividades seguem as mesmas regras do agendamento de clientes (src/app/acoes.ts e
-// Agendar.tsx): data e horário obrigatórios; data sem passado, fim de semana, feriado nem mais de
-// um ano à frente; horário (livre, qualquer hh:mm) que, hoje, só vale de agora em diante.
+// As atividades seguem as regras do agendamento de clientes (src/app/acoes.ts e Agendar.tsx),
+// menos uma: podem cair em sábado, domingo e feriado. Data e horário obrigatórios; data sem
+// passado nem mais de um ano à frente; horário (livre, qualquer hh:mm) que, hoje, só vale de
+// agora em diante.
 // Uma atividade que já existe e não teve a data (ou o horário) alterada não é barrada de novo:
 // senão ninguém conseguiria marcar como feita, nem corrigir o título, de uma atividade que
 // ficou no passado.
@@ -145,7 +146,7 @@ export function semanasDoMes({ ano, mes }: MesCalendario): string[][] {
 export function motivoDataAtividade(data: string, original?: string, agora: Date = new Date()): string | null {
   if (!data) return "Informe a data.";
   if (data === original) return null;
-  return motivoDataIndisponivel(data, agora);
+  return motivoDataForaDoPrazo(data, agora);
 }
 
 /** Motivo pelo qual o horário não serve; null se está ok. `original` traz data e horário já salvos. */
@@ -174,16 +175,6 @@ export function podeAlterarAtividade(
   if (atividade.criadoPorId !== null) return atividade.criadoPorId === usuario.id;
   const nome = (t: string) => t.trim().toLowerCase();
   return !!atividade.criadoPor && nome(atividade.criadoPor) === nome(usuario.nome);
-}
-
-/** Primeiro dia, a partir de `hoje`, em que se pode lançar uma atividade (pula fim de semana e feriado). */
-export function proximoDiaLivre(hoje: string, agora: Date = new Date()): string {
-  let ms = new Date(`${hoje}T00:00:00Z`).getTime();
-  for (let i = 0; i < 30; i++, ms += DIA_MS) {
-    const dia = isoDeMs(ms);
-    if (!motivoDataIndisponivel(dia, agora)) return dia;
-  }
-  return hoje;
 }
 
 /** "quarta-feira, 7 de outubro de 2026" — título da janela de um dia. */

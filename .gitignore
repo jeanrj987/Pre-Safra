@@ -55,3 +55,6 @@ next-env.d.ts
 
 # vault do Obsidian (documentação interna; nao versionar)
 /Vault/
+
+# manuais em PDF, capturas de tela e scripts para gerá-los (nao versionar)
+/docs/

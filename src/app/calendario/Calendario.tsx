@@ -10,9 +10,8 @@ import {
   dataPorExtenso,
   motivoDataAtividade,
   motivoHorarioAtividade,
-  proximoDiaLivre,
 } from "@/lib/calendario";
-import { dataMaximaIso, hojeIso, motivoDataIndisponivel } from "@/lib/diasUteis";
+import { dataMaximaIso, hojeIso, motivoDataForaDoPrazo } from "@/lib/diasUteis";
 import { alternarConclusao, criarAtividade, editarAtividade, excluirAtividade } from "./acoes";
 
 export interface AtividadeCalendario {
@@ -91,7 +90,7 @@ export default function Calendario({
           </button>
           <button
             type="button"
-            onClick={() => setJanela({ tipo: "nova", data: proximoDiaLivre(hoje) })}
+            onClick={() => setJanela({ tipo: "nova", data: hoje })}
             className="btn-primario"
           >
             <Icone nome="mais" />
@@ -185,9 +184,9 @@ function Dia({
   onVerTodos: () => void;
 }) {
   const numero = Number(dia.slice(8, 10));
-  // Mesmas regras do agendamento de clientes: dia passado, fim de semana e feriado não recebem
-  // atividade nova (as que já estão neles continuam aparecendo e podem ser editadas).
-  const bloqueio = motivoDataIndisponivel(dia);
+  // Dia passado não recebe atividade nova (as que já estão nele continuam aparecendo e podem ser
+  // editadas). Fim de semana e feriado recebem, ao contrário do agendamento de clientes.
+  const bloqueio = motivoDataForaDoPrazo(dia);
   const itens = juntarItens(atividades, clientes);
   const visiveis = itens.slice(0, MAX_POR_DIA);
   const escondidos = itens.length - visiveis.length;
@@ -297,7 +296,7 @@ function JanelaDia({
   onNova: () => void;
   onAbrir: (a: AtividadeCalendario) => void;
 }) {
-  const bloqueio = motivoDataIndisponivel(dia);
+  const bloqueio = motivoDataForaDoPrazo(dia);
   return (
     <Janela
       icone="calendario"

@@ -7,7 +7,6 @@ import {
   motivoDataAtividade,
   motivoHorarioAtividade,
   podeAlterarAtividade,
-  proximoDiaLivre,
   semanasDoMes,
 } from "./calendario";
 
@@ -56,19 +55,21 @@ describe("semanasDoMes", () => {
 // Quarta-feira, 7/10/2026, 11:00 em Mato Grosso (15:00 UTC). 12/10 (segunda) é feriado.
 const agora = new Date("2026-10-07T15:00:00Z");
 
-describe("motivoDataAtividade (mesmas regras do agendamento de clientes)", () => {
+describe("motivoDataAtividade (como o agendamento de clientes, mas aceita fim de semana e feriado)", () => {
   it("exige a data", () => {
     expect(motivoDataAtividade("")).toBe("Informe a data.");
   });
-  it("libera dia útil de hoje em diante", () => {
+  it("libera de hoje em diante", () => {
     expect(motivoDataAtividade("2026-10-07", undefined, agora)).toBeNull();
     expect(motivoDataAtividade("2026-10-08", undefined, agora)).toBeNull();
   });
-  it("barra data passada, fim de semana, feriado, data distante e data inexistente", () => {
+  it("libera sábado, domingo e feriado", () => {
+    expect(motivoDataAtividade("2026-10-10", undefined, agora)).toBeNull();
+    expect(motivoDataAtividade("2026-10-11", undefined, agora)).toBeNull();
+    expect(motivoDataAtividade("2026-10-12", undefined, agora)).toBeNull();
+  });
+  it("barra data passada, data distante e data inexistente", () => {
     expect(motivoDataAtividade("2026-10-06", undefined, agora)).toMatch(/retroativa/);
-    expect(motivoDataAtividade("2026-10-10", undefined, agora)).toMatch(/sábado/);
-    expect(motivoDataAtividade("2026-10-11", undefined, agora)).toMatch(/domingo/);
-    expect(motivoDataAtividade("2026-10-12", undefined, agora)).toMatch(/feriado/);
     expect(motivoDataAtividade("2028-01-03", undefined, agora)).toMatch(/um ano/);
     expect(motivoDataAtividade("2026-02-31", undefined, agora)).toMatch(/válida/);
   });
@@ -170,15 +171,6 @@ describe("agendamentosDoCalendario", () => {
       agora,
     );
     expect(lista.map((a) => a.id)).toEqual([4, 3, 2, 1]);
-  });
-});
-
-describe("proximoDiaLivre", () => {
-  it("devolve o próprio dia quando ele está livre", () => {
-    expect(proximoDiaLivre("2026-10-07", agora)).toBe("2026-10-07");
-  });
-  it("pula fim de semana e feriado", () => {
-    expect(proximoDiaLivre("2026-10-10", agora)).toBe("2026-10-13"); // sáb, dom e o feriado de segunda
   });
 });
 

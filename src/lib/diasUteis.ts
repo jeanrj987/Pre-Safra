@@ -122,11 +122,20 @@ export function motivoDataDistante(data: string, agora: Date = new Date()): stri
 }
 
 /**
- * Tudo o que impede agendar naquele dia, na ordem: data que não existe, data passada, data
- * distante demais, fim de semana ou feriado. Vazio não é erro aqui (quem exige a data é o formulário).
+ * Só o que vale para qualquer lançamento, útil ou não: data que não existe, data passada ou
+ * distante demais. Sábado, domingo e feriado passam (as atividades do Calendário podem cair neles).
+ * Vazio não é erro aqui (quem exige a data é o formulário).
  */
-export function motivoDataIndisponivel(data: string, agora: Date = new Date()): string | null {
+export function motivoDataForaDoPrazo(data: string, agora: Date = new Date()): string | null {
   if (!data) return null;
   if (!partes(data)) return "Informe uma data válida.";
-  return motivoDataPassada(data, agora) ?? motivoDataDistante(data, agora) ?? motivoDiaBloqueado(data);
+  return motivoDataPassada(data, agora) ?? motivoDataDistante(data, agora);
+}
+
+/**
+ * Tudo o que impede agendar um cliente naquele dia, na ordem: data que não existe, data passada,
+ * data distante demais, fim de semana ou feriado.
+ */
+export function motivoDataIndisponivel(data: string, agora: Date = new Date()): string | null {
+  return motivoDataForaDoPrazo(data, agora) ?? motivoDiaBloqueado(data);
 }
