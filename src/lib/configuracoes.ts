@@ -2,6 +2,23 @@ import { prisma } from "@/lib/db";
 import { SEGUNDOS_PAGINA_TELAO } from "@/lib/sugestoes";
 
 const CHAVE_SEGUNDOS_PAGINA = "telaoSegundosPorPagina";
+const CHAVE_TELAO_ATIVO = "telaoAtivo";
+
+// Enquanto o telão está aberto ele consulta o servidor a cada poucos segundos, o que consome
+// o plano da hospedagem. Por isso vem desligado: o admin liga só nos dias em que for usar.
+export async function lerTelaoAtivo(): Promise<boolean> {
+  const linha = await prisma.configuracao.findUnique({ where: { chave: CHAVE_TELAO_ATIVO } });
+  return linha?.valor === "1";
+}
+
+export async function gravarTelaoAtivo(ativo: boolean): Promise<void> {
+  const valor = ativo ? "1" : "0";
+  await prisma.configuracao.upsert({
+    where: { chave: CHAVE_TELAO_ATIVO },
+    update: { valor },
+    create: { chave: CHAVE_TELAO_ATIVO, valor },
+  });
+}
 
 /** Valor válido (inteiro dentro dos limites) ou null. */
 export function validarSegundosPagina(valor: unknown): number | null {

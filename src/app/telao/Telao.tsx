@@ -66,8 +66,11 @@ export default function Telao({
   const [novas, setNovas] = useState<Set<number>>(() => new Set());
   const [total, setTotal] = useState(inicial.total);
   const [situacao, setSituacao] = useState<"ok" | "sem-conexao">("ok");
+  // Desligado pelo admin: não consulta o servidor e mostra só o aviso (ver o fim do componente)
+  const [ligado, setLigado] = useState(inicial.ativo);
 
   useEffect(() => {
+    if (!ligado) return;
     let ativo = true;
     let todas = todasIniciais;
     const conhecidas = new Set(todas.map((s) => s.id));
@@ -187,6 +190,8 @@ export default function Telao({
         if (!res.ok) return setSituacao("sem-conexao");
         const dados: DadosTelao = await res.json();
         if (!ativo) return;
+        // O admin desligou com o telão aberto: o efeito é refeito e para de consultar o servidor
+        if (!dados.ativo) return setLigado(false);
 
         setSituacao("ok");
         setTotal(dados.total);
@@ -211,7 +216,23 @@ export default function Telao({
       clearTimeout(rotacao);
       timers.forEach(clearTimeout);
     };
-  }, [todasIniciais, paginaMsInicial]);
+  }, [todasIniciais, paginaMsInicial, ligado]);
+
+  if (!ligado) {
+    return (
+      <div className="fixed inset-0 z-50 grid place-items-center bg-night px-8 text-center text-white">
+        <div className="max-w-xl">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo-controlsoft.webp" alt="ControlSoft" className="mx-auto h-10 w-auto" />
+          <h1 className="mt-8 text-3xl font-semibold tracking-tight">Telão de ideias desativado</h1>
+          <p className="mt-3 text-base text-white/70">
+            Um administrador precisa ativá-lo em Admin → Sugestões. Depois de ativado, recarregue esta
+            página.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col overflow-hidden bg-night text-white lg:flex-row">

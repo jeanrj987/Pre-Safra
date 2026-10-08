@@ -114,7 +114,7 @@ export default async function Shell({
             aria-label="Início"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo-controlsoft.webp" alt="ControlSoft" className="h-6 w-auto" />
+            <img src="/logo-controlsoft.webp" alt="ControlSoft" className="h-10 w-auto" />
           </Link>
           <BotaoSidebar
             colapsadaInicial={sidebarColapsada}
@@ -203,7 +203,7 @@ export default async function Shell({
         <div className="mx-auto flex h-14 max-w-7xl items-center gap-3 px-4 sm:px-8">
           <Link href="/" className="flex shrink-0 items-center gap-3" aria-label="Início">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo-controlsoft.webp" alt="ControlSoft" className="h-6 w-auto sm:h-7" />
+            <img src="/logo-controlsoft.webp" alt="ControlSoft" className="h-7 w-auto sm:h-9" />
             <span className="hidden h-5 w-px bg-white/20 sm:block" />
             <span className="hidden max-w-40 truncate text-sm font-semibold text-white/90 sm:block">
               {tituloPreSafra(safraAtual)}

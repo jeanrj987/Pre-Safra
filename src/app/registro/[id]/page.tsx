@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import Shell from "@/app/Shell";
 import Selo from "@/app/Selo";
 import Seletor from "@/app/Seletor";
-import { opcoesDeLista, opcoesDePessoas } from "@/app/seletorOpcoes";
+import { opcoesDeLista } from "@/app/seletorOpcoes";
 import Icone from "@/app/Icone";
 import BotaoEnviar from "@/app/BotaoEnviar";
 import { exigirAcessoCompleto, exigirAdmin } from "@/lib/auth";
@@ -18,12 +18,10 @@ import {
   listarComerciaisConhecidos,
   listarConsultoresConhecidos,
   listarDuplasConhecidas,
-  listarEquipesPorRegiao,
-  listarNomesResponsaveis,
   listarRegioesConhecidas,
   UFS_BRASIL,
 } from "@/lib/dados";
-import { comercialDaRegiao, gruposDeResponsavel, type GrupoEquipe } from "@/lib/equipe";
+import { comercialDaRegiao } from "@/lib/equipe";
 
 const texto = (f: FormData, k: string) => String(f.get(k) ?? "").trim() || null;
 
@@ -58,16 +56,12 @@ export default async function Registro({
   const podeEditar = podeAlterarCliente(usuario, r.responsavel);
   const podeAssumir = podeAssumirCliente(usuario, r.responsavel) && !r.inativo;
   const [
-    nomes,
-    equipes,
     cidadesConhecidas,
     regioesConhecidas,
     duplasConhecidas,
     consultoresConhecidos,
     comerciaisConhecidos,
   ] = await Promise.all([
-      listarNomesResponsaveis(),
-      usuarioAdmin ? listarEquipesPorRegiao() : Promise.resolve<GrupoEquipe[]>([]),
       usuarioAdmin ? listarCidadesConhecidas() : Promise.resolve<string[]>([]),
       usuarioAdmin ? listarRegioesConhecidas() : Promise.resolve<string[]>([]),
       usuarioAdmin ? listarDuplasConhecidas() : Promise.resolve<string[]>([]),
@@ -80,14 +74,6 @@ export default async function Registro({
   const opcoesAtendimento = comValorAtual(duplasConhecidas, r.cliente?.atendente ?? null);
   const opcoesConsultor = comValorAtual(consultoresConhecidos, r.cliente?.consultor ?? null);
   const opcoesComercial = comValorAtual(comerciaisConhecidos, r.cliente?.comercial ?? null);
-  const pessoasDoCliente = {
-    atendentes: r.cliente?.atendente ?? null,
-    consultor: r.cliente?.consultor ?? null,
-    regiao: r.cliente?.regiao ?? null,
-    comercial: r.cliente?.comercial ?? null,
-  };
-  // Responsável (só admin escolhe): a equipe da região do cliente primeiro, depois cada região.
-  const gruposResponsavel = gruposDeResponsavel(pessoasDoCliente, equipes);
 
   const nome = r.cliente?.nome ?? r.clienteNomeManual ?? "(sem nome)";
   const dados = {
@@ -125,9 +111,7 @@ export default async function Registro({
     const { count } = await prisma.preSafra.updateMany({
       where: { id, atualizadoEm: versaoEsperada },
       data: {
-        // Só admin define/altera o responsável; se um usuário comum enviar o campo mesmo
-        // assim (ele não aparece no formulário dele), o servidor ignora.
-        ...(sessao.admin && { responsavel: texto(formData, "responsavel") }),
+        // O responsável é definido na lista de clientes, não neste formulário.
         // O agendamento (data, horário, formato) é feito só pelo botão "Agendar" da lista de clientes.
         observacoes: texto(formData, "observacoes"),
         // A seção de conclusão só existe no formulário de clientes finalizados; nos demais,
@@ -280,24 +264,6 @@ export default async function Registro({
         <fieldset disabled={!podeEditar} className="contents">
         <div className="space-y-6">
           <div className="card divide-y divide-line">
-            <section className="space-y-4 p-5 sm:p-6">
-              {usuario.admin ? (
-                <Seletor
-                  nome="responsavel" placeholder="Selecione o responsável"
-                  rotulo="Responsável"
-                  valorInicial={r.responsavel ?? ""}
-                  opcoes={opcoesDePessoas(gruposResponsavel, nomes)}
-                />
-              ) : (
-                <div>
-                  <span className="rotulo">Responsável</span>
-                  <p className="flex h-10 items-center text-sm text-ink">
-                    {r.responsavel || <span className="text-muted">Sem responsável</span>}
-                  </p>
-                </div>
-              )}
-            </section>
-
             {/* A conclusão é marcada na lista de clientes; aqui só se detalha depois de finalizado */}
             {r.configuradoSistema && (
               <section className="space-y-4 bg-finalizado-bg/40 p-5 sm:p-6">

@@ -3,7 +3,9 @@ import { revalidatePath } from "next/cache";
 import { exigirAdmin } from "@/lib/auth";
 import {
   gravarSegundosPaginaTelao,
+  gravarTelaoAtivo,
   lerSegundosPaginaTelao,
+  lerTelaoAtivo,
   validarSegundosPagina,
 } from "@/lib/configuracoes";
 import { prisma } from "@/lib/db";
@@ -11,6 +13,7 @@ import { formatarWhatsapp, linkWhatsapp } from "@/lib/whatsapp";
 import { SEGUNDOS_PAGINA_TELAO, VAGAS_NO_TELAO } from "@/lib/sugestoes";
 import { plural } from "@/lib/texto";
 import BotaoAcao from "@/app/BotaoAcao";
+import BotaoEnviar from "@/app/BotaoEnviar";
 import BotaoExcluir from "@/app/BotaoExcluir";
 import Icone from "@/app/Icone";
 import Paginacao from "@/app/Paginacao";
@@ -37,11 +40,12 @@ export default async function AdminSugestoes({
 }: {
   searchParams: Promise<{ pagina?: string }>;
 }) {
-  const [, sp, todosIds, segundosPagina] = await Promise.all([
+  const [, sp, todosIds, segundosPagina, telaoAtivo] = await Promise.all([
     exigirAdmin(),
     searchParams,
     prisma.sugestao.findMany({ select: { id: true }, orderBy: { id: "desc" } }),
     lerSegundosPaginaTelao(),
+    lerTelaoAtivo(),
   ]);
   const total = todosIds.length;
   const totalPaginas = Math.max(1, Math.ceil(total / TAMANHO_PAGINA));
@@ -66,6 +70,13 @@ export default async function AdminSugestoes({
     const segundos = validarSegundosPagina(formData.get("segundos"));
     if (segundos === null) return;
     await gravarSegundosPaginaTelao(segundos);
+    revalidatePath("/admin/sugestoes");
+  }
+
+  async function alternarTelao(formData: FormData) {
+    "use server";
+    await exigirAdmin();
+    await gravarTelaoAtivo(formData.get("ativar") === "1");
     revalidatePath("/admin/sugestoes");
   }
 
@@ -118,6 +129,31 @@ export default async function AdminSugestoes({
       </div>
 
       <div className="border-b border-line px-4 py-3 sm:px-5">
+        <form action={alternarTelao} className="mb-4 flex flex-wrap items-center gap-3">
+          <input type="hidden" name="ativar" value={telaoAtivo ? "0" : "1"} />
+          <span
+            className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+              telaoAtivo ? "bg-finalizado-bg text-finalizado-fg" : "bg-subtle text-muted"
+            }`}
+          >
+            <span
+              className={`size-1.5 rounded-full ${telaoAtivo ? "bg-finalizado-dot" : "bg-muted"}`}
+              aria-hidden="true"
+            />
+            {telaoAtivo ? "Telão ativo" : "Telão desativado"}
+          </span>
+          <BotaoEnviar
+            pendente="Salvando…"
+            className={telaoAtivo ? "btn-contorno btn-sm" : "btn-primario btn-sm"}
+          >
+            {telaoAtivo ? "Desativar telão" : "Ativar telão"}
+          </BotaoEnviar>
+          <p className="basis-full text-xs text-muted">
+            Aberto, o telão consulta o servidor a cada poucos segundos e consome o plano da
+            hospedagem. Deixe desativado e ative só nos dias de uso. Ao ativar, recarregue o telão; ao
+            desativar, ele para sozinho em alguns segundos.
+          </p>
+        </form>
         <TempoTelao segundos={segundosPagina} salvar={salvarTempoTelao} />
         <p className="mt-1.5 text-xs text-muted">
           Entre {SEGUNDOS_PAGINA_TELAO.min} e {SEGUNDOS_PAGINA_TELAO.max} segundos. Vale só quando há
