@@ -34,6 +34,8 @@ import { obterSafraSelecionada, tituloPreSafra } from "@/lib/safra";
 type FiltroStatus = "Atrasado" | "A Fazer" | "Agendado" | "Finalizado";
 
 const TAMANHO_PAGINA = 50;
+// Tamanhos de página que o usuário pode escolher; "todos" mostra a lista inteira numa página só.
+const TAMANHOS_PAGINA = ["50", "100", "200", "todos"];
 
 // Frases de confirmação após uma ação (singular/plural conforme a quantidade).
 const MENSAGEM: Record<string, [string, string]> = {
@@ -125,16 +127,19 @@ export default async function Home({ searchParams }: PageProps<"/">) {
 
   // Página fora do intervalo (ex.: filtro mudou e sobrou menos página do que antes) cai na
   // última válida em vez de mostrar uma lista vazia.
-  const totalPaginas = Math.max(1, Math.ceil(filtradas.length / TAMANHO_PAGINA));
+  const por = TAMANHOS_PAGINA.includes(um(sp.por)) ? um(sp.por) : String(TAMANHO_PAGINA);
+  const tamanhoPagina = por === "todos" ? Math.max(filtradas.length, 1) : Number(por);
+  const totalPaginas = Math.max(1, Math.ceil(filtradas.length / tamanhoPagina));
   const paginaAtual = Math.min(Math.max(Number(um(sp.pagina)) || 1, 1), totalPaginas);
   const linhas = filtradas.slice(
-    (paginaAtual - 1) * TAMANHO_PAGINA,
-    paginaAtual * TAMANHO_PAGINA,
+    (paginaAtual - 1) * tamanhoPagina,
+    paginaAtual * tamanhoPagina,
   );
 
   const atual = (() => {
     const p = new URLSearchParams();
     if (q) p.set("q", q);
+    if (por !== String(TAMANHO_PAGINA)) p.set("por", por);
     if (status) p.set("status", status);
     resps.forEach((r) => p.append("responsavel", r));
     regioesSel.forEach((r) => p.append("regiao", r));
@@ -334,7 +339,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
             <span className="text-sm text-muted">
               {filtradas.length === 0
                 ? "Mostrando 0 clientes"
-                : `Mostrando ${(paginaAtual - 1) * TAMANHO_PAGINA + 1}–${Math.min(paginaAtual * TAMANHO_PAGINA, filtradas.length)} de ${filtradas.length} clientes`}
+                : `Mostrando ${(paginaAtual - 1) * tamanhoPagina + 1}–${Math.min(paginaAtual * tamanhoPagina, filtradas.length)} de ${filtradas.length} clientes`}
             </span>
           </div>
         </div>
@@ -415,6 +420,20 @@ export default async function Home({ searchParams }: PageProps<"/">) {
               />
             </div>
           )}
+          <Seletor
+            nome="por"
+            rotulo="Clientes por página"
+            ocultarRotulo
+            tamanho="compacto"
+            valorInicial={por}
+            enviarAoMudar
+            opcoes={[
+              { valor: "50", rotulo: "50 por página" },
+              { valor: "100", rotulo: "100 por página" },
+              { valor: "200", rotulo: "200 por página" },
+              { valor: "todos", rotulo: "Todos os clientes" },
+            ]}
+          />
           {filtrando && (
             <Link href="/" className="btn-discreto">
               <Icone nome="x" />

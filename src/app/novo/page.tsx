@@ -11,6 +11,7 @@ import { opcoesDeLista, opcoesDePessoas } from "@/app/seletorOpcoes";
 import { motivoDataIndisponivel } from "@/lib/diasUteis";
 import { exigirAcessoCompleto, exigirAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { nomeMaiusculo } from "@/lib/texto";
 import { obterSafraSelecionada } from "@/lib/safra";
 import { ErroPlanilhaInvalida, importarClientesDaPlanilha } from "@/lib/importarPlanilha";
 import {
@@ -64,7 +65,7 @@ export default async function Novo({
   async function criar(formData: FormData) {
     "use server";
     const sessao = await exigirAcessoCompleto();
-    const nome = String(formData.get("nome") ?? "").trim();
+    const nome = nomeMaiusculo(String(formData.get("nome") ?? ""));
     const safra = await obterSafraSelecionada();
     if (!nome || !safra) redirect("/novo");
 

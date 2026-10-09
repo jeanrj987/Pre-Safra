@@ -74,7 +74,7 @@ async function lerPlanilha(): Promise<Linha[]> {
   const linhas = new Map<string, Linha>();
   ws.eachRow((row, n) => {
     if (n === 1) return;
-    const nome = texto(row.getCell(colNome).value);
+    const nome = texto(row.getCell(colNome).value).toLocaleUpperCase("pt-BR").replace(/\s+/g, " ");
     if (!nome) return;
     const { regiao, ambigua } = limparRegiao(colRegiao ? texto(row.getCell(colRegiao).value) : "");
     // Sem região confiável, o atendente também não é confiável (pode ser a soma de duas duplas).

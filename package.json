@@ -11,6 +11,7 @@
     "test": "vitest run",
     "importar": "tsx scripts/importar-clientes.ts",
     "importar:gifnoc": "tsx scripts/importar-gifnoc.ts",
+    "padronizar:nomes": "tsx scripts/padronizar-nomes-clientes.ts",
     "importar:cidades": "tsx scripts/importar-cidades-consultores.ts",
     "migrar-conclusoes": "tsx scripts/migrar-conclusoes.ts",
     "migrar-safra": "tsx scripts/migrar-safra-2026.ts",

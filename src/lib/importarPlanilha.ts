@@ -1,5 +1,6 @@
 import ExcelJS from "exceljs";
 import { prisma } from "@/lib/db";
+import { nomeMaiusculo } from "@/lib/texto";
 
 // Mesma lógica de leitura do scripts/importar-clientes.ts, adaptada para rodar a partir de um
 // arquivo enviado pelo navegador (ArrayBuffer) em vez de um caminho no disco.
@@ -78,7 +79,7 @@ async function lerLinhas(buffer: ArrayBuffer): Promise<LeituraPlanilha> {
   let linhasIgnoradas = 0;
   ws.eachRow((row, n) => {
     if (n === 1) return;
-    const nome = texto(row.getCell(colNome).value);
+    const nome = nomeMaiusculo(texto(row.getCell(colNome).value));
     if (!nome) return;
     // Nome só com números não é um cliente de verdade — provável planilha fora do formato.
     if (somenteNumeros(nome)) {

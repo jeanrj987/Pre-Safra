@@ -194,15 +194,17 @@ export async function listarEquipesPorRegiao(): Promise<GrupoEquipe[]> {
   );
 }
 
-/** Cidades já usadas em algum cliente, para sugerir no cadastro em vez de digitar do zero. */
+/** Cidades que sempre aparecem na lista, mesmo antes de existir um cliente nelas (a UF é escolhida à parte). */
+const CIDADES_FIXAS = ["Cujubim", "Maracaju"];
+
+/** Cidades já usadas em algum cliente, mais as fixas, para sugerir no cadastro em vez de digitar do zero. */
 export async function listarCidadesConhecidas(): Promise<string[]> {
   const linhas = await prisma.cliente.findMany({
     where: { cidade: { not: null } },
     distinct: ["cidade"],
     select: { cidade: true },
   });
-  return linhas
-    .map((l) => l.cidade as string)
+  return [...new Set([...linhas.map((l) => l.cidade as string), ...CIDADES_FIXAS])]
     .sort((a, b) => a.localeCompare(b, "pt-BR"));
 }
 

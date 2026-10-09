@@ -2,13 +2,14 @@
 import { revalidatePath } from "next/cache";
 import { exigirAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { nomeMaiusculo } from "@/lib/texto";
 
 const texto = (f: FormData, k: string) => String(f.get(k) ?? "").trim() || null;
 
 // Devolve o erro (nome vazio ou já usado) para a janela de edição mostrá-lo no lugar.
 export async function salvarCadastro(id: number, formData: FormData): Promise<{ erro?: string }> {
   await exigirAdmin();
-  const nome = texto(formData, "nome");
+  const nome = nomeMaiusculo(String(formData.get("nome") ?? ""));
   if (!nome) return { erro: "Preencha o nome do cliente." };
   // O nome é único: comparar sem diferenciar maiúsculas evita dois cadastros "iguais" na tela.
   const repetido = await prisma.cliente.findFirst({

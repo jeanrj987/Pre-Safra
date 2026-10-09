@@ -34,7 +34,10 @@ interface Item {
 }
 
 async function main() {
-  const plano: Item[] = JSON.parse(readFileSync(arquivo, "utf8"));
+  const plano: Item[] = (JSON.parse(readFileSync(arquivo, "utf8")) as Item[]).map((i) => ({
+    ...i,
+    nome: i.nome.trim().replace(/\s+/g, " ").toLocaleUpperCase("pt-BR"),
+  }));
   const prisma = new PrismaClient({
     adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }),
   });

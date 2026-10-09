@@ -22,6 +22,7 @@ import {
   UFS_BRASIL,
 } from "@/lib/dados";
 import { comercialDaRegiao } from "@/lib/equipe";
+import { nomeMaiusculo } from "@/lib/texto";
 
 const texto = (f: FormData, k: string) => String(f.get(k) ?? "").trim() || null;
 
@@ -38,7 +39,7 @@ export default async function Registro({
 }: PageProps<"/registro/[id]">) {
   const usuario = await exigirAcessoCompleto();
   const { id: idStr } = await params;
-  const { salvo, conflito, semPermissao, voltar } = await searchParams;
+  const { salvo, conflito, semPermissao, voltar, erroNome } = await searchParams;
   const id = Number(idStr);
   if (!Number.isInteger(id)) notFound();
 
@@ -102,6 +103,19 @@ export default async function Registro({
     // Confere no banco: a tela pode estar desatualizada e o formulário pode ser forjado.
     const atual = await prisma.preSafra.findUnique({ where: { id }, select: { responsavel: true } });
     if (!atual || !podeAlterarCliente(sessao, atual.responsavel)) redirect(`/registro/${id}?semPermissao=1${sufixoVoltar}`);
+    // Novo nome do cliente (só admin, só com cadastro): confere antes de gravar qualquer coisa,
+    // para um nome vazio ou repetido não salvar o resto pela metade. O nome é único no banco.
+    let nomeCliente: string | undefined;
+    if (sessao.admin && formData.has("clienteId") && formData.has("nome")) {
+      const clienteId = Number(formData.get("clienteId"));
+      nomeCliente = nomeMaiusculo(String(formData.get("nome") ?? ""));
+      if (!nomeCliente) redirect(`/registro/${id}?erroNome=vazio${sufixoVoltar}`);
+      const repetido = await prisma.cliente.findFirst({
+        where: { id: { not: clienteId }, nome: { equals: nomeCliente, mode: "insensitive" } },
+        select: { id: true },
+      });
+      if (repetido) redirect(`/registro/${id}?erroNome=repetido${sufixoVoltar}`);
+    }
     // Optimistic locking: só grava se ninguém alterou o registro desde que esta tela foi
     // carregada. Evita que duas pessoas editando o mesmo cliente ao mesmo tempo se
     // sobrescrevam silenciosamente (era o problema #1 da planilha antiga).
@@ -132,6 +146,7 @@ export default async function Registro({
         await prisma.cliente.update({
           where: { id: clienteId },
           data: {
+            ...(nomeCliente && { nome: nomeCliente }),
             cidade: texto(formData, "cidade"),
             uf: texto(formData, "uf")?.toUpperCase() ?? null,
             regiao: texto(formData, "regiao"),
@@ -162,9 +177,9 @@ export default async function Registro({
     await exigirAdmin();
     if (!nomeManual) redirect(`/registro/${id}`);
     const cliente = await prisma.cliente.upsert({
-      where: { nome: nomeManual },
+      where: { nome: nomeMaiusculo(nomeManual) },
       update: {},
-      create: { nome: nomeManual },
+      create: { nome: nomeMaiusculo(nomeManual) },
     });
     await prisma.preSafra.update({
       where: { id },
@@ -230,6 +245,17 @@ export default async function Registro({
         </p>
       )}
 
+      {erroNome && (
+        <p
+          role="alert"
+          className="flex items-center gap-2 rounded-lg bg-atrasado-bg px-4 py-3 text-sm font-medium text-atrasado-fg"
+        >
+          <Icone nome="alerta" />
+          Nada foi salvo:{" "}
+          {erroNome === "repetido" ? "já existe um cliente com esse nome." : "preencha o nome do cliente."}
+        </p>
+      )}
+
       {(!podeEditar || semPermissao) && (
         <div
           role={semPermissao ? "alert" : "status"}
@@ -281,6 +307,22 @@ export default async function Registro({
                   <span className="text-sm font-medium">Melhorias apresentadas ao cliente</span>
                 </label>
                 <input type="hidden" name="secaoConclusao" value="1" />
+              </section>
+            )}
+
+            {/* Largo de propósito: nomes de cliente são compridos e não cabem na coluna lateral. */}
+            {usuario.admin && r.cliente && (
+              <section className="p-5 sm:p-6">
+                <label className="block">
+                  <span className="text-base font-semibold">Nome do cliente</span>
+                  <input
+                    name="nome"
+                    required
+                    autoComplete="off"
+                    defaultValue={r.cliente.nome}
+                    className="campo mt-3"
+                  />
+                </label>
               </section>
             )}
 
