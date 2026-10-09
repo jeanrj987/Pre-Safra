@@ -2,6 +2,7 @@
 import { useState } from "react";
 import BotaoEnviar from "@/app/BotaoEnviar";
 import { Janela, RodapeJanela } from "@/app/Finalizar";
+import Icone from "@/app/Icone";
 import Seletor from "@/app/Seletor";
 import { comValorAtual, opcoesDeLista } from "@/app/seletorOpcoes";
 
@@ -25,7 +26,7 @@ interface Listas {
   comerciais: string[];
 }
 
-// Popup para editar o cadastro do cliente (cidade, UF, região, atendimento, consultor) de
+// Popup para editar o cadastro do cliente (nome, cidade, UF, região, atendimento, consultor) de
 // uma vez, em vez de um campo por vez direto na linha da tabela. (Mesmo com comercial.)
 export default function EditarCliente({
   cliente,
@@ -34,9 +35,15 @@ export default function EditarCliente({
 }: {
   cliente: Cliente;
   listas: Listas;
-  salvar: (formData: FormData) => Promise<void>;
+  salvar: (formData: FormData) => Promise<{ erro?: string }>;
 }) {
   const [aberto, setAberto] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+
+  const fechar = () => {
+    setAberto(false);
+    setErro(null);
+  };
 
   return (
     <>
@@ -48,22 +55,41 @@ export default function EditarCliente({
           icone="usuario"
           titulo="Editar cadastro"
           subtitulo={cliente.nome}
-          onFechar={() => setAberto(false)}
+          onFechar={fechar}
         >
           <form
             action={async (formData) => {
-              await salvar(formData);
-              setAberto(false);
+              const resultado = await salvar(formData);
+              if (resultado.erro) setErro(resultado.erro);
+              else fechar();
             }}
           >
             {/* Altura mínima: o menu de cidade (com busca) abre sobre a janela e precisa de espaço. */}
             <div className="grid min-h-[22rem] content-start gap-4 px-4 py-5 sm:px-6 sm:grid-cols-2">
+              {erro && (
+                <p
+                  role="alert"
+                  className="flex items-center gap-2 rounded-lg bg-atrasado-bg px-3 py-2 text-sm font-medium text-atrasado-fg sm:col-span-2"
+                >
+                  <Icone nome="alerta" />
+                  {erro}
+                </p>
+              )}
+              <label className="block sm:col-span-2">
+                <span className="rotulo">Nome do cliente</span>
+                <input
+                  name="nome"
+                  required
+                  autoFocus
+                  defaultValue={cliente.nome}
+                  className="campo"
+                />
+              </label>
               <Seletor
                 nome="cidade" placeholder="Selecione a cidade"
                 rotulo="Cidade"
                 valorInicial={cliente.cidade ?? ""}
                 opcoes={opcoesDeLista(comValorAtual(cliente.cidade, listas.cidades))}
-                autoFocus
               />
               <Seletor
                 nome="uf" placeholder="Selecione a UF"
@@ -96,7 +122,7 @@ export default function EditarCliente({
                 opcoes={opcoesDeLista(comValorAtual(cliente.comercial, listas.comerciais))}
               />
             </div>
-            <RodapeJanela onCancelar={() => setAberto(false)}>
+            <RodapeJanela onCancelar={fechar}>
               <BotaoEnviar pendente="Salvando…" className="btn-primario">
                 Salvar
               </BotaoEnviar>

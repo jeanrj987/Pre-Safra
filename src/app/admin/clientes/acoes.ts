@@ -5,11 +5,21 @@ import { prisma } from "@/lib/db";
 
 const texto = (f: FormData, k: string) => String(f.get(k) ?? "").trim() || null;
 
-export async function salvarCadastro(id: number, formData: FormData) {
+// Devolve o erro (nome vazio ou já usado) para a janela de edição mostrá-lo no lugar.
+export async function salvarCadastro(id: number, formData: FormData): Promise<{ erro?: string }> {
   await exigirAdmin();
+  const nome = texto(formData, "nome");
+  if (!nome) return { erro: "Preencha o nome do cliente." };
+  // O nome é único: comparar sem diferenciar maiúsculas evita dois cadastros "iguais" na tela.
+  const repetido = await prisma.cliente.findFirst({
+    where: { id: { not: id }, nome: { equals: nome, mode: "insensitive" } },
+    select: { id: true },
+  });
+  if (repetido) return { erro: "Já existe um cliente com esse nome." };
   await prisma.cliente.update({
     where: { id },
     data: {
+      nome,
       cidade: texto(formData, "cidade"),
       uf: texto(formData, "uf")?.toUpperCase() ?? null,
       regiao: texto(formData, "regiao"),
@@ -20,6 +30,7 @@ export async function salvarCadastro(id: number, formData: FormData) {
   });
   revalidatePath("/admin/clientes");
   revalidatePath("/", "layout");
+  return {};
 }
 
 // Inativar/reativar vale para o Pré-Safra do cliente na safra selecionada (é ele que sai ou
