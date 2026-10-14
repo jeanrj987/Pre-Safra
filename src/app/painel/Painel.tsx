@@ -6,19 +6,18 @@ import GraficoRitmo from "./GraficoRitmo";
 import GraficoVencimentos from "./GraficoVencimentos";
 import Regioes from "./Regioes";
 import { AndamentoGeral } from "./Resumo";
-import { SEM_FILTROS, SEM_REGIAO, aplicarFiltros, type Filtros } from "./filtros";
 import {
-  listarRegioes,
-  metricas,
-  pessoasDaDupla,
-  type ClientePainel,
-  type PeriodoSafra,
-} from "@/lib/painel";
+  SEM_FILTROS,
+  SEM_REGIAO,
+  SEM_RESPONSAVEL,
+  aplicarFiltros,
+  pessoasParaFiltro,
+  type Filtros,
+} from "./filtros";
+import { listarRegioes, metricas, type ClientePainel, type PeriodoSafra } from "@/lib/painel";
 import { nf } from "./cores";
 import Seletor, { type OpcaoSeletor } from "../Seletor";
 import { Avatar, Bolinha } from "../seletorOpcoes";
-
-const SEM_RESPONSAVEL = "Sem responsável";
 
 export default function Painel({
   clientes,
@@ -40,16 +39,7 @@ export default function Painel({
   );
 
   const temSemRegiao = clientes.some((c) => !c.regiao);
-  const grupos = useMemo(() => {
-    const daDupla = new Set<string>();
-    const porRegiao = regioes.map((r) => {
-      const pessoas = pessoasDaDupla(r.atendentes);
-      pessoas.forEach((p) => daDupla.add(p));
-      return { nome: r.curto, pessoas };
-    });
-    const outros = [...new Set(clientes.map((c) => c.responsavel).filter((r): r is string => !!r && !daDupla.has(r)))].sort();
-    return { porRegiao, outros };
-  }, [clientes, regioes]);
+  const grupos = useMemo(() => pessoasParaFiltro(clientes, regioes), [clientes, regioes]);
 
   const opcoesRegiao: OpcaoSeletor[] = [
     { valor: "", rotulo: "Todas as regiões" },

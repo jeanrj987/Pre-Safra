@@ -4,6 +4,7 @@ import { exigirAdmin } from "@/lib/auth";
 import { hashSenha } from "@/lib/senha";
 import { prisma } from "@/lib/db";
 import { listarNomesResponsaveis } from "@/lib/dados";
+import { contemNome } from "@/lib/texto";
 import BotaoAcao from "@/app/BotaoAcao";
 import BotaoExcluir from "@/app/BotaoExcluir";
 import Icone from "@/app/Icone";
@@ -45,7 +46,7 @@ export default async function AdminUsuarios({
       return { erro: "Já existe um usuário com esse e-mail." };
     }
     // A ligação tem que ser um nome da lista de responsáveis.
-    if (nomeResponsavel && !(await listarNomesResponsaveis()).includes(nomeResponsavel)) {
+    if (nomeResponsavel && !contemNome(await listarNomesResponsaveis(), nomeResponsavel)) {
       return { erro: "Escolha um nome da lista de responsáveis." };
     }
     await prisma.usuario.create({
@@ -76,7 +77,7 @@ export default async function AdminUsuarios({
 
     // A ligação tem que ser um nome da lista de responsáveis (ou o que já estava salvo, se saiu da lista).
     if (nomeResponsavel && nomeResponsavel !== alvo.nomeResponsavel) {
-      if (!(await listarNomesResponsaveis()).includes(nomeResponsavel)) {
+      if (!contemNome(await listarNomesResponsaveis(), nomeResponsavel)) {
         return { erro: "Escolha um nome da lista de responsáveis." };
       }
     }
@@ -265,7 +266,7 @@ function LigacaoResponsavel({
       <span className="text-atrasado-fg">Sem ligação: só visualiza</span>
     );
   }
-  const naLista = nomes.includes(usuario.nomeResponsavel);
+  const naLista = contemNome(nomes, usuario.nomeResponsavel);
   return (
     <span className={naLista ? "text-ink" : "text-atrasado-fg"}>
       {usuario.nomeResponsavel}

@@ -162,7 +162,7 @@ export function montarFila(set: ClientePainel[], hoje: number): ItemFila[] {
 export type Dimensao = "responsavel" | "formato";
 
 export const chaveDe = (c: ClientePainel, dim: Dimensao) =>
-  dim === "responsavel" ? (c.responsavel ?? "Sem responsável") : (c.formato ?? "Não definido");
+  dim === "responsavel" ? (c.responsavel?.trim() || "Sem responsável") : (c.formato ?? "Não definido");
 
 export interface LinhaCarga {
   chave: string;

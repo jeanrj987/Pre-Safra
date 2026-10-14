@@ -2,6 +2,7 @@ import { FUSO_NEGOCIO } from "./fuso";
 import { COMERCIAL_POR_REGIAO, equipesPorRegiao, type GrupoEquipe } from "./equipe";
 import { prisma } from "@/lib/db";
 import { pessoasDaDupla } from "@/lib/painel";
+import { semRepetir } from "@/lib/texto";
 import {
   calcularStatus,
   diasAtrasoNaConclusao,
@@ -130,11 +131,11 @@ function coletarNomes(
   responsaveis: (string | null)[],
   extras: (string | null)[] = [],
 ): string[] {
-  const nomes = new Set<string>();
-  duplas.forEach((d) => pessoasDaDupla(d).forEach((p) => nomes.add(p)));
-  responsaveis.forEach((r) => r && nomes.add(r));
-  extras.forEach((e) => e && nomes.add(e));
-  return [...nomes].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  const nomes: string[] = [];
+  duplas.forEach((d) => pessoasDaDupla(d).forEach((p) => nomes.push(p)));
+  responsaveis.forEach((r) => r && nomes.push(r.trim()));
+  extras.forEach((e) => e && nomes.push(e.trim()));
+  return semRepetir(nomes).sort((a, b) => a.localeCompare(b, "pt-BR"));
 }
 
 /** Todos os nomes que podem ser responsáveis: atendentes das regiões e quem já foi escolhido. */

@@ -7,6 +7,7 @@ import {
   gruposDeResponsavel,
   regioesDoAtendente,
 } from "./equipe";
+import { nomesPossiveis, type Linha } from "./dados";
 
 const oeste = { atendentes: "Amanda Albano e Cauê", consultor: "André", regiao: "Oeste MT a RO/AC" };
 const leste = { atendentes: "Gabriel e Samuel", consultor: "André", regiao: "Leste MT a TO/GO/MG" };
@@ -61,6 +62,51 @@ describe("filtro por responsável", () => {
   it("aceita vários nomes e ignora caixa e acento", () => {
     const c = { responsavel: "  cauê ", atendentes: null };
     expect(bateFiltroResponsavel(c, ["Jean", "Caue"])).toBe(true);
+  });
+});
+
+describe("opções do filtro de responsável da lista", () => {
+  const linha = (p: Partial<Linha> = {}): Linha => ({
+    id: 1,
+    nome: "Cliente",
+    semCadastro: false,
+    responsavel: null,
+    atendentes: oeste.atendentes,
+    cidade: null,
+    uf: null,
+    regiao: oeste.regiao,
+    consultor: null,
+    dataPrevista: null,
+    horario: null,
+    formato: null,
+    observacao: null,
+    status: "A Fazer",
+    dias: null,
+    atrasoNaConclusao: null,
+    mes: null,
+    ...p,
+  });
+
+  // O erro que não pode voltar: o filtro oferecer uma pessoa e, ao escolhê-la, não vir nenhum cliente.
+  it("toda pessoa oferecida devolve clientes (safra sem nenhum responsável gravado)", () => {
+    const linhas = [linha(), linha({ atendentes: leste.atendentes, regiao: leste.regiao }), linha({ atendentes: null })];
+    const nomes = nomesPossiveis(linhas);
+    expect(nomes.sort()).toEqual(["Amanda Albano", "Cauê", "Gabriel", "Samuel"].sort());
+    for (const nome of nomes) {
+      expect(linhas.filter((l) => bateFiltroResponsavel(l, [nome])).length, `"${nome}" sem clientes`).toBeGreaterThan(0);
+    }
+  });
+
+  it("toda pessoa oferecida devolve clientes (com responsáveis gravados)", () => {
+    const linhas = [linha({ responsavel: "Jean" }), linha({ responsavel: "Fulano de Fora" }), linha()];
+    for (const nome of nomesPossiveis(linhas)) {
+      expect(linhas.filter((l) => bateFiltroResponsavel(l, [nome])).length, `"${nome}" sem clientes`).toBeGreaterThan(0);
+    }
+  });
+
+  it("não repete a mesma pessoa com grafia diferente", () => {
+    const nomes = nomesPossiveis([linha({ responsavel: "amanda albano" }), linha({ responsavel: " Cauê " })]);
+    expect(nomes).toEqual(["Amanda Albano", "Cauê"]);
   });
 });
 
