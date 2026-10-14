@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Form from "next/form";
 import { CampoBusca } from "./Auto";
-import { equipesPorRegiao, gruposDeResponsavel, regioesDoAtendente } from "@/lib/equipe";
+import { bateFiltroResponsavel, equipesPorRegiao, gruposDeResponsavel, regioesDoAtendente } from "@/lib/equipe";
 import Seletor from "./Seletor";
 import { Avatar, Bolinha } from "./seletorOpcoes";
 import { normalizar, plural } from "@/lib/texto";
@@ -113,7 +113,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
     (l) =>
       (!q || normalizar(l.nome).includes(normalizar(q))) &&
       bateStatus(l.status) &&
-      (resps.length === 0 || (!!l.responsavel && resps.includes(l.responsavel))) &&
+      bateFiltroResponsavel(l, resps) &&
       (regioesSel.length === 0 || (!!l.regiao && regioesSel.includes(l.regiao))) &&
       (!formato || l.formato === formato) &&
       (!comentario || (!!l.observacao && normalizar(l.observacao).includes(normalizar(comentario)))),

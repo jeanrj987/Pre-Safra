@@ -79,6 +79,21 @@ export function regioesDoAtendente(nome: string | null, clientes: Pick<EquipeCli
 }
 
 /**
+ * O cliente entra no filtro por responsável? Com responsável definido, vale só ele; sem
+ * responsável (ainda não agendado), vale a dupla de atendentes da região, que é quem o atende.
+ */
+export function bateFiltroResponsavel(
+  c: Pick<EquipeCliente, "atendentes"> & { responsavel: string | null },
+  escolhidos: string[],
+): boolean {
+  if (escolhidos.length === 0) return true;
+  const alvo = new Set(escolhidos.map((n) => normalizar(n.trim())));
+  const responsavel = c.responsavel?.trim();
+  if (responsavel) return alvo.has(normalizar(responsavel));
+  return pessoasDaDupla(c.atendentes).some((p) => alvo.has(normalizar(p)));
+}
+
+/**
  * A equipe de cada região que aparece nos clientes, da maior para a menor. O consultor e o
  * comercial são os que mais se repetem entre os clientes da região (na planilha é um só por região).
  */

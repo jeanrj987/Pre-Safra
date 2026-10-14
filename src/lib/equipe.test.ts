@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  bateFiltroResponsavel,
   comercialDaRegiao,
   equipeDoCliente,
   equipesPorRegiao,
@@ -36,6 +37,30 @@ describe("equipe da região", () => {
       { nome: "André", papel: "Atendente · Consultor" },
       { nome: "Cauê", papel: "Atendente" },
     ]);
+  });
+});
+
+describe("filtro por responsável", () => {
+  it("sem filtro, todos entram", () => {
+    expect(bateFiltroResponsavel({ responsavel: null, atendentes: null }, [])).toBe(true);
+  });
+
+  it("cliente sem responsável entra pelos atendentes da região", () => {
+    const c = { responsavel: null, atendentes: oeste.atendentes };
+    expect(bateFiltroResponsavel(c, ["Amanda Albano"])).toBe(true);
+    expect(bateFiltroResponsavel(c, ["Cauê"])).toBe(true);
+    expect(bateFiltroResponsavel(c, ["Jean"])).toBe(false);
+  });
+
+  it("com responsável definido, vale só ele (a dupla da região não conta)", () => {
+    const c = { responsavel: "Jean", atendentes: oeste.atendentes };
+    expect(bateFiltroResponsavel(c, ["Jean"])).toBe(true);
+    expect(bateFiltroResponsavel(c, ["Amanda Albano"])).toBe(false);
+  });
+
+  it("aceita vários nomes e ignora caixa e acento", () => {
+    const c = { responsavel: "  cauê ", atendentes: null };
+    expect(bateFiltroResponsavel(c, ["Jean", "Caue"])).toBe(true);
   });
 });
 
