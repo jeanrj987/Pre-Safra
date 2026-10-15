@@ -49,7 +49,7 @@ export default function Agendar({
   previsao,
   grupos,
   outros,
-  podeLimparResponsavel,
+  podeTrocarResponsavel,
   podeRemover,
   assumeAoAgendar = false,
 }: {
@@ -68,11 +68,10 @@ export default function Agendar({
   grupos: GrupoEquipe[];
   /** Nomes sem região (ex.: quem já foi escolhido antes), listados no fim. */
   outros: string[];
-  /** Só o admin zera o responsável (o "Limpar responsável"); os demais só trocam por outra pessoa. */
-  podeLimparResponsavel: boolean;
+  podeTrocarResponsavel: boolean;
   /** Só o admin e o responsável do cliente removem o agendamento; para os demais o botão some. */
   podeRemover: boolean;
-  /** Cliente sem responsável e usuário comum: ele já vem escolhido, mas pode trocar. */
+  /** Cliente sem responsável e usuário comum: o responsável mostrado é ele, que assume o cliente ao salvar. */
   assumeAoAgendar?: boolean;
 }) {
   const statusInicial: Status = previsao;
@@ -80,7 +79,7 @@ export default function Agendar({
   const verbo = temAgendamento ? "Reagendar" : "Agendar";
   // Quem ficou só com o responsável (sem data/horário/formato, ex.: dado de antes de a remoção
   // limpar o responsável) também precisa de um jeito de zerar — só o admin, que é quem o define.
-  const soResponsavel = !temAgendamento && podeLimparResponsavel && !!responsavel;
+  const soResponsavel = !temAgendamento && podeTrocarResponsavel && !!responsavel;
   const [aberto, setAberto] = useState(false);
   const [resp, setResp] = useState(responsavel);
   const [dia, setDia] = useState(data);
@@ -105,7 +104,11 @@ export default function Agendar({
   const bloqueio = dia ? motivoDataIndisponivel(dia) : null;
   const horaPassada = motivoHorarioPassado(dia, hora);
   const erros = {
-    resp: !resp ? "Selecione o responsável." : null,
+    resp: !resp
+      ? podeTrocarResponsavel
+        ? "Selecione o responsável."
+        : "Este cliente está sem responsável. Peça a um administrador para definir."
+      : null,
     dia: !dia ? "Informe a data." : bloqueio,
     hora: !hora ? "Selecione o horário." : horaPassada,
     status: !status ? "Escolha Online ou Presencial." : null,
@@ -151,23 +154,37 @@ export default function Agendar({
             <input type="hidden" name="id" value={id} />
             <input type="hidden" name="voltar" value={voltar} />
             {/* O menu de responsável (busca + uma seção por região) abre sobre a própria janela: a altura
-                mínima dá espaço para ele aparecer inteiro, sem rolar a janela. */}
-            <div className="min-h-[24.5rem] space-y-4 px-4 py-5 sm:px-6">
+                mínima dá espaço para ele aparecer inteiro, sem rolar a janela. Quem não escolhe
+                responsável não precisa dela. */}
+            <div className={`space-y-4 px-4 py-5 sm:px-6 ${podeTrocarResponsavel ? "min-h-[24.5rem]" : ""}`}>
               <div>
-                <Seletor
-                  nome="responsavel"
-                  rotulo="Responsável"
-                  valor={resp}
-                  onChange={setResp}
-                  opcoes={opcoesResponsavel}
-                  placeholder="Selecione o responsável"
-                  icone="usuario"
-                  invalido={mostrar("resp")}
-                  descricaoId={mostrar("resp") ? "erro-resp" : undefined}
-                />
+                {podeTrocarResponsavel ? (
+                  <Seletor
+                    nome="responsavel"
+                    rotulo="Responsável"
+                    valor={resp}
+                    onChange={setResp}
+                    opcoes={opcoesResponsavel}
+                    placeholder="Selecione o responsável"
+                    icone="usuario"
+                    invalido={mostrar("resp")}
+                    descricaoId={mostrar("resp") ? "erro-resp" : undefined}
+                  />
+                ) : (
+                  <>
+                    <span className="rotulo">Responsável</span>
+                    <p
+                      className={`campo flex items-center ${resp ? "text-ink" : "text-muted"} ${
+                        mostrar("resp") ? campoErro : ""
+                      }`}
+                    >
+                      {resp || "Sem responsável"}
+                    </p>
+                  </>
+                )}
                 {assumeAoAgendar && (
                   <span className="mt-1 block text-xs text-muted">
-                    Este cliente não tem responsável: você já vem indicado, mas pode escolher outra pessoa.
+                    Este cliente não tem responsável: ao agendar, você passa a ser o responsável por ele.
                   </span>
                 )}
                 {mostrar("resp") && <Erro id="erro-resp">{erros.resp!}</Erro>}
