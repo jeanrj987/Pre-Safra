@@ -120,6 +120,14 @@ export default async function AdminClientes({
           </span>
         </div>
         <div className="flex flex-wrap gap-2">
+          <a
+            href="/admin/clientes/exportar"
+            className="btn-contorno btn-sm"
+            title="Baixa todos os clientes cadastrados em uma planilha Excel, no formato da planilha modelo de importação"
+          >
+            <Icone nome="upload" className="rotate-180" />
+            Baixar clientes
+          </a>
           <Link
             href={hrefFiltro(!soSemRegiao)}
             className={soSemRegiao ? "btn-primario btn-sm" : "btn-contorno btn-sm"}

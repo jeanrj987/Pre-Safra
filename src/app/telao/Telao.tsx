@@ -1,6 +1,11 @@
 "use client";
-import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { GRADE_TELAO, VAGAS_NO_TELAO, type SugestaoTelao } from "@/lib/sugestoes";
+import { useEffect, useRef, useState, type CSSProperties, type MutableRefObject } from "react";
+import {
+  GRADE_TELAO,
+  VAGAS_NO_TELAO,
+  type SugestaoTelao,
+  type TipoSugestao,
+} from "@/lib/sugestoes";
 import type { DadosTelao } from "@/lib/telao";
 
 const INTERVALO_MS = 3000;
@@ -48,26 +53,23 @@ function montarTela(todas: SugestaoTelao[], pagina: number, deslocamento: number
   };
 }
 
-export default function Telao({
-  inicial,
-  urlFormulario,
-  qrSvg,
-}: {
-  inicial: DadosTelao;
-  urlFormulario: string;
-  qrSvg: string;
-}) {
-  const [todasIniciais] = useState(() => inicial.sugestoes);
-  const [paginaMsInicial] = useState(() => inicial.segundosPagina * 1000);
+// Uma coluna do telão (FAQ ou melhorias): tem a sua própria lista, as suas páginas e o seu giro.
+// Quem consulta o servidor é o Telao; ele entrega o que chegou a cada coluna por `receber`.
+interface Coluna {
+  tela: Tela;
+  // Ideias que chegaram e ainda não tiveram a vez na tela: brilham até a página delas girar
+  novas: Set<number>;
+  receber: MutableRefObject<(todas: SugestaoTelao[], paginaMs: number) => void>;
+}
+
+function useColuna(inicial: SugestaoTelao[], segundosPagina: number, ligado: boolean): Coluna {
+  const [todasIniciais] = useState(() => inicial);
+  const [paginaMsInicial] = useState(() => segundosPagina * 1000);
   const [tela, setTela] = useState<Tela>(() => montarTela(todasIniciais, 0, 0));
   // Espelho de `tela` para o efeito comparar o que mudou sem depender do estado
   const telaRef = useRef(tela);
-  // Ideias que chegaram e ainda não tiveram a vez na tela: brilham até a página delas girar
   const [novas, setNovas] = useState<Set<number>>(() => new Set());
-  const [total, setTotal] = useState(inicial.total);
-  const [situacao, setSituacao] = useState<"ok" | "sem-conexao">("ok");
-  // Desligado pelo admin: não consulta o servidor e mostra só o aviso (ver o fim do componente)
-  const [ligado, setLigado] = useState(inicial.ativo);
+  const receber = useRef<Coluna["receber"]["current"]>(() => {});
 
   useEffect(() => {
     if (!ligado) return;
@@ -157,7 +159,7 @@ export default function Telao({
       const t = telaRef.current;
       const pendentes = todas.filter((s) => !conhecidas.has(s.id));
       pendentes.forEach((s) => conhecidas.add(s.id));
-      // Ideia nova: a tela volta para a primeira página, as recém-chegadas brilham
+      // Ideia nova: a coluna volta para a primeira página, as recém-chegadas brilham
       if (pendentes.length > 0) {
         marcar(new Set([...marcadas, ...pendentes.map((s) => s.id)]));
         return irPara(0, false);
@@ -183,6 +185,60 @@ export default function Telao({
       for (const [i, saida] of saidas) aposSaida(i, saida);
     }
 
+    receber.current = (recebidas, novoMs) => {
+      if (!ativo) return;
+      todas = recebidas;
+      if (novoMs !== paginaMs) {
+        paginaMs = novoMs;
+        // Durante a troca, o giro é reagendado ao fim dela, já com o tempo novo
+        if (!trocando) girarDepois();
+      }
+      processar();
+    };
+
+    girarDepois();
+    return () => {
+      ativo = false;
+      receber.current = () => {};
+      clearTimeout(rotacao);
+      timers.forEach(clearTimeout);
+    };
+  }, [todasIniciais, paginaMsInicial, ligado]);
+
+  return { tela, novas, receber };
+}
+
+const TEXTOS_COLUNA: Record<TipoSugestao, { titulo: string; vazio: string }> = {
+  faq: { titulo: "Dúvidas para o FAQ", vazio: "As dúvidas vão aparecer aqui assim que chegarem." },
+  melhoria: {
+    titulo: "Melhorias para o P&D",
+    vazio: "As melhorias vão aparecer aqui assim que chegarem.",
+  },
+};
+
+export default function Telao({
+  inicial,
+  urlFormulario,
+  qrSvg,
+}: {
+  inicial: DadosTelao;
+  urlFormulario: string;
+  qrSvg: string;
+}) {
+  const [totais, setTotais] = useState(inicial.totais);
+  const [situacao, setSituacao] = useState<"ok" | "sem-conexao">("ok");
+  // Desligado pelo admin: não consulta o servidor e mostra só o aviso (ver o fim do componente)
+  const [ligado, setLigado] = useState(inicial.ativo);
+  const faq = useColuna(inicial.sugestoes.faq, inicial.segundosPagina, ligado);
+  const melhoria = useColuna(inicial.sugestoes.melhoria, inicial.segundosPagina, ligado);
+  const receberFaq = faq.receber;
+  const receberMelhoria = melhoria.receber;
+  const total = totais.faq + totais.melhoria;
+
+  useEffect(() => {
+    if (!ligado) return;
+    let ativo = true;
+
     async function atualizar() {
       try {
         const res = await fetch("/api/telao", { cache: "no-store" });
@@ -194,29 +250,21 @@ export default function Telao({
         if (!dados.ativo) return setLigado(false);
 
         setSituacao("ok");
-        setTotal(dados.total);
-        todas = dados.sugestoes;
-        const novoMs = dados.segundosPagina * 1000;
-        if (novoMs !== paginaMs) {
-          paginaMs = novoMs;
-          // Durante a troca, o giro é reagendado ao fim dela, já com o tempo novo
-          if (!trocando) girarDepois();
-        }
-        processar();
+        setTotais(dados.totais);
+        const paginaMs = dados.segundosPagina * 1000;
+        receberFaq.current(dados.sugestoes.faq, paginaMs);
+        receberMelhoria.current(dados.sugestoes.melhoria, paginaMs);
       } catch {
         if (ativo) setSituacao("sem-conexao");
       }
     }
 
-    girarDepois();
     const timer = setInterval(atualizar, INTERVALO_MS);
     return () => {
       ativo = false;
       clearInterval(timer);
-      clearTimeout(rotacao);
-      timers.forEach(clearTimeout);
     };
-  }, [todasIniciais, paginaMsInicial, ligado]);
+  }, [ligado, receberFaq, receberMelhoria]);
 
   if (!ligado) {
     return (
@@ -251,10 +299,10 @@ export default function Telao({
           />
           <div>
             <h1 className="text-xl font-semibold leading-tight tracking-tight lg:text-3xl">
-              Qual dúvida deveria estar no FAQ?
+              Dúvida para o FAQ ou melhoria para o sistema?
             </h1>
             <p className="mt-1 text-sm text-white/70 lg:mt-3 lg:text-base">
-              Aponte a câmera do celular para o QR code e deixe sua ideia.
+              Aponte a câmera do celular para o QR code, escolha o tipo e deixe sua ideia.
             </p>
             <p className="mt-2 text-xs text-white/60 lg:text-sm">
               Está no computador?{" "}
@@ -283,24 +331,53 @@ export default function Telao({
         </div>
       </aside>
 
-      <main
-        className="relative min-h-0 flex-1 p-3 [container-type:size] lg:p-6"
+      <main className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-3 lg:flex-row lg:gap-5 lg:overflow-hidden lg:p-6">
+        <PainelColuna tipo="faq" total={totais.faq} coluna={faq} />
+        <PainelColuna tipo="melhoria" total={totais.melhoria} coluna={melhoria} />
+      </main>
+    </div>
+  );
+}
+
+// Metade do telão: título com a contagem do tipo e a grade de cartões, com as páginas que giram.
+function PainelColuna({
+  tipo,
+  total,
+  coluna: { tela, novas },
+}: {
+  tipo: TipoSugestao;
+  total: number;
+  coluna: Coluna;
+}) {
+  const { titulo, vazio } = TEXTOS_COLUNA[tipo];
+  return (
+    <section
+      aria-label={titulo}
+      className="flex shrink-0 flex-col rounded-3xl border border-white/10 bg-white/[0.03] p-3 lg:min-h-0 lg:min-w-0 lg:flex-1 lg:shrink lg:p-4"
+    >
+      <header className="flex items-baseline justify-between gap-3 px-1 pb-3">
+        <h2 className="text-lg font-semibold tracking-tight lg:text-2xl">{titulo}</h2>
+        <p className="num font-display text-2xl font-bold leading-none lg:text-4xl">{total}</p>
+      </header>
+
+      <div
+        className="relative lg:min-h-0 lg:flex-1 lg:[container-type:size]"
         style={
           {
             "--colunas": GRADE_TELAO.colunas,
             "--linhas": GRADE_TELAO.linhas,
-            // O texto se ajusta à largura e à altura da tela, para a grade inteira caber
+            // O texto se ajusta à largura e à altura da coluna, para a grade inteira caber
             "--fonte":
               "clamp(10px, min(calc(100cqw / (var(--colunas) * 13)), calc(100cqh / (var(--linhas) * 9.5))), 36px)",
           } as CSSProperties
         }
       >
         {total === 0 && (
-          <p className="absolute inset-0 z-10 grid place-items-center px-8 text-center text-2xl font-medium text-white/60">
-            As ideias vão aparecer aqui assim que chegarem.
+          <p className="z-10 grid place-items-center px-4 py-6 text-center text-lg font-medium text-white/60 lg:absolute lg:inset-0 lg:px-8 lg:text-2xl">
+            {vazio}
           </p>
         )}
-        <ul className="grid h-full grid-cols-1 content-start gap-3 min-[520px]:grid-cols-2 overflow-y-auto lg:grid-cols-[repeat(var(--colunas),minmax(0,1fr))] lg:grid-rows-[repeat(var(--linhas),minmax(0,1fr))] lg:gap-4 lg:overflow-visible">
+        <ul className="grid grid-cols-1 content-start gap-3 min-[520px]:grid-cols-2 lg:h-full lg:grid-cols-[repeat(var(--colunas),minmax(0,1fr))] lg:grid-rows-[repeat(var(--linhas),minmax(0,1fr))] lg:gap-3">
           {tela.vagas.map((s, i) => {
             const saiu = tela.saindo.get(i);
             if (saiu) {
@@ -333,7 +410,7 @@ export default function Telao({
         </ul>
         {tela.paginas > 1 && (
           <div
-            className="pointer-events-none absolute inset-x-0 bottom-1.5 hidden justify-center gap-2 lg:flex"
+            className="pointer-events-none absolute inset-x-0 -bottom-1 hidden justify-center gap-2 lg:flex"
             role="img"
             aria-label={`Página ${tela.pagina + 1} de ${tela.paginas}`}
           >
@@ -345,8 +422,8 @@ export default function Telao({
             ))}
           </div>
         )}
-      </main>
-    </div>
+      </div>
+    </section>
   );
 }
 

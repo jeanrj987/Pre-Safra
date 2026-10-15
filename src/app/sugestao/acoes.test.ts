@@ -23,6 +23,7 @@ const valida = {
   whatsapp: "(66) 99999-8888",
   topico: "Nota Fiscal",
   texto: "Aplicativo de celular para acompanhar a colheita em tempo real",
+  tipo: "faq",
   site: "",
   confirmar: false,
 };
@@ -39,6 +40,7 @@ describe("enviarSugestao", () => {
     expect(await enviarSugestao(valida)).toEqual({ status: "salva", revisar: false });
     expect(banco.create).toHaveBeenCalledWith({
       data: {
+        tipo: "faq",
         nome: "Maria da Silva",
         whatsapp: "5566999998888",
         topico: "Nota Fiscal",
@@ -71,11 +73,31 @@ describe("enviarSugestao", () => {
     });
   });
 
+  it("guarda a melhoria para o P&D sem comparar com o FAQ", async () => {
+    const r = await enviarSugestao({
+      ...valida,
+      tipo: "melhoria",
+      texto: "Como faço para emitir nota fiscal de venda?",
+    });
+    expect(r).toEqual({ status: "salva", revisar: false });
+    expect(banco.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ tipo: "melhoria", possivelDuplicada: false, faqParecida: null }),
+    });
+  });
+
+  it("trata como FAQ o envio sem tipo (formulário aberto antes da mudança)", async () => {
+    const semTipo: Record<string, unknown> = { ...valida };
+    delete semTipo.tipo;
+    expect(await enviarSugestao(semTipo)).toEqual({ status: "salva", revisar: false });
+    expect(banco.create).toHaveBeenCalledWith({ data: expect.objectContaining({ tipo: "faq" }) });
+  });
+
   it.each([
     ["nome vazio", { nome: " " }],
     ["WhatsApp inválido", { whatsapp: "12345" }],
     ["assunto vazio", { topico: "" }],
     ["sugestão vazia", { texto: "   " }],
+    ["tipo desconhecido", { tipo: "outro" }],
   ])("rejeita %s sem tocar no banco", async (_nome, troca) => {
     const r = await enviarSugestao({ ...valida, ...troca });
     expect(r.status).toBe("erro");

@@ -10,7 +10,12 @@ import {
 } from "@/lib/configuracoes";
 import { prisma } from "@/lib/db";
 import { formatarWhatsapp, linkWhatsapp } from "@/lib/whatsapp";
-import { SEGUNDOS_PAGINA_TELAO, VAGAS_NO_TELAO } from "@/lib/sugestoes";
+import {
+  ehTipoSugestao,
+  rotuloDoTipo,
+  SEGUNDOS_PAGINA_TELAO,
+  VAGAS_NO_TELAO,
+} from "@/lib/sugestoes";
 import { plural } from "@/lib/texto";
 import BotaoAcao from "@/app/BotaoAcao";
 import BotaoEnviar from "@/app/BotaoEnviar";
@@ -30,6 +35,12 @@ const dataHora = new Intl.DateTimeFormat("pt-BR", {
 
 const TAMANHO_PAGINA = 25;
 
+// FAQ e melhoria se distinguem pelo texto do selo e por um tom diferente, nunca só pela cor
+const SELO_TIPO = {
+  faq: "bg-afazer-bg text-afazer-fg",
+  melhoria: "bg-finalizado-bg text-finalizado-fg",
+} as const;
+
 // Fica fora do componente de propósito: dentro dele, as Server Actions em lote a capturariam como
 // variável de fora, e o Next não consegue serializar uma função para isso.
 const idsDoFormulario = (formData: FormData) =>
@@ -38,24 +49,41 @@ const idsDoFormulario = (formData: FormData) =>
 export default async function AdminSugestoes({
   searchParams,
 }: {
-  searchParams: Promise<{ pagina?: string }>;
+  searchParams: Promise<{ pagina?: string; tipo?: string }>;
 }) {
-  const [, sp, todosIds, segundosPagina, telaoAtivo] = await Promise.all([
+  const [, sp, existentes, segundosPagina, telaoAtivo] = await Promise.all([
     exigirAdmin(),
     searchParams,
-    prisma.sugestao.findMany({ select: { id: true }, orderBy: { id: "desc" } }),
+    prisma.sugestao.findMany({ select: { id: true, tipo: true }, orderBy: { id: "desc" } }),
     lerSegundosPaginaTelao(),
     lerTelaoAtivo(),
   ]);
-  const total = todosIds.length;
+  // Todos os ids (sem filtro): a seleção em lote usa para descartar o que já foi excluído
+  const todosIds = existentes;
+  const filtro = ehTipoSugestao(sp.tipo) ? sp.tipo : null;
+  const totalDoTipo = (tipo: string) => existentes.filter((s) => s.tipo === tipo).length;
+  const total = filtro ? totalDoTipo(filtro) : existentes.length;
   const totalPaginas = Math.max(1, Math.ceil(total / TAMANHO_PAGINA));
   const paginaAtual = Math.min(Math.max(Number(sp.pagina) || 1, 1), totalPaginas);
   const sugestoes = await prisma.sugestao.findMany({
+    where: filtro ? { tipo: filtro } : undefined,
     orderBy: { id: "desc" },
     skip: (paginaAtual - 1) * TAMANHO_PAGINA,
     take: TAMANHO_PAGINA,
   });
-  const hrefPagina = (n: number) => (n > 1 ? `/admin/sugestoes?pagina=${n}` : "/admin/sugestoes");
+  const hrefLista = (tipo: string | null, pagina = 1) => {
+    const params = new URLSearchParams();
+    if (tipo) params.set("tipo", tipo);
+    if (pagina > 1) params.set("pagina", String(pagina));
+    const consulta = params.toString();
+    return consulta ? `/admin/sugestoes?${consulta}` : "/admin/sugestoes";
+  };
+  const hrefPagina = (n: number) => hrefLista(filtro, n);
+  const abas = [
+    { tipo: null, rotulo: "Todas", quantas: existentes.length },
+    { tipo: "faq", rotulo: "FAQ", quantas: totalDoTipo("faq") },
+    { tipo: "melhoria", rotulo: "Melhorias (P&D)", quantas: totalDoTipo("melhoria") },
+  ];
 
   async function alternarOculta(id: number, oculta: boolean) {
     "use server";
@@ -108,7 +136,7 @@ export default async function AdminSugestoes({
     <section className="card">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-4 py-3.5 sm:px-5">
         <div>
-          <h2 className="text-base font-semibold">Sugestões para o FAQ</h2>
+          <h2 className="text-base font-semibold">Sugestões do público</h2>
           <p className="text-sm text-muted">
             {plural(total, "sugestão", "sugestões")}
             {totalPaginas > 1 && (
@@ -127,6 +155,24 @@ export default async function AdminSugestoes({
           </a>
         </div>
       </div>
+
+      <nav aria-label="Filtrar por tipo" className="flex flex-wrap gap-2 border-b border-line px-4 py-3 sm:px-5">
+        {abas.map((a) => {
+          const ativa = a.tipo === filtro;
+          return (
+            <a
+              key={a.rotulo}
+              href={hrefLista(a.tipo)}
+              aria-current={ativa ? "page" : undefined}
+              className={`rounded-full px-3 py-1 text-sm font-medium transition ${
+                ativa ? "bg-primary text-white" : "bg-subtle text-muted hover:text-ink"
+              }`}
+            >
+              {a.rotulo} <span className="num">({a.quantas})</span>
+            </a>
+          );
+        })}
+      </nav>
 
       <div className="border-b border-line px-4 py-3 sm:px-5">
         <form action={alternarTelao} className="mb-4 flex flex-wrap items-center gap-3">
@@ -157,13 +203,14 @@ export default async function AdminSugestoes({
         <TempoTelao segundos={segundosPagina} salvar={salvarTempoTelao} />
         <p className="mt-1.5 text-xs text-muted">
           Entre {SEGUNDOS_PAGINA_TELAO.min} e {SEGUNDOS_PAGINA_TELAO.max} segundos. Vale só quando há
-          mais de uma página de ideias (mais de {VAGAS_NO_TELAO}).
+          mais de uma página de ideias em uma das colunas (mais de {VAGAS_NO_TELAO} de FAQ ou de
+          melhorias).
         </p>
       </div>
 
       {total === 0 ? (
         <p className="p-6 text-sm text-muted">
-          Nenhuma sugestão ainda. O formulário público fica em{" "}
+          {filtro ? "Nenhuma sugestão deste tipo ainda." : "Nenhuma sugestão ainda."} O formulário público fica em{" "}
           <a href="/sugestao" className="font-medium text-primary underline">
             /sugestao
           </a>{" "}
@@ -178,6 +225,7 @@ export default async function AdminSugestoes({
                   <CaixaTodas idsPagina={sugestoes.map((s) => s.id)} />
                 </th>
                 <th scope="col" className="hidden px-3 py-2.5 @3xl:table-cell">Quando</th>
+                <th scope="col" className="hidden px-3 py-2.5 @3xl:table-cell">Tipo</th>
                 <th scope="col" className="hidden px-3 py-2.5 @3xl:table-cell">Pessoa</th>
                 <th scope="col" className="hidden px-3 py-2.5 @3xl:table-cell">Assunto</th>
                 <th scope="col" className="px-3 py-2.5">Sugestão</th>
@@ -198,6 +246,9 @@ export default async function AdminSugestoes({
                   </td>
                   <td className="hidden whitespace-nowrap px-3 py-3 align-top text-muted num @3xl:table-cell">
                     {dataHora.format(s.criadoEm)}
+                  </td>
+                  <td className="hidden px-3 py-3 align-top @3xl:table-cell">
+                    <Selo tipo={s.tipo} />
                   </td>
                   <td className="hidden px-3 py-3 align-top @3xl:table-cell">
                     <p className="font-medium text-ink">{s.nome}</p>
@@ -228,7 +279,10 @@ export default async function AdminSugestoes({
                           {formatarWhatsapp(s.whatsapp)}
                         </a>
                       </p>
-                      <p className="font-medium text-ink">{s.topico}</p>
+                      <p className="flex flex-wrap items-center gap-2 font-medium text-ink">
+                        <Selo tipo={s.tipo} />
+                        {s.topico}
+                      </p>
                       {s.possivelDuplicada && <p className="text-afazer-fg">Possível duplicada</p>}
                       {s.oculta && <p className="text-muted">Oculta no telão</p>}
                     </div>
@@ -283,5 +337,16 @@ export default async function AdminSugestoes({
         excluir={excluirLote}
       />
     </section>
+  );
+}
+
+function Selo({ tipo }: { tipo: string }) {
+  const seguro = tipo === "melhoria" ? "melhoria" : "faq";
+  return (
+    <span
+      className={`inline-block whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-semibold ${SELO_TIPO[seguro]}`}
+    >
+      {rotuloDoTipo(tipo)}
+    </span>
   );
 }

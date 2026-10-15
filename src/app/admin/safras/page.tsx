@@ -47,17 +47,26 @@ export default async function AdminSafras({
     if (!nome || !inicio || !prazo || prazo <= inicio || existente) {
       redirect("/admin/safras?erro=1");
     }
+    // A safra anterior é a última criada (arquivada ou não), lida antes de criar a nova.
+    const anterior = await prisma.safra.findFirst({ orderBy: [{ criadoEm: "desc" }, { id: "desc" }] });
     const safra = await prisma.safra.create({
       data: { nome, cultura, inicio, prazo },
     });
 
-    // Leva para a safra nova todo cliente cadastrado cujo Pré-Safra mais recente não esteja
-    // marcado como inativo (cliente sem nenhum Pré-Safra ainda conta como ativo).
-    const clientes = await prisma.cliente.findMany({ select: { id: true } });
-    const statusPorCliente = await statusInativoPorCliente();
-    const elegiveis = clientes.filter((c) => !statusPorCliente.get(c.id));
+    // A safra nova nasce da última criada: leva os clientes dela que não estão inativos, assim
+    // ela já herda os ajustes feitos desde a primeira (clientes novos, inativados, removidos).
+    // Datas, responsável e andamento começam do zero. Só na primeira safra (sem anterior) vale
+    // a lista de clientes cadastrados.
+    const clienteIds = anterior
+      ? (
+          await prisma.preSafra.findMany({
+            where: { safraId: anterior.id, inativo: false, clienteId: { not: null } },
+            select: { clienteId: true },
+          })
+        ).map((p) => p.clienteId as number)
+      : (await prisma.cliente.findMany({ select: { id: true } })).map((c) => c.id);
     const { count } = await prisma.preSafra.createMany({
-      data: elegiveis.map((c) => ({ clienteId: c.id, safraId: safra.id })),
+      data: clienteIds.map((clienteId) => ({ clienteId, safraId: safra.id })),
       skipDuplicates: true,
     });
 

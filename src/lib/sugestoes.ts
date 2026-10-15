@@ -3,6 +3,22 @@ import { normalizar } from "@/lib/texto";
 // Regras e formatos compartilhados entre o formulário (cliente), a Server Action e o telão.
 // Sem imports de servidor aqui, porque este arquivo também entra no bundle do navegador.
 
+/** O que a pessoa está sugerindo: um tema para o FAQ ou uma melhoria para o P&D. */
+export const TIPOS_SUGESTAO = ["faq", "melhoria"] as const;
+export type TipoSugestao = (typeof TIPOS_SUGESTAO)[number];
+
+export const ehTipoSugestao = (v: unknown): v is TipoSugestao =>
+  TIPOS_SUGESTAO.includes(v as TipoSugestao);
+
+export const ROTULO_TIPO: Record<TipoSugestao, string> = {
+  faq: "FAQ",
+  melhoria: "Melhoria (P&D)",
+};
+
+/** Rótulo do tipo vindo do banco, onde ele é um texto qualquer (cai em FAQ, o tipo de antes). */
+export const rotuloDoTipo = (tipo: string) =>
+  ROTULO_TIPO[ehTipoSugestao(tipo) ? tipo : "faq"];
+
 export const LIMITES = {
   nome: { min: 2, max: 60 },
   topico: { min: 2, max: 40 },
@@ -12,13 +28,16 @@ export const LIMITES = {
 /** Envios aceitos por WhatsApp na última hora e, somando todo mundo, no último minuto (abuso do formulário público). */
 export const LIMITE_ENVIOS = { porWhatsappPorHora: 20, totalPorMinuto: 60 } as const;
 
-/** Grade de cada página do telão: 5 colunas x 6 linhas, o que ainda se lê bem no projetor. */
-export const GRADE_TELAO = { colunas: 5, linhas: 6 } as const;
+/**
+ * Grade de cada página de uma coluna do telão (FAQ à esquerda, melhorias à direita, cada uma com a
+ * sua grade e as suas páginas): 3 colunas x 5 linhas, o que ainda se lê bem no projetor.
+ */
+export const GRADE_TELAO = { colunas: 3, linhas: 5 } as const;
 
-/** Quantas sugestões cabem em uma página do telão. */
+/** Quantas sugestões cabem em uma página de uma coluna do telão. */
 export const VAGAS_NO_TELAO = GRADE_TELAO.colunas * GRADE_TELAO.linhas;
 
-/** Quantas sugestões o telão carrega, no máximo, para girar entre as páginas. */
+/** Quantas sugestões de cada tipo o telão carrega, no máximo, para girar entre as páginas. */
 export const TETO_NO_TELAO = 200;
 
 /** Quanto tempo cada página do telão fica na tela, em segundos (o admin ajusta dentro dos limites). */
@@ -77,6 +96,7 @@ export function matizesDoTelao(
 /** O que o telão (tela pública do evento) recebe: nunca inclui sobrenome nem WhatsApp. */
 export interface SugestaoTelao {
   id: number;
+  tipo: TipoSugestao;
   nome: string;
   topico: string;
   texto: string;
@@ -85,6 +105,7 @@ export interface SugestaoTelao {
 
 export function paraTelao(s: {
   id: number;
+  tipo: TipoSugestao;
   nome: string;
   topico: string;
   topicoNorm: string;
@@ -92,6 +113,7 @@ export function paraTelao(s: {
 }, matiz: number = matizDoTopico(s.topicoNorm)): SugestaoTelao {
   return {
     id: s.id,
+    tipo: s.tipo,
     nome: primeiroNome(s.nome),
     topico: s.topico,
     texto: s.texto,

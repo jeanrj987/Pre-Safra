@@ -277,6 +277,10 @@ export default async function Novo({
                 têm esses dados atualizados, e todos entram na safra selecionada no momento.{" "}
                 <a href="/modelo-importacao-clientes.xlsx" download className="font-medium text-primary hover:underline">
                   Baixar planilha modelo
+                </a>{" "}
+                ou{" "}
+                <a href="/admin/clientes/exportar" className="font-medium text-primary hover:underline">
+                  baixar os clientes já cadastrados
                 </a>
                 .
               </p>

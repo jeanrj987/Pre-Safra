@@ -1,7 +1,7 @@
 "use client";
 import { useRef, useState, useTransition, type FormEvent } from "react";
 import Icone from "@/app/Icone";
-import { LIMITES } from "@/lib/sugestoes";
+import { LIMITES, TIPOS_SUGESTAO, type TipoSugestao } from "@/lib/sugestoes";
 import { mascararWhatsapp } from "@/lib/whatsapp";
 import { enviarSugestao, type Resultado } from "./acoes";
 
@@ -10,7 +10,31 @@ const CAMPO = "campo text-base";
 // Os botões do aviso têm texto longo: deixa quebrar linha e crescer em vez de vazar do botão.
 const QUEBRA = "h-auto min-h-10 whitespace-normal py-2 text-center";
 
+// O que muda no formulário conforme o tipo da sugestão
+const TEXTOS: Record<
+  TipoSugestao,
+  { opcao: string; campo: string; placeholder: string; assunto: string; salva: string; contato: string }
+> = {
+  faq: {
+    opcao: "Dúvida ou tema para o FAQ",
+    campo: "Sua sugestão para o FAQ",
+    placeholder: "Que dúvida ou tema deveria ter no FAQ?",
+    assunto: "Ex.: Nota fiscal, Estoque, Financeiro",
+    salva: "Ótimo, isso ainda não tem no FAQ! Sugestão salva.",
+    contato: "Nossa equipe pode chamar você no WhatsApp para entender melhor.",
+  },
+  melhoria: {
+    opcao: "Melhoria para o sistema (P&D)",
+    campo: "Sua sugestão de melhoria",
+    placeholder: "O que atrapalha hoje ou o que você gostaria que o sistema fizesse?",
+    assunto: "Ex.: Relatórios, Cadastro de clientes, Agendamento",
+    salva: "Sugestão de melhoria salva! Ela vai para o time de P&D.",
+    contato: "Nosso time de produto pode chamar você no WhatsApp para entender melhor.",
+  },
+};
+
 export default function FormSugestao() {
+  const [tipo, setTipo] = useState<TipoSugestao>("faq");
   const [nome, setNome] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
   const [topico, setTopico] = useState("");
@@ -22,7 +46,7 @@ export default function FormSugestao() {
 
   function enviar(confirmar: boolean) {
     iniciar(async () => {
-      const r = await enviarSugestao({ nome, whatsapp, topico, texto, site, confirmar });
+      const r = await enviarSugestao({ tipo, nome, whatsapp, topico, texto, site, confirmar });
       setResultado(r);
       if (r.status === "salva") {
         // Mantém nome e WhatsApp: quem tem mais de uma ideia não precisa digitar tudo de novo
@@ -43,6 +67,12 @@ export default function FormSugestao() {
     if (resultado?.status === "faq") setResultado(null);
   }
 
+  function mudarTipo(valor: TipoSugestao) {
+    setTipo(valor);
+    // Os avisos ("já existe no FAQ", "salva") falam do tipo anterior
+    if (resultado?.status === "faq" || resultado?.status === "salva") setResultado(null);
+  }
+
   function mudarIdeia() {
     setResultado(null);
     campoTexto.current?.focus();
@@ -50,6 +80,22 @@ export default function FormSugestao() {
 
   return (
     <form onSubmit={aoEnviar} className="card space-y-4 p-5">
+      <label className="block">
+        <span className="rotulo">Tipo de sugestão</span>
+        <select
+          value={tipo}
+          onChange={(e) => mudarTipo(e.target.value as TipoSugestao)}
+          required
+          className={CAMPO}
+        >
+          {TIPOS_SUGESTAO.map((t) => (
+            <option key={t} value={t}>
+              {TEXTOS[t].opcao}
+            </option>
+          ))}
+        </select>
+      </label>
+
       <label className="block">
         <span className="rotulo">Seu nome</span>
         <input
@@ -90,13 +136,13 @@ export default function FormSugestao() {
           required
           minLength={LIMITES.topico.min}
           maxLength={LIMITES.topico.max}
-          placeholder="Ex.: Nota fiscal, Estoque, Financeiro"
+          placeholder={TEXTOS[tipo].assunto}
           className={CAMPO}
         />
       </label>
 
       <label className="block">
-        <span className="rotulo">Sua sugestão para o FAQ</span>
+        <span className="rotulo">{TEXTOS[tipo].campo}</span>
         <textarea
           ref={campoTexto}
           value={texto}
@@ -104,7 +150,7 @@ export default function FormSugestao() {
           required
           maxLength={LIMITES.texto.max}
           rows={4}
-          placeholder="Que dúvida ou tema deveria ter no FAQ?"
+          placeholder={TEXTOS[tipo].placeholder}
           className={CAMPO}
         />
       </label>
@@ -130,11 +176,10 @@ export default function FormSugestao() {
               <p className="text-sm font-semibold">
                 {resultado.revisar
                   ? "Sugestão salva! Vamos conferir o que ela tem de diferente do FAQ atual."
-                  : "Ótimo, isso ainda não tem no FAQ! Sugestão salva."}
+                  : TEXTOS[tipo].salva}
               </p>
               <p className="mt-0.5 text-sm">
-                Nossa equipe pode chamar você no WhatsApp para entender melhor. Tem outra ideia?
-                É só escrever acima.
+                {TEXTOS[tipo].contato} Tem outra ideia? É só escrever acima.
               </p>
             </div>
           </div>

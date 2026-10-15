@@ -20,8 +20,8 @@ export default function NovaSafra({ acao }: { acao: (formData: FormData) => Prom
           <form action={acao}>
             <div className="space-y-4 px-4 py-5 sm:px-6">
               <p className="rounded-lg bg-subtle/60 px-3 py-2 text-xs text-muted">
-                Todos os clientes cadastrados que não estiverem inativos são copiados
-                automaticamente para a safra nova.
+                Os clientes da última safra criada que não estiverem inativos são copiados
+                automaticamente para a safra nova, sem datas, responsável nem andamento.
               </p>
               <label className="block">
                 <span className="rotulo">Nome</span>

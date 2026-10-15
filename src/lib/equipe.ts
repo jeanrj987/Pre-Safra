@@ -15,6 +15,17 @@ export const COMERCIAL_POR_REGIAO: Record<string, string> = {
   "Oeste MT": "Pablo",
 };
 
+// Quem responde pela Pré-Safra em cada dupla de atendentes (o primeiro nome basta):
+// Amanda e Cauê → Amanda; Gabriel e Samuel → Samuel; Maria e Jean → Maria; Marcos e Jéssica → Marcos.
+// Se uma dupla mudar, é só acertar aqui.
+export const RESPONSAVEIS_PRE_SAFRA = ["Amanda", "Samuel", "Maria", "Marcos"];
+
+const primeiroNome = (nome: string) => normalizar(nome.trim()).split(/\s+/)[0];
+
+/** Essa pessoa da dupla é quem responde pela Pré-Safra dela? */
+export const eResponsavelPreSafra = (nome: string) =>
+  RESPONSAVEIS_PRE_SAFRA.some((r) => primeiroNome(r) === primeiroNome(nome));
+
 export interface EquipeCliente {
   atendentes: string | null;
   consultor: string | null;
@@ -27,6 +38,8 @@ export interface EquipeCliente {
 export interface PessoaEquipe {
   nome: string;
   papel: string;
+  /** Só presente (true) em quem é o responsável da Pré-Safra da dupla. */
+  safra?: true;
 }
 
 /** Título do grupo com a equipe da região do próprio cliente (os indicados). */
@@ -60,6 +73,8 @@ export function equipeDoCliente(c: EquipeCliente): PessoaEquipe[] {
   return [...papeis].map(([nome, set]) => ({
     nome,
     papel: ORDEM_PAPEIS.filter((p) => set.has(p)).join(" · "),
+    // O responsável é sempre um dos atendentes da dupla (consultor e comercial não entram).
+    ...(set.has("Atendente") && eResponsavelPreSafra(nome) ? { safra: true as const } : {}),
   }));
 }
 

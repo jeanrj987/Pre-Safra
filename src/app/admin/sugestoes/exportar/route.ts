@@ -1,6 +1,7 @@
 import { FUSO_NEGOCIO } from "@/lib/fuso";
 import { usuarioAtual } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { rotuloDoTipo } from "@/lib/sugestoes";
 import { formatarWhatsapp } from "@/lib/whatsapp";
 
 const dataHora = new Intl.DateTimeFormat("pt-BR", {
@@ -22,9 +23,10 @@ export async function GET() {
 
   const sugestoes = await prisma.sugestao.findMany({ orderBy: { id: "asc" } });
   const linhas = [
-    ["Data", "Nome", "WhatsApp", "Assunto", "Sugestão", "Possível duplicada", "Parecida com", "Oculta"],
+    ["Data", "Tipo", "Nome", "WhatsApp", "Assunto", "Sugestão", "Possível duplicada", "Parecida com", "Oculta"],
     ...sugestoes.map((s) => [
       dataHora.format(s.criadoEm),
+      rotuloDoTipo(s.tipo),
       s.nome,
       formatarWhatsapp(s.whatsapp),
       s.topico,
@@ -40,7 +42,7 @@ export async function GET() {
   return new Response(csv, {
     headers: {
       "Content-Type": "text/csv; charset=utf-8",
-      "Content-Disposition": 'attachment; filename="sugestoes-faq.csv"',
+      "Content-Disposition": 'attachment; filename="sugestoes.csv"',
       "Cache-Control": "no-store",
     },
   });

@@ -121,10 +121,12 @@ model Atividade {
   @@index([data])
 }
 
-// Sugestão de tema para o FAQ, enviada pelo público via QR code (rota pública /sugestao).
-// A equipe entra em contato pelo WhatsApp depois para entender melhor a ideia.
+// Sugestão do público (tema para o FAQ ou melhoria para o P&D), enviada via QR code (rota pública
+// /sugestao). A equipe entra em contato pelo WhatsApp depois para entender melhor a ideia.
 model Sugestao {
   id                Int      @id @default(autoincrement())
+  // "faq" ou "melhoria" (ver TIPOS_SUGESTAO em src/lib/sugestoes.ts). As anteriores são todas FAQ.
+  tipo              String   @default("faq")
   nome              String
   // Só dígitos, com DDI: "5566999998888" (ver src/lib/whatsapp.ts)
   whatsapp          String
@@ -141,6 +143,7 @@ model Sugestao {
 
   @@index([criadoEm])
   @@index([whatsapp, criadoEm])
+  @@index([tipo, oculta, id])
 }
 
 // Ajustes globais editáveis pelo admin, um por linha (chave -> valor em texto).

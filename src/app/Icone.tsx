@@ -101,6 +101,7 @@ const CAMINHOS = {
     </>
   ),
   lua: <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />,
+  estrela: <path d="m12 2 3.1 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.8 21l1.2-6.8-5-4.9 6.9-1z" />,
 } as const;
 
 export type NomeIcone = keyof typeof CAMINHOS;

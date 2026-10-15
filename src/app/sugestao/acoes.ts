@@ -3,7 +3,13 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { listarPerguntasFaq } from "@/lib/faq";
 import { acharPerguntaParecida } from "@/lib/similaridade";
-import { LIMITE_ENVIOS, LIMITES, limparTexto, normalizarTopico } from "@/lib/sugestoes";
+import {
+  ehTipoSugestao,
+  LIMITE_ENVIOS,
+  LIMITES,
+  limparTexto,
+  normalizarTopico,
+} from "@/lib/sugestoes";
 import { normalizarWhatsapp } from "@/lib/whatsapp";
 
 export type Resultado =
@@ -46,10 +52,13 @@ export async function enviarSugestao(entrada: unknown): Promise<Resultado> {
   const texto = limparTexto(dados.texto);
   const whatsapp = normalizarWhatsapp(String(dados.whatsapp ?? ""));
   const confirmar = dados.confirmar === true;
+  // Formulário aberto antes desta mudança não manda o tipo: era tudo FAQ
+  const tipo = dados.tipo === undefined ? "faq" : dados.tipo;
 
   if (nome.length < LIMITES.nome.min || nome.length > LIMITES.nome.max) {
     return erro("Informe seu nome.");
   }
+  if (!ehTipoSugestao(tipo)) return erro("Escolha o tipo da sugestão.");
   if (!whatsapp) {
     return erro("Confira o WhatsApp: informe o DDD e o número, por exemplo (66) 99999-8888.");
   }
@@ -74,11 +83,14 @@ export async function enviarSugestao(entrada: unknown): Promise<Resultado> {
     });
     if (repetida) return erro("Você já enviou essa mesma sugestão. Obrigado!");
 
-    const parecida = acharPerguntaParecida(texto, await listarPerguntasFaq());
+    // Só sugestão de FAQ é comparada com o FAQ; melhoria para o P&D não tem com o que comparar
+    const parecida =
+      tipo === "faq" ? acharPerguntaParecida(texto, await listarPerguntasFaq()) : null;
     if (parecida && !confirmar) return { status: "faq", pergunta: parecida.item.pergunta };
 
     await prisma.sugestao.create({
       data: {
+        tipo,
         nome,
         whatsapp,
         topico,

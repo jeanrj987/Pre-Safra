@@ -26,12 +26,22 @@ describe("equipe da região", () => {
   });
   it("junta atendentes, consultor e comercial, cada um com o papel", () => {
     expect(equipeDoCliente(oeste)).toEqual([
-      { nome: "Amanda Albano", papel: "Atendente" },
+      { nome: "Amanda Albano", papel: "Atendente", safra: true },
       { nome: "Cauê", papel: "Atendente" },
       { nome: "André", papel: "Consultor" },
       { nome: "Pablo", papel: "Comercial" },
     ]);
     expect(equipeDoCliente({ atendentes: null, consultor: null, regiao: null })).toEqual([]);
+  });
+  it("marca o responsável da Pré-Safra de cada dupla, só entre os atendentes", () => {
+    const safra = (c: Parameters<typeof equipeDoCliente>[0]) =>
+      equipeDoCliente(c).filter((p) => p.safra).map((p) => p.nome);
+    expect(safra(oeste)).toEqual(["Amanda Albano"]);
+    expect(safra(leste)).toEqual(["Samuel"]);
+    expect(safra(sorriso)).toEqual(["Maria"]);
+    expect(safra({ atendentes: "Marcos e Jéssica", consultor: "André", regiao: null })).toEqual(["Marcos"]);
+    // Consultor/comercial com o mesmo primeiro nome de um responsável não ganham a marca.
+    expect(safra({ atendentes: "Jean e Cauê", consultor: "Maria", regiao: null })).toEqual([]);
   });
   it("quem tem dois papéis aparece uma vez, na ordem atendente, consultor, comercial", () => {
     expect(equipeDoCliente({ atendentes: "André e Cauê", consultor: "André", regiao: null })).toEqual([
