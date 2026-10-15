@@ -3,7 +3,7 @@ import Form from "next/form";
 import { CampoBusca } from "./Auto";
 import { bateFiltroResponsavel, equipesPorRegiao, gruposDeResponsavel, regioesDoAtendente } from "@/lib/equipe";
 import Seletor from "./Seletor";
-import { Avatar, Bolinha } from "./seletorOpcoes";
+import { Bolinha, opcoesDePessoas } from "./seletorOpcoes";
 import { normalizar, plural } from "@/lib/texto";
 import { agendarCliente, finalizarComNota, reabrirComMotivo } from "./acoes";
 import Agendar from "./Agendar";
@@ -89,6 +89,16 @@ export default async function Home({ searchParams }: PageProps<"/">) {
   const nomes = nomesPossiveis(todas);
   // Equipe de cada região, para o responsável do Agendar: a da região do cliente primeiro, depois as outras.
   const equipes = equipesPorRegiao(todas);
+  // O filtro de responsável usa a mesma lista do Agendar (uma seção por região, com o papel de cada
+  // pessoa), mas só oferece quem de fato filtra clientes (`nomes`): consultor e comercial que não
+  // são responsáveis de ninguém deixariam a lista vazia.
+  const oferecidos = new Set(nomes.map(normalizar));
+  const opcoesFiltroResponsavel = opcoesDePessoas(
+    equipes
+      .map((g) => ({ ...g, pessoas: g.pessoas.filter((p) => oferecidos.has(normalizar(p.nome))) }))
+      .filter((g) => g.pessoas.length > 0),
+    nomes,
+  );
   // Regiões para filtrar (só as que têm clientes ativos) e as do próprio usuário, cujos clientes vêm primeiro.
   const regioes = [
     ...new Set(todas.filter((l) => l.status !== "Inativo" && l.regiao).map((l) => l.regiao as string)),
@@ -374,7 +384,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
             unidadePlural="responsáveis"
             placeholder="Todos os responsáveis"
             enviarAoMudar
-            opcoes={nomes.map((r) => ({ valor: r, rotulo: r, marca: <Avatar nome={r} /> }))}
+            opcoes={opcoesFiltroResponsavel}
           />
           <Seletor
             nome="regiao"
