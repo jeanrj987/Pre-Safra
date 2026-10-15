@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState, type CSSProperties, type MutableRefObject } from "react";
+import Icone from "@/app/Icone";
 import {
   GRADE_TELAO,
   VAGAS_NO_TELAO,
@@ -9,6 +10,9 @@ import {
 import type { DadosTelao } from "@/lib/telao";
 
 const INTERVALO_MS = 3000;
+// Ciano dos ícones e do botão da barra lateral; fixo porque o telão é sempre escuro (o primary do
+// tema claro é escuro demais para esse fundo).
+const CIANO = "text-[#4bc2d6]";
 // Duração da animação telao-sair: o cartão que sai segura a vaga até acabar, e só então o novo cai.
 const SAIDA_MS = 700;
 // Na troca de página os cartões saem e entram um após o outro, em cascata
@@ -209,9 +213,9 @@ function useColuna(inicial: SugestaoTelao[], segundosPagina: number, ligado: boo
 }
 
 const TEXTOS_COLUNA: Record<TipoSugestao, { titulo: string; vazio: string }> = {
-  faq: { titulo: "Dúvidas para o FAQ", vazio: "As dúvidas vão aparecer aqui assim que chegarem." },
+  faq: { titulo: "Ideias para o FAQ", vazio: "As ideias vão aparecer aqui assim que chegarem." },
   melhoria: {
-    titulo: "Melhorias para o P&D",
+    titulo: "Melhorias para as Ferramentas",
     vazio: "As melhorias vão aparecer aqui assim que chegarem.",
   },
 };
@@ -284,42 +288,60 @@ export default function Telao({
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col overflow-hidden bg-night text-white lg:flex-row">
-      <aside className="flex shrink-0 flex-wrap items-center gap-x-5 gap-y-3 lg:flex-nowrap border-b border-white/10 bg-night-raised p-4 lg:w-80 lg:flex-col lg:justify-between lg:border-r lg:border-b-0 lg:p-8">
+      <aside className="flex shrink-0 flex-wrap items-center gap-x-5 gap-y-3 lg:flex-nowrap border-b border-white/10 bg-night-raised p-4 lg:w-80 lg:flex-col lg:items-stretch lg:justify-between lg:gap-5 lg:overflow-y-auto lg:border-r lg:border-b-0 lg:p-8 [@media(max-height:820px)]:lg:gap-3 [@media(max-height:820px)]:lg:p-5">
         <div className="hidden w-full lg:block">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/logo-controlsoft.webp" alt="ControlSoft" className="h-8 w-auto" />
         </div>
 
-        <div className="flex min-w-0 flex-1 items-center gap-4 sm:gap-5 lg:flex-none lg:flex-col lg:text-center">
+        <div className="flex min-w-0 flex-1 items-center gap-4 sm:gap-5 lg:flex-none lg:flex-col lg:items-stretch lg:gap-4">
           <div
-            className="size-28 shrink-0 rounded-2xl bg-white p-2 sm:size-36 lg:size-60 lg:p-3 [&>svg]:size-full"
+            className="size-28 shrink-0 rounded-2xl bg-white p-2 sm:size-36 lg:mx-auto lg:size-48 lg:p-3 [@media(min-height:900px)]:lg:size-60 [@media(max-height:820px)]:lg:size-36 [&>svg]:size-full"
             role="img"
             aria-label={`QR code para ${urlFormulario}`}
             dangerouslySetInnerHTML={{ __html: qrSvg }}
           />
-          <div>
-            <h1 className="text-xl font-semibold leading-tight tracking-tight lg:text-3xl">
-              Dúvida para o FAQ ou melhoria para o sistema?
+          <div className="min-w-0">
+            <h1 className="flex items-center gap-3 text-xl font-semibold leading-tight tracking-tight lg:text-2xl">
+              <Icone nome="lampada" className={`hidden size-10 lg:block ${CIANO}`} />
+              Sua ideia faz a diferença!
             </h1>
-            <p className="mt-1 text-sm text-white/70 lg:mt-3 lg:text-base">
-              Aponte a câmera do celular para o QR code, escolha o tipo e deixe sua ideia.
-            </p>
-            <p className="mt-2 text-xs text-white/60 lg:text-sm">
-              Está no computador?{" "}
+            <div className="mt-3 hidden space-y-1 text-sm leading-snug text-white/85 lg:block">
+              <p>Uma dúvida pode virar conhecimento.</p>
+              <p>Uma sugestão pode virar melhoria.</p>
+              <p className="pt-2">
+                Compartilhe sua ideia e ajude a construir uma ControlSoft cada vez melhor!
+              </p>
+            </div>
+
+            <div className="mt-2 flex items-center gap-3 lg:mt-4 lg:border-t lg:border-white/10 lg:pt-4">
+              <Icone nome="celular" className={`hidden size-8 lg:block ${CIANO}`} />
+              <p className="text-sm text-white/70 lg:text-sm lg:text-white/85">
+                Aponte a câmera do celular para o QRCode, e deixe sua sugestão!
+              </p>
+            </div>
+
+            <div className="mt-2 lg:mt-4 lg:border-t lg:border-white/10 lg:pt-4">
+              <p className="mb-3 hidden items-center gap-3 text-sm text-white/85 lg:flex">
+                <Icone nome="monitor" className={`size-7 ${CIANO}`} />
+                Está no computador?
+              </p>
               <a
                 href={urlFormulario}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="break-all font-medium text-white underline underline-offset-2 hover:text-white/80"
+                className={`inline-flex items-center justify-center gap-2 rounded-xl border-2 px-3 py-2 text-xs font-semibold transition hover:bg-white/5 lg:flex lg:text-sm ${CIANO} border-current`}
               >
-                Clique aqui para enviar sua ideia
+                <span className="lg:hidden">Enviar sua ideia</span>
+                <span className="hidden lg:inline">Clique aqui para enviar sua ideia</span>
+                <Icone nome="linkExterno" className="size-4" />
               </a>
-            </p>
+            </div>
           </div>
         </div>
 
         <div className="ml-auto text-right lg:ml-0 lg:w-full lg:text-center">
-          <p className="num font-display text-4xl font-bold leading-none lg:text-6xl">{total}</p>
+          <p className="num font-display text-4xl font-bold leading-none lg:text-6xl [@media(max-height:820px)]:lg:text-5xl">{total}</p>
           <p className="mt-1 text-sm text-white/70">
             {total === 1 ? "sugestão recebida" : "sugestões recebidas"}
           </p>
