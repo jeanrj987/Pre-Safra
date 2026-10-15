@@ -175,7 +175,7 @@ export default async function AdminClientes({
       {listados.length === 0 ? (
         <p className="p-5 text-sm text-muted">Nenhum cliente encontrado.</p>
       ) : (
-        <div className="@container overflow-x-auto">
+        <div className="@container relative overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b border-line bg-subtle/70 text-[11px] font-semibold uppercase tracking-wider text-muted">
@@ -186,7 +186,7 @@ export default async function AdminClientes({
                 <th scope="col" className="hidden px-3 py-2.5 @min-[1100px]:table-cell">Atendimento</th>
                 <th scope="col" className="hidden px-3 py-2.5 @min-[1100px]:table-cell">Consultor</th>
                 <th scope="col" className="hidden px-3 py-2.5 @min-[1100px]:table-cell">Comercial</th>
-                <th scope="col" className="hidden px-3 py-2.5 @2xl:table-cell">
+                <th scope="col" className="hidden px-3 py-2.5 @min-[860px]:table-cell">
                   Situação{safra ? ` · ${safra.nome}` : ""}
                 </th>
                 <th scope="col" className="py-2.5 pl-3 pr-4 text-right sm:pr-5">
@@ -232,7 +232,7 @@ export default async function AdminClientes({
                         )}
                       </div>
                     </div>
-                    <div className="mt-1.5 text-sm font-normal @2xl:hidden">{situacao}</div>
+                    <div className="mt-1.5 text-sm font-normal @min-[860px]:hidden">{situacao}</div>
                   </td>
                   <td className="hidden px-3 py-3 text-muted @min-[1100px]:table-cell">{c.cidade || "—"}</td>
                   <td className="hidden px-3 py-3 text-muted @min-[1100px]:table-cell">{c.uf || "—"}</td>
@@ -246,7 +246,7 @@ export default async function AdminClientes({
                   <td className="hidden px-3 py-3 text-muted @min-[1100px]:table-cell">{c.atendente || "—"}</td>
                   <td className="hidden px-3 py-3 text-muted @min-[1100px]:table-cell">{c.consultor || "—"}</td>
                   <td className="hidden px-3 py-3 text-muted @min-[1100px]:table-cell">{c.comercial || "—"}</td>
-                  <td className="hidden px-3 py-3 @2xl:table-cell">{situacao}</td>
+                  <td className="hidden px-3 py-3 @min-[860px]:table-cell">{situacao}</td>
                   <td className="py-2.5 pl-3 pr-4 text-right align-top sm:pr-5">
                     <div className="flex items-center justify-end gap-1.5">
                       {ps ? (

@@ -90,8 +90,9 @@ export async function reabrirComMotivo(formData: FormData) {
 // consegue defini-lo de novo; para os demais ele fica). A janela já mostra os erros; aqui o servidor
 // garante as regras mesmo para uma chamada direta, e nesse caso não grava nada: campo faltando,
 // datas e horários passados, sábados, domingos e feriados, cliente finalizado ou inativo. Qualquer usuário
-// agenda qualquer cliente, mas só o admin e o responsável do cliente removem o agendamento. Só admin troca o responsável; o usuário comum que
-// agenda um cliente sem responsável passa a ser o responsável dele (assume ao agendar).
+// agenda qualquer cliente, mas só o admin e o responsável do cliente removem o agendamento. Todos
+// escolhem o responsável ao agendar; o usuário comum que agenda um cliente sem responsável já
+// vem indicado como ele (assume ao agendar, se não trocar).
 export async function agendarCliente(formData: FormData) {
   const sessao = await exigirAcessoCompleto();
   const id = Number(formData.get("id"));
@@ -140,18 +141,18 @@ export async function agendarCliente(formData: FormData) {
   const formato = textoDe(formData, "formato");
   if (!formatoValido(formato)) voltarPara(formData, 0, "agendados");
 
-  // Sem responsável, o usuário comum assume o cliente ao agendar (o nome ligado à conta dele).
-  const semResponsavel = !registro?.responsavel?.trim();
-  const responsavel = sessao.admin
-    ? textoDe(formData, "responsavel")
-    : (registro?.responsavel?.trim() || sessao.nomeResponsavel || null);
+  // Todos escolhem o responsável na janela. Se o campo não vier (chamada direta), o usuário comum
+  // fica com o que o cliente já tem ou, sem ninguém, assume o cliente (o nome ligado à conta dele).
+  const responsavel =
+    textoDe(formData, "responsavel") ??
+    (sessao.admin ? null : registro?.responsavel?.trim() || sessao.nomeResponsavel || null);
 
   if (!responsavel || !dia || !horario) voltarPara(formData, 0, "agendados");
 
   await prisma.preSafra.update({
     where: { id },
     data: {
-      ...(sessao.admin || semResponsavel ? { responsavel } : {}),
+      responsavel,
       dataPrevista: dia,
       horario,
       formato,

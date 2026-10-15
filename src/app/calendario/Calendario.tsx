@@ -198,7 +198,7 @@ function Dia({
       onClick={(e) => {
         if (!bloqueio && e.target === e.currentTarget) onNova();
       }}
-      className={`group h-28 min-w-0 overflow-hidden p-1 ${bloqueio ? "" : "cursor-pointer"} ${
+      className={`group h-16 min-w-0 overflow-hidden p-1 lg:h-28 ${bloqueio ? "" : "cursor-pointer"} ${
         primeira ? "" : "border-l border-line"
       } ${dentroDoMes ? "" : "bg-subtle/60"}`}
     >
@@ -222,7 +222,22 @@ function Dia({
           {numero}
         </button>
       </div>
-      <ul className="space-y-1">
+      {/* Celular e tablet: a célula é estreita demais para o texto dos itens; mostra uma bolinha
+          por item (cor do status) e o toque abre a janela do dia, que lista tudo por extenso. */}
+      {itens.length > 0 && (
+        <button
+          type="button"
+          onClick={onVerTodos}
+          aria-label={`Ver os ${itens.length} ${itens.length === 1 ? "item" : "itens"} de ${dataPorExtenso(dia)}`}
+          className="flex w-full cursor-pointer flex-wrap justify-center gap-0.5 rounded-md py-0.5 hover:bg-subtle lg:hidden"
+        >
+          {itens.slice(0, 6).map((item) => (
+            <span key={item.chave} className={`size-2 rounded-full ${pontoDoItem(item, hoje)}`} aria-hidden="true" />
+          ))}
+          {itens.length > 6 && <span className="text-[10px] font-semibold leading-2 text-primary">+</span>}
+        </button>
+      )}
+      <ul className="hidden space-y-1 lg:block">
         {visiveis.map((item) => (
           <li key={item.chave}>
             <ItemDoDia item={item} hoje={hoje} onAbrir={onAbrir} />
@@ -244,6 +259,14 @@ function Dia({
       </ul>
     </div>
   );
+}
+
+// Cor da bolinha de um item na grade compacta (celular), no mesmo critério dos chips.
+function pontoDoItem(item: ItemDia, hoje: string): string {
+  if (item.cliente) return item.cliente.ponto;
+  const a = item.atividade!;
+  if (a.concluida) return "bg-finalizado-dot";
+  return a.data < hoje ? "bg-atrasado-dot" : "bg-primary";
 }
 
 // Quantos itens a célula mostra antes de virar "+N". Com a altura fixa da célula (h-28), dois
@@ -347,7 +370,7 @@ function ChipCliente({ cliente: c }: { cliente: AgendamentoNaTela }) {
       }`}
     >
       <span className={`size-2.5 shrink-0 rounded-full ${c.ponto}`} aria-hidden="true" />
-      <span className="min-w-0 flex-1 truncate font-medium">
+      <span className="relative min-w-0 flex-1 truncate font-medium">
         {c.horario && <span className="tabular-nums">{c.horario} </span>}
         {c.nome}
         <span className="sr-only"> ({c.status})</span>
@@ -398,7 +421,7 @@ function Chip({
         type="button"
         onClick={onAbrir}
         title={a.titulo}
-        className={`min-w-0 flex-1 cursor-pointer truncate text-left font-medium ${a.concluida ? "line-through opacity-80" : ""}`}
+        className={`relative min-w-0 flex-1 cursor-pointer truncate text-left font-medium ${a.concluida ? "line-through opacity-80" : ""}`}
       >
         {a.horario && <span className="tabular-nums">{a.horario} </span>}
         {a.titulo}

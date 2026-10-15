@@ -448,7 +448,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
         />
         <form action={finalizarComNota}>
           <input type="hidden" name="voltar" value={atual.toString()} />
-          <div className="@container overflow-x-auto">
+          <div className="@container relative overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-line bg-subtle/70 text-[11px] font-semibold uppercase tracking-wider text-muted">
@@ -464,8 +464,8 @@ export default async function Home({ searchParams }: PageProps<"/">) {
                   <th scope="col" className="hidden px-3 py-2.5 @min-[1080px]:table-cell">UF</th>
                   <th scope="col" className="hidden px-3 py-2.5 @min-[1080px]:table-cell">Região</th>
                   <th scope="col" className="hidden px-3 py-2.5 @min-[1080px]:table-cell">Consultor</th>
-                  <th scope="col" className="hidden px-3 py-2.5 @2xl:table-cell">Status</th>
-                  <th scope="col" className="hidden px-3 py-2.5 @2xl:table-cell">Data</th>
+                  <th scope="col" className="hidden px-3 py-2.5 @min-[860px]:table-cell">Status</th>
+                  <th scope="col" className="hidden px-3 py-2.5 @min-[860px]:table-cell">Data</th>
                   <th scope="col" className="py-2.5 pl-3 pr-4 text-right sm:pr-5">
                     <span className="sr-only">Ações</span>
                   </th>
@@ -493,12 +493,12 @@ export default async function Home({ searchParams }: PageProps<"/">) {
                           )}
                         </td>
                       )}
-                      <td className={`w-full max-w-0 py-3 pr-3 align-top ${comSelecao ? "pl-3" : "pl-4 sm:pl-5"} @2xl:w-auto @2xl:min-w-64 @2xl:max-w-64 @min-[1300px]:max-w-72`}>
-                        <div className="flex flex-wrap items-center gap-x-2 @2xl:flex-nowrap">
+                      <td className={`w-full max-w-0 py-3 pr-3 align-top ${comSelecao ? "pl-3" : "pl-4 sm:pl-5"} @min-[860px]:w-auto @min-[860px]:min-w-64 @min-[860px]:max-w-64 @min-[1300px]:max-w-72`}>
+                        <div className="flex flex-wrap items-center gap-x-2 @min-[860px]:flex-nowrap">
                           <Link
                             href={`/registro/${l.id}`}
                             title={l.nome}
-                            className="font-medium text-ink hover:text-primary hover:underline @2xl:min-w-0 @2xl:truncate"
+                            className="font-medium text-ink hover:text-primary hover:underline @min-[860px]:min-w-0 @min-[860px]:truncate"
                           >
                             {l.nome}
                           </Link>
@@ -509,7 +509,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
                           )}
                         </div>
                         {/* Em tela estreita, o status fica sob o nome */}
-                        <div className="mt-1.5 @2xl:hidden">
+                        <div className="mt-1.5 @min-[860px]:hidden">
                           {statusDaLinha(l)}
                           {l.dataPrevista && (
                             <div className="mt-1 text-xs text-muted">Data: {formatarData(l.dataPrevista)}</div>
@@ -545,10 +545,10 @@ export default async function Home({ searchParams }: PageProps<"/">) {
                       <td className="hidden whitespace-nowrap px-3 py-3 align-top text-muted @min-[1080px]:table-cell">
                         {l.consultor || "—"}
                       </td>
-                      <td className="hidden px-3 py-3 align-top @2xl:table-cell">
+                      <td className="hidden px-3 py-3 align-top @min-[860px]:table-cell">
                         {statusDaLinha(l)}
                       </td>
-                      <td className="hidden whitespace-nowrap px-3 py-3 align-top tabular-nums text-muted @2xl:table-cell">
+                      <td className="hidden whitespace-nowrap px-3 py-3 align-top tabular-nums text-muted @min-[860px]:table-cell">
                         {formatarData(l.dataPrevista)}
                       </td>
                       <td className="py-2.5 pl-3 pr-4 align-top sm:pr-5">
@@ -577,7 +577,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
                               }
                               grupos={gruposDeResponsavel(l, equipes)}
                               outros={nomes}
-                              podeTrocarResponsavel={usuario.admin}
+                              podeLimparResponsavel={usuario.admin}
                               podeRemover={podeAlterar(l)}
                             />
                           )}

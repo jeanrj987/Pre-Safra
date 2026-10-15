@@ -163,20 +163,20 @@ export default async function AdminSafras({
       {safras.length === 0 ? (
         <p className="p-5 text-sm text-muted">Nenhuma safra cadastrada ainda.</p>
       ) : (
-        <div className="@container overflow-x-auto">
+        <div className="@container relative overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b border-line bg-subtle/70 text-[11px] font-semibold uppercase tracking-wider text-muted">
                 <th scope="col" className="px-4 py-2.5 sm:px-5">
                   Nome
                 </th>
-                <th scope="col" className="hidden px-3 py-2.5 @2xl:table-cell">
+                <th scope="col" className="hidden px-3 py-2.5 @min-[860px]:table-cell">
                   Cultura
                 </th>
-                <th scope="col" className="hidden px-3 py-2.5 @2xl:table-cell">
+                <th scope="col" className="hidden px-3 py-2.5 @min-[860px]:table-cell">
                   Período
                 </th>
-                <th scope="col" className="hidden px-3 py-2.5 @2xl:table-cell">
+                <th scope="col" className="hidden px-3 py-2.5 @min-[860px]:table-cell">
                   Situação
                 </th>
                 <th scope="col" className="py-2.5 pl-3 pr-4 text-right sm:pr-5">
@@ -192,19 +192,19 @@ export default async function AdminSafras({
                     <td className="px-4 py-3 align-top font-medium text-ink sm:px-5">
                       {s.nome}
                       {/* Em tela estreita, cultura, situação e período ficam sob o nome */}
-                      <div className="mt-0.5 text-xs font-normal text-muted @2xl:hidden">
+                      <div className="mt-0.5 text-xs font-normal text-muted @min-[860px]:hidden">
                         {s.cultura ? `${s.cultura} · ` : ""}
                         {s.ativa ? "Ativa" : "Inativa"}
                       </div>
-                      <div className="mt-1 text-sm font-normal tabular-nums @2xl:hidden">
+                      <div className="mt-1 text-sm font-normal tabular-nums @min-[860px]:hidden">
                         {formatarData(s.inicio)} – {formatarData(s.prazo)}
                       </div>
                     </td>
-                    <td className="hidden px-3 py-3 align-top text-muted @2xl:table-cell">{s.cultura || "—"}</td>
-                    <td className="hidden px-3 py-3 align-top tabular-nums @2xl:table-cell">
+                    <td className="hidden px-3 py-3 align-top text-muted @min-[860px]:table-cell">{s.cultura || "—"}</td>
+                    <td className="hidden px-3 py-3 align-top tabular-nums @min-[860px]:table-cell">
                       {formatarData(s.inicio)} – {formatarData(s.prazo)}
                     </td>
-                    <td className="hidden px-3 py-3 align-top @2xl:table-cell">{s.ativa ? "Ativa" : "Inativa"}</td>
+                    <td className="hidden px-3 py-3 align-top @min-[860px]:table-cell">{s.ativa ? "Ativa" : "Inativa"}</td>
                     <td className="py-2.5 pl-3 pr-4 text-right align-top sm:pr-5">
                       <div className="flex items-center justify-end gap-1.5">
                         <EditarSafra

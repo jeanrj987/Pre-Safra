@@ -294,7 +294,7 @@ export default function Telao({
           <img src="/logo-controlsoft.webp" alt="ControlSoft" className="h-8 w-auto" />
         </div>
 
-        <div className="flex min-w-0 flex-1 items-center gap-4 sm:gap-5 lg:flex-none lg:flex-col lg:items-stretch lg:gap-4">
+        <div className="flex min-w-0 flex-1 items-center gap-4 max-sm:basis-full sm:gap-5 lg:flex-none lg:flex-col lg:items-stretch lg:gap-4">
           <div
             className="size-28 shrink-0 rounded-2xl bg-white p-2 sm:size-36 lg:mx-auto lg:size-48 lg:p-3 [@media(min-height:900px)]:lg:size-60 [@media(max-height:820px)]:lg:size-36 [&>svg]:size-full"
             role="img"
@@ -340,13 +340,13 @@ export default function Telao({
           </div>
         </div>
 
-        <div className="ml-auto text-right lg:ml-0 lg:w-full lg:text-center">
-          <p className="num font-display text-4xl font-bold leading-none lg:text-6xl [@media(max-height:820px)]:lg:text-5xl">{total}</p>
-          <p className="mt-1 text-sm text-white/70">
+        <div className="flex w-full flex-wrap items-baseline justify-center gap-x-2 sm:ml-auto sm:block sm:w-auto sm:text-right lg:ml-0 lg:w-full lg:text-center">
+          <p className="num font-display text-3xl font-bold leading-none sm:text-4xl lg:text-6xl [@media(max-height:820px)]:lg:text-5xl">{total}</p>
+          <p className="text-sm text-white/70 sm:mt-1">
             {total === 1 ? "sugestão recebida" : "sugestões recebidas"}
           </p>
           {situacao === "sem-conexao" && (
-            <p role="status" className="mt-2 text-xs text-afazer-dot">
+            <p role="status" className="mt-2 text-xs text-afazer-dot max-sm:w-full max-sm:text-center">
               Sem conexão — tentando de novo…
             </p>
           )}

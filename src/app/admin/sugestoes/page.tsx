@@ -217,7 +217,7 @@ export default async function AdminSugestoes({
           e o QR code fica no “Telão de ideias”, no menu lateral.
         </p>
       ) : (
-        <div className="@container overflow-x-auto">
+        <div className="@container relative overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b border-line bg-subtle/70 text-[11px] font-semibold uppercase tracking-wider text-muted">
