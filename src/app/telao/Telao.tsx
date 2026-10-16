@@ -15,6 +15,8 @@ const INTERVALO_MS = 3000;
 const CIANO = "text-[#4bc2d6]";
 // Duração da animação telao-sair: o cartão que sai segura a vaga até acabar, e só então o novo cai.
 const SAIDA_MS = 700;
+// Quanto o cartão novo fica marcado: a troca de página, a queda em cascata e os 9s do telao-brilho
+const DESTAQUE_MS = 13000;
 // Na troca de página os cartões saem e entram um após o outro, em cascata
 const CASCATA_SAIDA_MS = 20;
 const CASCATA_ENTRADA_MS = 60;
@@ -61,7 +63,7 @@ function montarTela(todas: SugestaoTelao[], pagina: number, deslocamento: number
 // Quem consulta o servidor é o Telao; ele entrega o que chegou a cada coluna por `receber`.
 interface Coluna {
   tela: Tela;
-  // Ideias que chegaram e ainda não tiveram a vez na tela: brilham até a página delas girar
+  // Ideias que acabaram de chegar: brilham até acabar a animação ou até a página delas girar
   novas: Set<number>;
   receber: MutableRefObject<(todas: SugestaoTelao[], paginaMs: number) => void>;
 }
@@ -163,9 +165,15 @@ function useColuna(inicial: SugestaoTelao[], segundosPagina: number, ligado: boo
       const t = telaRef.current;
       const pendentes = todas.filter((s) => !conhecidas.has(s.id));
       pendentes.forEach((s) => conhecidas.add(s.id));
-      // Ideia nova: a coluna volta para a primeira página, as recém-chegadas brilham
+      // Ideia nova: a coluna volta para a primeira página e só as recém-chegadas brilham (as que
+      // brilhavam antes já tiveram a sua vez)
       if (pendentes.length > 0) {
-        marcar(new Set([...marcadas, ...pendentes.map((s) => s.id)]));
+        const brilhando = new Set(pendentes.map((s) => s.id));
+        marcar(brilhando);
+        // Terminada a animação, o destaque sai: senão o brilho se repetiria a cada remontagem da página
+        agendar(() => {
+          if (marcadas === brilhando) marcar(new Set());
+        }, DESTAQUE_MS);
         return irPara(0, false);
       }
 
