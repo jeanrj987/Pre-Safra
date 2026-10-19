@@ -2,16 +2,20 @@ import { FUSO_NEGOCIO } from "@/lib/fuso";
 import { revalidatePath } from "next/cache";
 import { exigirAdmin } from "@/lib/auth";
 import {
+  gravarMetaFaq,
   gravarSegundosPaginaTelao,
   gravarTelaoAtivo,
+  lerMetaFaq,
   lerSegundosPaginaTelao,
   lerTelaoAtivo,
+  validarMetaFaq,
   validarSegundosPagina,
 } from "@/lib/configuracoes";
 import { prisma } from "@/lib/db";
 import { formatarWhatsapp, linkWhatsapp } from "@/lib/whatsapp";
 import {
   ehTipoSugestao,
+  META_FAQ,
   rotuloDoTipo,
   SEGUNDOS_PAGINA_TELAO,
   VAGAS_NO_TELAO,
@@ -23,6 +27,7 @@ import BotaoExcluir from "@/app/BotaoExcluir";
 import Icone from "@/app/Icone";
 import Paginacao from "@/app/Paginacao";
 import { AcoesLoteSugestoes, CaixaSugestao, CaixaTodas } from "./Selecao";
+import MetaFaq from "./MetaFaq";
 import TempoTelao from "./TempoTelao";
 
 export const metadata = { title: "Sugestões" };
@@ -51,12 +56,13 @@ export default async function AdminSugestoes({
 }: {
   searchParams: Promise<{ pagina?: string; tipo?: string }>;
 }) {
-  const [, sp, existentes, segundosPagina, telaoAtivo] = await Promise.all([
+  const [, sp, existentes, segundosPagina, telaoAtivo, metaFaq] = await Promise.all([
     exigirAdmin(),
     searchParams,
     prisma.sugestao.findMany({ select: { id: true, tipo: true }, orderBy: { id: "desc" } }),
     lerSegundosPaginaTelao(),
     lerTelaoAtivo(),
+    lerMetaFaq(),
   ]);
   // Todos os ids (sem filtro): a seleção em lote usa para descartar o que já foi excluído
   const todosIds = existentes;
@@ -98,6 +104,21 @@ export default async function AdminSugestoes({
     const segundos = validarSegundosPagina(formData.get("segundos"));
     if (segundos === null) return;
     await gravarSegundosPaginaTelao(segundos);
+    revalidatePath("/admin/sugestoes");
+  }
+
+  async function salvarMetaFaq(formData: FormData) {
+    "use server";
+    await exigirAdmin();
+    // Vazio remove a meta; um valor preenchido e inválido é ignorado em vez de apagar a meta atual
+    const texto = String(formData.get("meta") ?? "").trim();
+    if (texto === "") {
+      await gravarMetaFaq(null);
+    } else {
+      const meta = validarMetaFaq(texto);
+      if (meta === null) return;
+      await gravarMetaFaq(meta);
+    }
     revalidatePath("/admin/sugestoes");
   }
 
@@ -206,6 +227,14 @@ export default async function AdminSugestoes({
           mais de uma página de ideias em uma das colunas (mais de {VAGAS_NO_TELAO} de FAQ ou de
           melhorias).
         </p>
+        <div className="mt-4">
+          <MetaFaq meta={metaFaq} salvar={salvarMetaFaq} />
+          <p className="mt-1.5 text-xs text-muted">
+            De {META_FAQ.min} a {META_FAQ.max}. Aparece como uma barra de progresso na coluna de FAQ
+            do telão, contando todas as sugestões de FAQ recebidas ({totalDoTipo("faq")} até agora),
+            inclusive as ocultas. Deixe em branco para tirar a meta.
+          </p>
+        </div>
       </div>
 
       {total === 0 ? (

@@ -43,6 +43,9 @@ export const TETO_NO_TELAO = 200;
 /** Quanto tempo cada página do telão fica na tela, em segundos (o admin ajusta dentro dos limites). */
 export const SEGUNDOS_PAGINA_TELAO = { padrao: 12, min: 3, max: 120 } as const;
 
+/** Limites da meta de sugestões de FAQ exibida no telão (o admin a define; vazio = sem meta). */
+export const META_FAQ = { min: 1, max: 100000 } as const;
+
 /** Tira caracteres de controle e espaços repetidos. */
 export const limparTexto = (s: unknown) =>
   String(s ?? "")

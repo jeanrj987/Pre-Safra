@@ -1,7 +1,8 @@
 import { prisma } from "@/lib/db";
-import { SEGUNDOS_PAGINA_TELAO } from "@/lib/sugestoes";
+import { META_FAQ, SEGUNDOS_PAGINA_TELAO } from "@/lib/sugestoes";
 
 const CHAVE_SEGUNDOS_PAGINA = "telaoSegundosPorPagina";
+const CHAVE_META_FAQ = "metaFaq";
 const CHAVE_TELAO_ATIVO = "telaoAtivo";
 
 // Enquanto o telão está aberto ele consulta o servidor a cada poucos segundos, o que consome
@@ -38,5 +39,31 @@ export async function gravarSegundosPaginaTelao(segundos: number): Promise<void>
     where: { chave: CHAVE_SEGUNDOS_PAGINA },
     update: { valor },
     create: { chave: CHAVE_SEGUNDOS_PAGINA, valor },
+  });
+}
+
+/** Meta válida (inteiro dentro dos limites) ou null. */
+export function validarMetaFaq(valor: unknown): number | null {
+  const n = Number(valor);
+  return Number.isInteger(n) && n >= META_FAQ.min && n <= META_FAQ.max ? n : null;
+}
+
+/** Meta de sugestões de FAQ do telão; null quando o admin não definiu nenhuma. */
+export async function lerMetaFaq(): Promise<number | null> {
+  const linha = await prisma.configuracao.findUnique({ where: { chave: CHAVE_META_FAQ } });
+  return validarMetaFaq(linha?.valor);
+}
+
+/** Grava a meta; null remove (o telão deixa de mostrar a barra). */
+export async function gravarMetaFaq(meta: number | null): Promise<void> {
+  if (meta === null) {
+    await prisma.configuracao.deleteMany({ where: { chave: CHAVE_META_FAQ } });
+    return;
+  }
+  const valor = String(meta);
+  await prisma.configuracao.upsert({
+    where: { chave: CHAVE_META_FAQ },
+    update: { valor },
+    create: { chave: CHAVE_META_FAQ, valor },
   });
 }

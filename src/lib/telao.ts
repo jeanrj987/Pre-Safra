@@ -1,4 +1,4 @@
-import { lerSegundosPaginaTelao, lerTelaoAtivo } from "@/lib/configuracoes";
+import { lerMetaFaq, lerSegundosPaginaTelao, lerTelaoAtivo } from "@/lib/configuracoes";
 import { prisma } from "@/lib/db";
 import {
   matizesDoTelao,
@@ -19,6 +19,11 @@ export interface DadosTelao {
   sugestoes: Record<TipoSugestao, SugestaoTelao[]>;
   totais: Record<TipoSugestao, number>; // todas as visíveis, inclusive as que passaram do teto
   segundosPagina: number; // quanto cada página fica na tela (ajuste do admin)
+  // Meta de sugestões de FAQ definida pelo admin (null = sem meta, a barra não aparece)
+  metaFaq: number | null;
+  // Sugestões de FAQ recebidas, ocultas inclusive: ocultar é moderação do telão, não tira a
+  // contribuição de quem enviou, então não pode fazer a barra da meta recuar.
+  faqRecebidas: number;
 }
 
 const porTipo = <T>(valor: () => T): Record<TipoSugestao, T> => ({ faq: valor(), melhoria: valor() });
@@ -31,9 +36,11 @@ export async function carregarTelao(): Promise<DadosTelao> {
       sugestoes: porTipo<SugestaoTelao[]>(() => []),
       totais: porTipo(() => 0),
       segundosPagina: SEGUNDOS_PAGINA_TELAO.padrao,
+      metaFaq: null,
+      faqRecebidas: 0,
     };
   }
-  const [listas, contagens, segundosPagina] = await Promise.all([
+  const [listas, contagens, segundosPagina, metaFaq, faqRecebidas] = await Promise.all([
     Promise.all(
       TIPOS_SUGESTAO.map((tipo) =>
         prisma.sugestao.findMany({
@@ -46,6 +53,8 @@ export async function carregarTelao(): Promise<DadosTelao> {
     ),
     prisma.sugestao.groupBy({ by: ["tipo"], where: { oculta: false }, _count: { _all: true } }),
     lerSegundosPaginaTelao(),
+    lerMetaFaq(),
+    prisma.sugestao.count({ where: { tipo: "faq" } }),
   ]);
 
   const sugestoes = porTipo<SugestaoTelao[]>(() => []);
@@ -58,5 +67,5 @@ export async function carregarTelao(): Promise<DadosTelao> {
   for (const c of contagens) {
     if (c.tipo === "faq" || c.tipo === "melhoria") totais[c.tipo] = c._count._all;
   }
-  return { ativo: true, sugestoes, totais, segundosPagina };
+  return { ativo: true, sugestoes, totais, segundosPagina, metaFaq, faqRecebidas };
 }

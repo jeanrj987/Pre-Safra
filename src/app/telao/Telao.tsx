@@ -238,6 +238,7 @@ export default function Telao({
   qrSvg: string;
 }) {
   const [totais, setTotais] = useState(inicial.totais);
+  const [meta, setMeta] = useState({ alvo: inicial.metaFaq, recebidas: inicial.faqRecebidas });
   const [situacao, setSituacao] = useState<"ok" | "sem-conexao">("ok");
   // Desligado pelo admin: não consulta o servidor e mostra só o aviso (ver o fim do componente)
   const [ligado, setLigado] = useState(inicial.ativo);
@@ -263,6 +264,7 @@ export default function Telao({
 
         setSituacao("ok");
         setTotais(dados.totais);
+        setMeta({ alvo: dados.metaFaq, recebidas: dados.faqRecebidas });
         const paginaMs = dados.segundosPagina * 1000;
         receberFaq.current(dados.sugestoes.faq, paginaMs);
         receberMelhoria.current(dados.sugestoes.melhoria, paginaMs);
@@ -362,7 +364,12 @@ export default function Telao({
       </aside>
 
       <main className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-3 lg:flex-row lg:gap-5 lg:overflow-hidden lg:p-6">
-        <PainelColuna tipo="faq" total={totais.faq} coluna={faq} />
+        <PainelColuna
+          tipo="faq"
+          total={totais.faq}
+          coluna={faq}
+          meta={meta.alvo === null ? undefined : { alvo: meta.alvo, recebidas: meta.recebidas }}
+        />
         <PainelColuna tipo="melhoria" total={totais.melhoria} coluna={melhoria} />
       </main>
     </div>
@@ -374,10 +381,12 @@ function PainelColuna({
   tipo,
   total,
   coluna: { tela, novas },
+  meta,
 }: {
   tipo: TipoSugestao;
   total: number;
   coluna: Coluna;
+  meta?: { alvo: number; recebidas: number };
 }) {
   const { titulo, vazio } = TEXTOS_COLUNA[tipo];
   return (
@@ -389,6 +398,8 @@ function PainelColuna({
         <h2 className="text-lg font-semibold tracking-tight lg:text-2xl">{titulo}</h2>
         <p className="num font-display text-2xl font-bold leading-none lg:text-4xl">{total}</p>
       </header>
+
+      {meta && <BarraMeta alvo={meta.alvo} recebidas={meta.recebidas} />}
 
       <div
         className="relative lg:min-h-0 lg:flex-1 lg:[container-type:size]"
@@ -454,6 +465,40 @@ function PainelColuna({
         )}
       </div>
     </section>
+  );
+}
+
+// Progresso da meta de sugestões de FAQ. A barra para em 100%, mas o número continua subindo
+// depois de a meta ser batida.
+function BarraMeta({ alvo, recebidas }: { alvo: number; recebidas: number }) {
+  const percentual = Math.min(100, Math.floor((recebidas / alvo) * 100));
+  const atingida = recebidas >= alvo;
+  return (
+    <div className="px-1 pb-3">
+      <div className="mb-1.5 flex items-baseline justify-between gap-3 text-sm text-white/85 lg:text-base">
+        <p>
+          Meta: <span className="num font-semibold text-white">{recebidas}</span> de{" "}
+          <span className="num font-semibold text-white">{alvo}</span> sugestões
+        </p>
+        <p className={`num font-semibold ${atingida ? CIANO : "text-white"}`}>
+          {atingida ? "Meta atingida!" : `${percentual}%`}
+        </p>
+      </div>
+      <div
+        role="progressbar"
+        aria-label="Meta de sugestões de FAQ"
+        aria-valuemin={0}
+        aria-valuemax={alvo}
+        aria-valuenow={Math.min(recebidas, alvo)}
+        aria-valuetext={`${recebidas} de ${alvo} sugestões`}
+        className="h-3 overflow-hidden rounded-full bg-white/10 lg:h-4"
+      >
+        <div
+          className="h-full rounded-full bg-[#4bc2d6] transition-[width] duration-1000 ease-out"
+          style={{ width: `${percentual}%` }}
+        />
+      </div>
+    </div>
   );
 }
 
