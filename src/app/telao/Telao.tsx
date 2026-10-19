@@ -220,10 +220,15 @@ function useColuna(inicial: SugestaoTelao[], segundosPagina: number, ligado: boo
   return { tela, novas, receber };
 }
 
-const TEXTOS_COLUNA: Record<TipoSugestao, { titulo: string; vazio: string }> = {
-  faq: { titulo: "Ideias para o FAQ", vazio: "As ideias vão aparecer aqui assim que chegarem." },
+const TEXTOS_COLUNA: Record<TipoSugestao, { titulo: string; aba: string; vazio: string }> = {
+  faq: {
+    titulo: "Ideias para o FAQ",
+    aba: "Ideias para o FAQ",
+    vazio: "As ideias vão aparecer aqui assim que chegarem.",
+  },
   melhoria: {
     titulo: "Melhorias para as Ferramentas",
+    aba: "Melhorias",
     vazio: "As melhorias vão aparecer aqui assim que chegarem.",
   },
 };
@@ -242,6 +247,9 @@ export default function Telao({
   const [situacao, setSituacao] = useState<"ok" | "sem-conexao">("ok");
   // Desligado pelo admin: não consulta o servidor e mostra só o aviso (ver o fim do componente)
   const [ligado, setLigado] = useState(inicial.ativo);
+  // No celular as colunas não cabem lado a lado: uma aba mostra uma de cada vez (a partir do lg
+  // as duas aparecem juntas e a aba some)
+  const [aba, setAba] = useState<TipoSugestao>("faq");
   const faq = useColuna(inicial.sugestoes.faq, inicial.segundosPagina, ligado);
   const melhoria = useColuna(inicial.sugestoes.melhoria, inicial.segundosPagina, ligado);
   const receberFaq = faq.receber;
@@ -298,7 +306,7 @@ export default function Telao({
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col overflow-hidden bg-night text-white lg:flex-row">
-      <aside className="flex shrink-0 flex-wrap items-center gap-x-5 gap-y-3 lg:flex-nowrap border-b border-white/10 bg-night-raised p-4 lg:w-80 lg:flex-col lg:items-stretch lg:justify-between lg:gap-5 lg:overflow-y-auto lg:border-r lg:border-b-0 lg:p-8 [@media(max-height:820px)]:lg:gap-3 [@media(max-height:820px)]:lg:p-5">
+      <aside className="flex shrink-0 items-center gap-x-4 gap-y-3 border-b border-white/10 bg-night-raised px-4 py-3 sm:flex-wrap sm:gap-x-5 sm:p-4 lg:w-80 lg:flex-nowrap lg:flex-col lg:items-stretch lg:justify-between lg:gap-5 lg:overflow-y-auto lg:border-r lg:border-b-0 lg:p-8 [@media(max-height:820px)]:lg:gap-3 [@media(max-height:820px)]:lg:p-5">
         <div className="hidden w-full lg:block">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/logo-controlsoft.webp" alt="ControlSoft" className="h-8 w-auto" />
@@ -306,13 +314,13 @@ export default function Telao({
 
         <div className="flex min-w-0 flex-1 items-center gap-4 sm:gap-5 lg:flex-none lg:flex-col lg:items-stretch lg:gap-4">
           <div
-            className="size-28 shrink-0 rounded-2xl bg-white p-2 sm:size-36 lg:mx-auto lg:size-48 lg:p-3 [@media(min-height:900px)]:lg:size-60 [@media(max-height:820px)]:lg:size-36 [&>svg]:size-full"
+            className="hidden size-28 shrink-0 rounded-2xl sm:block bg-white p-2 sm:size-36 lg:mx-auto lg:size-48 lg:p-3 [@media(min-height:900px)]:lg:size-60 [@media(max-height:820px)]:lg:size-36 [&>svg]:size-full"
             role="img"
             aria-label={`QR code para ${urlFormulario}`}
             dangerouslySetInnerHTML={{ __html: qrSvg }}
           />
           <div className="min-w-0">
-            <h1 className="flex items-center gap-3 text-xl font-semibold leading-tight tracking-tight lg:text-2xl">
+            <h1 className="flex items-center gap-3 text-base font-semibold sm:text-xl leading-tight tracking-tight lg:text-2xl">
               <Icone nome="lampada" className={`hidden size-10 lg:block ${CIANO}`} />
               Sua ideia faz a diferença!
             </h1>
@@ -324,14 +332,14 @@ export default function Telao({
               </p>
             </div>
 
-            <div className="mt-2 flex items-center gap-3 lg:mt-4 lg:border-t lg:border-white/10 lg:pt-4">
+            <div className="mt-2 hidden items-center gap-3 sm:flex lg:mt-4 lg:border-t lg:border-white/10 lg:pt-4">
               <Icone nome="celular" className={`hidden size-8 lg:block ${CIANO}`} />
               <p className="text-sm text-white/70 lg:text-sm lg:text-white/85">
                 Aponte a câmera do celular para o QRCode, e deixe sua sugestão!
               </p>
             </div>
 
-            <div className="mt-2 lg:mt-4 lg:border-t lg:border-white/10 lg:pt-4">
+            <div className="mt-1.5 lg:mt-4 lg:border-t lg:border-white/10 lg:pt-4">
               <p className="mb-3 hidden items-center gap-3 text-sm text-white/85 lg:flex">
                 <Icone nome="monitor" className={`size-7 ${CIANO}`} />
                 Está no computador?
@@ -351,8 +359,8 @@ export default function Telao({
         </div>
 
         <div className="ml-auto text-right lg:ml-0 lg:w-full lg:text-center">
-          <p className="num font-display text-4xl font-bold leading-none lg:text-6xl [@media(max-height:820px)]:lg:text-5xl">{total}</p>
-          <p className="mt-1 text-sm text-white/70">
+          <p className="num font-display text-3xl font-bold leading-none sm:text-4xl lg:text-6xl [@media(max-height:820px)]:lg:text-5xl">{total}</p>
+          <p className="mt-1 text-xs text-white/70 sm:text-sm">
             {total === 1 ? "sugestão recebida" : "sugestões recebidas"}
           </p>
           {situacao === "sem-conexao" && (
@@ -363,14 +371,43 @@ export default function Telao({
         </div>
       </aside>
 
+      <div role="tablist" aria-label="Tipo de ideia" className="flex shrink-0 gap-2 px-3 pt-3 lg:hidden">
+        {(["faq", "melhoria"] as const).map((tipo) => {
+          const ativa = aba === tipo;
+          return (
+            <button
+              key={tipo}
+              type="button"
+              role="tab"
+              aria-selected={ativa}
+              onClick={() => setAba(tipo)}
+              className={`flex min-w-0 flex-1 items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-semibold transition ${
+                ativa
+                  ? "border-[#4bc2d6] bg-[#4bc2d6]/15 text-white"
+                  : "border-white/10 text-white/70 hover:bg-white/5"
+              }`}
+            >
+              <span className="truncate">{TEXTOS_COLUNA[tipo].aba}</span>
+              <span className="num font-display text-base font-bold">{totais[tipo]}</span>
+            </button>
+          );
+        })}
+      </div>
+
       <main className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-3 lg:flex-row lg:gap-5 lg:overflow-hidden lg:p-6">
         <PainelColuna
           tipo="faq"
           total={totais.faq}
           coluna={faq}
+          abaAtiva={aba === "faq"}
           meta={meta.alvo === null ? undefined : { alvo: meta.alvo, recebidas: meta.recebidas }}
         />
-        <PainelColuna tipo="melhoria" total={totais.melhoria} coluna={melhoria} />
+        <PainelColuna
+          tipo="melhoria"
+          total={totais.melhoria}
+          coluna={melhoria}
+          abaAtiva={aba === "melhoria"}
+        />
       </main>
     </div>
   );
@@ -381,20 +418,24 @@ function PainelColuna({
   tipo,
   total,
   coluna: { tela, novas },
+  abaAtiva,
   meta,
 }: {
   tipo: TipoSugestao;
   total: number;
   coluna: Coluna;
+  // Só vale abaixo do lg: lá a aba escolhida é a única coluna na tela
+  abaAtiva: boolean;
   meta?: { alvo: number; recebidas: number };
 }) {
   const { titulo, vazio } = TEXTOS_COLUNA[tipo];
   return (
     <section
       aria-label={titulo}
-      className="flex shrink-0 flex-col rounded-3xl border border-white/10 bg-white/[0.03] p-3 lg:min-h-0 lg:min-w-0 lg:flex-1 lg:shrink lg:p-4"
+      className={`${abaAtiva ? "flex" : "hidden lg:flex"} shrink-0 flex-col rounded-3xl border border-white/10 bg-white/[0.03] p-3 lg:min-h-0 lg:min-w-0 lg:flex-1 lg:shrink lg:p-4`}
     >
-      <header className="flex items-baseline justify-between gap-3 px-1 pb-3">
+      {/* No celular a aba já mostra o título e a contagem */}
+      <header className="hidden items-baseline justify-between gap-3 px-1 pb-3 lg:flex">
         <h2 className="text-lg font-semibold tracking-tight lg:text-2xl">{titulo}</h2>
         <p className="num font-display text-2xl font-bold leading-none lg:text-4xl">{total}</p>
       </header>
@@ -530,7 +571,7 @@ function Cartao({
       } as CSSProperties}
     >
       <article
-        className="flex h-full flex-col justify-between gap-2 overflow-hidden rounded-2xl border p-4 lg:gap-[0.3em] lg:p-[0.75em] lg:text-[length:var(--fonte)]"
+        className="flex h-full flex-col justify-between gap-1.5 overflow-hidden rounded-2xl border p-3 sm:gap-2 sm:p-4 lg:gap-[0.3em] lg:p-[0.75em] lg:text-[length:var(--fonte)]"
         style={{
           background: `hsl(${matiz} 42% 16%)`,
           borderColor: `hsl(${matiz} 60% 38%)`,
@@ -546,7 +587,7 @@ function Cartao({
         >
           {s.topico}
         </span>
-        <p className="line-clamp-4 break-words text-base font-medium leading-snug lg:line-clamp-3 lg:text-[1em] lg:leading-[1.2]">
+        <p className="line-clamp-4 break-words text-[15px] font-medium sm:text-base leading-snug lg:line-clamp-3 lg:text-[1em] lg:leading-[1.2]">
           {s.texto}
         </p>
         <p className="truncate text-sm font-semibold lg:text-[0.85em]" style={{ color: cor }}>
