@@ -5,12 +5,15 @@ import BotaoEnviar from "@/app/BotaoEnviar";
 import Icone from "@/app/Icone";
 import { Janela, RodapeJanela } from "@/app/Finalizar";
 import SeletorNomeResponsavel from "./SeletorNomeResponsavel";
-import SeletorPapel, { type Papel } from "./SeletorPapel";
+import type { Papel, Permissao } from "@/lib/permissoes";
+import SeletorPapel from "./SeletorPapel";
 
 interface Usuario {
   nome: string;
   email: string;
   papel: Papel;
+  /** Permissões liberadas (só contam no papel Personalizado). */
+  permissoes: Permissao[];
   /** Nome ligado à conta na lista de responsáveis; vazio se ainda não foi ligada. */
   nomeResponsavel: string;
 }
@@ -48,7 +51,7 @@ export default function EditarUsuario({
         onClick={() => setAberto(true)}
       />
       {aberto && (
-        <Janela icone="usuario" titulo="Editar usuário" subtitulo={usuario.nome} onFechar={fechar}>
+        <Janela icone="usuario" titulo="Editar usuário" subtitulo={usuario.nome} onFechar={fechar} larga>
           <form
             action={async (formData) => {
               const resultado = await salvar(formData);
@@ -88,7 +91,7 @@ export default function EditarUsuario({
                   className="campo"
                 />
               </label>
-              <SeletorPapel padrao={usuario.papel} />
+              <SeletorPapel padrao={usuario.papel} permissoesPadrao={usuario.permissoes} />
               {/* Ligação antiga cujo nome saiu da lista continua escolhível, para não ser trocada sem querer ao salvar. */}
               <SeletorNomeResponsavel nomes={nomes} atual={usuario.nomeResponsavel} />
             </div>

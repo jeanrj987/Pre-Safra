@@ -1,6 +1,6 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { exigirAdmin } from "@/lib/auth";
+import { exigirPermissao } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { dataParaCampo, formatarData, statusInativoPorCliente } from "@/lib/dados";
 import { plural } from "@/lib/texto";
@@ -20,7 +20,7 @@ export default async function AdminSafras({
 }: {
   searchParams: Promise<{ erro?: string; criada?: string }>;
 }) {
-  await exigirAdmin();
+  await exigirPermissao("safras");
   const { erro, criada } = await searchParams;
   // Consultas independentes: em paralelo, cada uma custa uma ida ao banco (Neon, remoto).
   const [safras, safraAtual, clientes, statusPorCliente] = await Promise.all([
@@ -36,7 +36,7 @@ export default async function AdminSafras({
 
   async function criarSafra(formData: FormData) {
     "use server";
-    await exigirAdmin();
+    await exigirPermissao("safras");
     const nome = String(formData.get("nome") ?? "").trim();
     const cultura = String(formData.get("cultura") ?? "").trim() || null;
     const inicioTexto = String(formData.get("inicio") ?? "");
@@ -78,7 +78,7 @@ export default async function AdminSafras({
   // Devolve o texto do erro (a janela de EditarSafra o mostra e continua aberta) ou null se salvou.
   async function editarSafra(id: number, formData: FormData): Promise<string | null> {
     "use server";
-    await exigirAdmin();
+    await exigirPermissao("safras");
     const nome = String(formData.get("nome") ?? "").trim();
     const cultura = String(formData.get("cultura") ?? "").trim() || null;
     const inicioTexto = String(formData.get("inicio") ?? "");
@@ -98,7 +98,7 @@ export default async function AdminSafras({
 
   async function alternarAtiva(id: number, ativa: boolean) {
     "use server";
-    await exigirAdmin();
+    await exigirPermissao("safras");
     // A safra selecionada por quem está logado não pode ser inativada (ver excluirSafra)
     if (!ativa && id === (await obterSafraSelecionada())?.id) return;
     await prisma.safra.update({ where: { id }, data: { ativa } });
@@ -112,7 +112,7 @@ export default async function AdminSafras({
   // que o admin precisa trocar antes no seletor; para só tirar do seletor sem perder nada, use Inativar.
   async function excluirSafra(id: number, formData: FormData) {
     "use server";
-    await exigirAdmin();
+    await exigirPermissao("safras");
     if (id === (await obterSafraSelecionada())?.id) return;
     const safra = await prisma.safra.findUnique({ where: { id } });
     if (!safra || String(formData.get("confirmacao") ?? "").trim() !== safra.nome) return;

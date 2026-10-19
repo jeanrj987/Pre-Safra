@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { finalizarPendentes, formatoValido, reabrirIds, type Formato } from "@/lib/acoesPreSafra";
 import { motivoDataIndisponivel } from "@/lib/diasUteis";
 import { horarioValido, motivoHorarioPassado } from "@/lib/horarios";
+import { pode } from "@/lib/permissoes";
 import { idsPermitidos, podeAgendarCliente, podeAlterarCliente } from "@/lib/responsavel";
 
 // Server Actions da lista principal (src/app/page.tsx). Extraídas para cá para poder ser
@@ -86,11 +87,11 @@ export async function reabrirComMotivo(formData: FormData) {
 // Janela "Agendar" da lista: grava de uma vez responsável, data, horário e formato ("Online" ou
 // "Presencial" deixa o cliente como "Agendado Online"/"Agendado Presencial"). Os quatro campos
 // são obrigatórios. O botão "Remover agendamento" (campo "remover") limpa data, horário, formato
-// e responsável e devolve o cliente a "A Fazer" (o responsável só é limpo por admin, que é quem
+// e responsável e devolve o cliente a "A Fazer" (o responsável só é limpo por quem tem a permissão de trocá-lo, que é quem
 // consegue defini-lo de novo; para os demais ele fica). A janela já mostra os erros; aqui o servidor
 // garante as regras mesmo para uma chamada direta, e nesse caso não grava nada: campo faltando,
 // datas e horários passados, sábados, domingos e feriados, cliente finalizado ou inativo. Qualquer usuário
-// agenda qualquer cliente, mas só o admin e o responsável do cliente removem o agendamento. Só admin troca o responsável; o usuário comum que
+// agenda qualquer cliente, mas só o admin e o responsável do cliente removem o agendamento. Só quem tem a permissão "trocarResp" (o admin tem) troca o responsável; o usuário comum que
 // agenda um cliente sem responsável passa a ser o responsável dele (assume ao agendar).
 export async function agendarCliente(formData: FormData) {
   const sessao = await exigirAcessoCompleto();
@@ -116,7 +117,7 @@ export async function agendarCliente(formData: FormData) {
         formato: null,
         agendadoPor: null,
         agendadoEm: null,
-        ...(sessao.admin ? { responsavel: null } : {}),
+        ...(pode(sessao, "trocarResp") ? { responsavel: null } : {}),
       },
     });
     voltarPara(formData, 1, "desagendados");
@@ -142,7 +143,8 @@ export async function agendarCliente(formData: FormData) {
 
   // Sem responsável, o usuário comum assume o cliente ao agendar (o nome ligado à conta dele).
   const semResponsavel = !registro?.responsavel?.trim();
-  const responsavel = sessao.admin
+  const escolheResponsavel = pode(sessao, "trocarResp");
+  const responsavel = escolheResponsavel
     ? textoDe(formData, "responsavel")
     : (registro?.responsavel?.trim() || sessao.nomeResponsavel || null);
 
@@ -151,7 +153,7 @@ export async function agendarCliente(formData: FormData) {
   await prisma.preSafra.update({
     where: { id },
     data: {
-      ...(sessao.admin || semResponsavel ? { responsavel } : {}),
+      ...(escolheResponsavel || semResponsavel ? { responsavel } : {}),
       dataPrevista: dia,
       horario,
       formato,

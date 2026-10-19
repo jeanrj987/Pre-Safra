@@ -56,7 +56,7 @@ const SEM_PERMISSAO = "Só quem lançou a atividade (ou um administrador) pode a
 
 async function buscarParaAlterar(
   id: number,
-  usuario: { id: number; nome: string; admin: boolean },
+  usuario: { id: number; nome: string; permissoes: readonly string[] },
 ): Promise<{ erro: string } | { atividade: Atividade }> {
   const atividade = await prisma.atividade.findUnique({ where: { id } });
   if (!atividade) return { erro: "Atividade não encontrada. Ela pode ter sido excluída por outra pessoa." };

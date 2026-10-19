@@ -2,18 +2,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-const ABAS = [
-  { href: "/admin/clientes", rotulo: "Clientes" },
-  { href: "/admin/safras", rotulo: "Safras" },
-  { href: "/admin/usuarios", rotulo: "Usuários" },
-  { href: "/admin/sugestoes", rotulo: "Sugestões" },
-];
-
-export default function AdminTabs() {
+export default function AdminTabs({ abas }: { abas: { href: string; rotulo: string }[] }) {
   const pathname = usePathname();
   return (
     <div className="-mb-px flex gap-1 overflow-x-auto border-b border-line [scrollbar-width:none]">
-      {ABAS.map((a) => {
+      {abas.map((a) => {
         const atual = pathname === a.href;
         return (
           <Link

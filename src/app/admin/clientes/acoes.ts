@@ -1,6 +1,6 @@
 "use server";
 import { revalidatePath } from "next/cache";
-import { exigirAdmin } from "@/lib/auth";
+import { exigirPermissao } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { nomeMaiusculo } from "@/lib/texto";
 
@@ -8,7 +8,7 @@ const texto = (f: FormData, k: string) => String(f.get(k) ?? "").trim() || null;
 
 // Devolve o erro (nome vazio ou já usado) para a janela de edição mostrá-lo no lugar.
 export async function salvarCadastro(id: number, formData: FormData): Promise<{ erro?: string }> {
-  await exigirAdmin();
+  await exigirPermissao("clientes");
   const nome = nomeMaiusculo(String(formData.get("nome") ?? ""));
   if (!nome) return { erro: "Preencha o nome do cliente." };
   // O nome é único: comparar sem diferenciar maiúsculas evita dois cadastros "iguais" na tela.
@@ -37,7 +37,7 @@ export async function salvarCadastro(id: number, formData: FormData): Promise<{ 
 // Inativar/reativar vale para o Pré-Safra do cliente na safra selecionada (é ele que sai ou
 // volta para a lista principal e o painel). Só administradores, só por aqui.
 export async function inativarCliente(preSafraId: number, formData: FormData) {
-  await exigirAdmin();
+  await exigirPermissao("clientes");
   const motivo = texto(formData, "motivoInativacao");
   if (!motivo) return;
   await prisma.preSafra.update({
@@ -51,14 +51,14 @@ export async function inativarCliente(preSafraId: number, formData: FormData) {
 // Tira o cliente só da safra selecionada: apaga o Pré-Safra dele nela (com o histórico de
 // conclusões, que sai em cascata). O cadastro do cliente e as outras safras ficam intactos.
 export async function excluirClienteDaSafra(preSafraId: number) {
-  await exigirAdmin();
+  await exigirPermissao("clientes");
   await prisma.preSafra.deleteMany({ where: { id: preSafraId } });
   revalidatePath("/admin/clientes");
   revalidatePath("/", "layout");
 }
 
 export async function reativarCliente(preSafraId: number) {
-  await exigirAdmin();
+  await exigirPermissao("clientes");
   await prisma.preSafra.update({
     where: { id: preSafraId },
     data: { inativo: false, motivoInativacao: null },

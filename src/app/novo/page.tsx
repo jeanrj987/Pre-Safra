@@ -9,7 +9,8 @@ import CampoDataForm from "@/app/CampoDataForm";
 import Seletor from "@/app/Seletor";
 import { opcoesDeLista, opcoesDePessoas } from "@/app/seletorOpcoes";
 import { motivoDataIndisponivel } from "@/lib/diasUteis";
-import { exigirAcessoCompleto, exigirAdmin } from "@/lib/auth";
+import { exigirAcessoCompleto, exigirPermissao } from "@/lib/auth";
+import { pode } from "@/lib/permissoes";
 import { prisma } from "@/lib/db";
 import { nomeMaiusculo } from "@/lib/texto";
 import { obterSafraSelecionada } from "@/lib/safra";
@@ -110,8 +111,8 @@ export default async function Novo({
       data: {
         clienteId: cliente.id,
         safraId: safra.id,
-        // Só o admin escolhe o responsável; o usuário comum cria o cliente já como responsável por ele.
-        responsavel: sessao.admin ? texto(formData, "responsavel") : sessao.nomeResponsavel,
+        // Só quem tem a permissão de trocar o responsável o escolhe; os demais criam o cliente já como responsável por ele.
+        responsavel: pode(sessao, "trocarResp") ? texto(formData, "responsavel") : sessao.nomeResponsavel,
         dataPrevista: dataPrevista ? new Date(`${dataPrevista}T00:00:00Z`) : null,
         observacoes,
       },
@@ -122,7 +123,7 @@ export default async function Novo({
 
   async function importarPlanilha(formData: FormData) {
     "use server";
-    await exigirAdmin();
+    await exigirPermissao("clientes");
     const arquivo = formData.get("arquivo");
     const safra = await obterSafraSelecionada();
     if (!(arquivo instanceof File) || arquivo.size === 0 || !safra) {
@@ -188,7 +189,7 @@ export default async function Novo({
             <section className="space-y-4 p-5 sm:p-6">
               <h2 className="text-base font-semibold">Agendamento</h2>
               <div className="grid gap-4 sm:grid-cols-2">
-                {usuario.admin ? (
+                {pode(usuario, "trocarResp") ? (
                   <Seletor
                     nome="responsavel" placeholder="Selecione o responsável"
                     rotulo="Responsável"
@@ -266,7 +267,7 @@ export default async function Novo({
           </aside>
         </form>
 
-        {usuario.admin && (
+        {pode(usuario, "clientes") && (
           <div className="card space-y-5 p-5 sm:p-6">
             <div>
               <h2 className="text-base font-semibold">Importar planilha</h2>

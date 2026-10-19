@@ -1,5 +1,6 @@
 import { FUSO_NEGOCIO } from "@/lib/fuso";
 import { usuarioAtual } from "@/lib/auth";
+import { pode } from "@/lib/permissoes";
 import { prisma } from "@/lib/db";
 import { rotuloDoTipo } from "@/lib/sugestoes";
 import { formatarWhatsapp } from "@/lib/whatsapp";
@@ -19,7 +20,7 @@ function celula(valor: string): string {
 
 export async function GET() {
   const usuario = await usuarioAtual();
-  if (!usuario?.admin) return new Response(null, { status: 401 });
+  if (!usuario || !pode(usuario, "sugestoes")) return new Response(null, { status: 401 });
 
   const sugestoes = await prisma.sugestao.findMany({ orderBy: { id: "asc" } });
   const linhas = [

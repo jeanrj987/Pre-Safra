@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Form from "next/form";
-import { exigirAdmin } from "@/lib/auth";
+import { exigirPermissao } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import {
   listarCidadesConhecidas,
@@ -42,7 +42,7 @@ export default async function AdminClientes({
     comerciaisConhecidos,
     safra,
   ] = await Promise.all([
-    exigirAdmin(),
+    exigirPermissao("clientes"),
     searchParams,
     prisma.cliente.findMany({ orderBy: { nome: "asc" } }),
     listarCidadesConhecidas(),

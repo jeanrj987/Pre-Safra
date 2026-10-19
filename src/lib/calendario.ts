@@ -4,6 +4,7 @@
 
 import { motivoDataForaDoPrazo } from "./diasUteis";
 import { motivoHorarioPassado } from "./horarios";
+import { pode } from "./permissoes";
 import { calcularStatus, STATUS_AGENDADOS, type StatusPreSafra } from "./status";
 
 /**
@@ -163,15 +164,15 @@ export function motivoHorarioAtividade(
 }
 
 /**
- * Quem pode editar, concluir ou excluir uma atividade: o admin e o próprio dono. Todos os usuários
+ * Quem pode editar, concluir ou excluir uma atividade: quem tem a permissão "atividades" (o admin tem) e o próprio dono. Todos os usuários
  * veem todas as atividades, mas só mexem nas que lançaram. Nas atividades antigas, sem o id do
  * dono, vale o nome de quem lançou.
  */
 export function podeAlterarAtividade(
-  usuario: { id: number; nome: string; admin: boolean },
+  usuario: { id: number; nome: string; permissoes: readonly string[] },
   atividade: { criadoPorId: number | null; criadoPor: string | null },
 ): boolean {
-  if (usuario.admin) return true;
+  if (pode(usuario, "atividades")) return true;
   if (atividade.criadoPorId !== null) return atividade.criadoPorId === usuario.id;
   const nome = (t: string) => t.trim().toLowerCase();
   return !!atividade.criadoPor && nome(atividade.criadoPor) === nome(usuario.nome);

@@ -32,7 +32,7 @@ export default function NovoUsuario({
         Novo usuário
       </button>
       {aberto && (
-        <Janela icone="usuario" titulo="Novo usuário" onFechar={fechar}>
+        <Janela icone="usuario" titulo="Novo usuário" onFechar={fechar} larga>
           <form
             action={async (formData) => {
               const resultado = await acao(formData);

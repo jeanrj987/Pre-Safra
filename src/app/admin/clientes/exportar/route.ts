@@ -1,5 +1,6 @@
 import ExcelJS from "exceljs";
 import { usuarioAtual } from "@/lib/auth";
+import { pode } from "@/lib/permissoes";
 import { prisma } from "@/lib/db";
 import { FUSO_NEGOCIO } from "@/lib/fuso";
 
@@ -15,7 +16,7 @@ const dataLocal = new Intl.DateTimeFormat("en-CA", {
 
 export async function GET() {
   const usuario = await usuarioAtual();
-  if (!usuario?.admin) return new Response(null, { status: 401 });
+  if (!usuario || !pode(usuario, "clientes")) return new Response(null, { status: 401 });
 
   const clientes = await prisma.cliente.findMany({ orderBy: { nome: "asc" } });
 

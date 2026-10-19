@@ -1,10 +1,11 @@
 import { usuarioAtual } from "@/lib/auth";
+import { pode } from "@/lib/permissoes";
 import { prisma } from "@/lib/db";
 
 // Abre um anexo de sugestão. Só o admin: o arquivo veio do público e pode ter dado de cliente.
 export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
   const usuario = await usuarioAtual();
-  if (!usuario?.admin) return new Response(null, { status: 401 });
+  if (!usuario || !pode(usuario, "sugestoes")) return new Response(null, { status: 401 });
 
   const id = Number((await ctx.params).id);
   if (!Number.isInteger(id)) return new Response(null, { status: 404 });

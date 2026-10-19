@@ -11,6 +11,7 @@ import {
   tituloPreSafra,
 } from "@/lib/safra";
 import { COOKIE_TEMA } from "@/lib/tema";
+import { pode, podeAcessarAdmin } from "@/lib/permissoes";
 import Icone, { type NomeIcone } from "./Icone";
 import BotaoSidebar from "./BotaoSidebar";
 import BotaoTema from "./BotaoTema";
@@ -50,7 +51,7 @@ const NAV_CALENDARIO: ItemNav = {
 const NAV_NOVO: ItemNav = { id: "novo", href: "/novo", rotulo: "Novo cliente", rotuloCurto: "Novo", icone: "mais" };
 const NAV_ADMIN: ItemNav = { id: "admin", href: "/admin", rotulo: "Admin", rotuloCurto: "Admin", icone: "engrenagem" };
 // Telão de ideias do evento: QR code do formulário de sugestões + as ideias chegando ao vivo.
-// Admin e contas "somente Painel" (ex.: TV da sala).
+// Quem tem a permissão "telao" (o admin tem) e contas "somente Painel" (ex.: TV da sala).
 const NAV_TELAO: ItemNav = {
   id: "telao",
   href: "/telao",
@@ -90,9 +91,14 @@ export default async function Shell({
 
   const NAV: ItemNav[] = usuario?.somentePainel
     ? [NAV_PAINEL, NAV_TELAO]
-    : usuario?.admin
-      ? [NAV_CLIENTES, NAV_PAINEL, NAV_CALENDARIO, NAV_NOVO, NAV_TELAO, NAV_ADMIN]
-      : [NAV_CLIENTES, NAV_PAINEL, NAV_CALENDARIO, NAV_NOVO];
+    : [
+        NAV_CLIENTES,
+        NAV_PAINEL,
+        NAV_CALENDARIO,
+        NAV_NOVO,
+        ...(usuario && pode(usuario, "telao") ? [NAV_TELAO] : []),
+        ...(usuario && podeAcessarAdmin(usuario) ? [NAV_ADMIN] : []),
+      ];
 
   const paginaAtual = NAV.find((n) => n.id === ativo);
 

@@ -7,7 +7,8 @@ import Seletor from "@/app/Seletor";
 import { opcoesDeLista } from "@/app/seletorOpcoes";
 import Icone from "@/app/Icone";
 import BotaoEnviar from "@/app/BotaoEnviar";
-import { exigirAcessoCompleto, exigirAdmin } from "@/lib/auth";
+import { exigirAcessoCompleto, exigirPermissao } from "@/lib/auth";
+import { pode } from "@/lib/permissoes";
 import { assumirCliente, podeAlterarCliente, podeAssumirCliente } from "@/lib/responsavel";
 import { prisma } from "@/lib/db";
 import { calcularStatus, diasEmAtraso, mesPrevisto } from "@/lib/status";
@@ -52,8 +53,9 @@ export default async function Registro({
   });
   if (!r) notFound();
 
-  const usuarioAdmin = usuario.admin;
-  // Todos abrem o registro, mas só o admin e o responsável do cliente o editam.
+  // Quem pode criar e editar o cadastro do cliente (região, UF, equipe); o admin pode.
+  const podeCadastrar = pode(usuario, "cadastrar");
+  // Todos abrem o registro, mas só quem altera qualquer cliente e o responsável do cliente o editam.
   const podeEditar = podeAlterarCliente(usuario, r.responsavel);
   const podeAssumir = podeAssumirCliente(usuario, r.responsavel) && !r.inativo;
   const [
@@ -63,11 +65,11 @@ export default async function Registro({
     consultoresConhecidos,
     comerciaisConhecidos,
   ] = await Promise.all([
-      usuarioAdmin ? listarCidadesConhecidas() : Promise.resolve<string[]>([]),
-      usuarioAdmin ? listarRegioesConhecidas() : Promise.resolve<string[]>([]),
-      usuarioAdmin ? listarDuplasConhecidas() : Promise.resolve<string[]>([]),
-      usuarioAdmin ? listarConsultoresConhecidos() : Promise.resolve<string[]>([]),
-      usuarioAdmin ? listarComerciaisConhecidos() : Promise.resolve<string[]>([]),
+      podeCadastrar ? listarCidadesConhecidas() : Promise.resolve<string[]>([]),
+      podeCadastrar ? listarRegioesConhecidas() : Promise.resolve<string[]>([]),
+      podeCadastrar ? listarDuplasConhecidas() : Promise.resolve<string[]>([]),
+      podeCadastrar ? listarConsultoresConhecidos() : Promise.resolve<string[]>([]),
+      podeCadastrar ? listarComerciaisConhecidos() : Promise.resolve<string[]>([]),
     ]);
   const opcoesCidade = comValorAtual(cidadesConhecidas, r.cliente?.cidade ?? null);
   const opcoesRegiao = comValorAtual(regioesConhecidas, r.cliente?.regiao ?? null);
@@ -106,7 +108,7 @@ export default async function Registro({
     // Novo nome do cliente (só admin, só com cadastro): confere antes de gravar qualquer coisa,
     // para um nome vazio ou repetido não salvar o resto pela metade. O nome é único no banco.
     let nomeCliente: string | undefined;
-    if (sessao.admin && formData.has("clienteId") && formData.has("nome")) {
+    if (pode(sessao, "cadastrar") && formData.has("clienteId") && formData.has("nome")) {
       const clienteId = Number(formData.get("clienteId"));
       nomeCliente = nomeMaiusculo(String(formData.get("nome") ?? ""));
       if (!nomeCliente) redirect(`/registro/${id}?erroNome=vazio${sufixoVoltar}`);
@@ -140,7 +142,7 @@ export default async function Registro({
 
     // Cadastro do cliente (região, UF, equipe) só aparece no formulário para admin com
     // cliente já vinculado; os demais casos não enviam clienteId.
-    if (sessao.admin && formData.has("clienteId")) {
+    if (pode(sessao, "cadastrar") && formData.has("clienteId")) {
       const clienteId = Number(formData.get("clienteId"));
       if (Number.isInteger(clienteId)) {
         await prisma.cliente.update({
@@ -174,7 +176,7 @@ export default async function Registro({
   // verdade — cria um agora, usando o nome já digitado, para então poder editar região etc.
   async function cadastrarCliente() {
     "use server";
-    await exigirAdmin();
+    await exigirPermissao("cadastrar");
     if (!nomeManual) redirect(`/registro/${id}`);
     const cliente = await prisma.cliente.upsert({
       where: { nome: nomeMaiusculo(nomeManual) },
@@ -283,7 +285,7 @@ export default async function Registro({
         className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_18rem]"
       >
         <input type="hidden" name="versao" value={r.atualizadoEm.toISOString()} />
-        {usuario.admin && r.cliente && (
+        {podeCadastrar && r.cliente && (
           <input type="hidden" name="clienteId" value={r.cliente.id} />
         )}
         {/* Sem permissão, os campos ficam desabilitados e não há botão de salvar. */}
@@ -311,7 +313,7 @@ export default async function Registro({
             )}
 
             {/* Largo de propósito: nomes de cliente são compridos e não cabem na coluna lateral. */}
-            {usuario.admin && r.cliente && (
+            {podeCadastrar && r.cliente && (
               <section className="p-5 sm:p-6">
                 <label className="block">
                   <span className="text-base font-semibold">Nome do cliente</span>
@@ -343,7 +345,7 @@ export default async function Registro({
               <Link href={voltarAoCalendario ?? "/"} className="btn-contorno">
                 Voltar
               </Link>
-              {usuario.admin && !r.cliente && (
+              {podeCadastrar && !r.cliente && (
                 <BotaoEnviar
                   formAction={cadastrarCliente}
                   pendente="Criando…"
@@ -402,7 +404,7 @@ export default async function Registro({
               Cadastro do cliente
             </h2>
             {r.cliente ? (
-              usuario.admin ? (
+              podeCadastrar ? (
                 <div className="mt-3 space-y-3">
                   <Seletor
                     nome="cidade" placeholder="Selecione a cidade"
@@ -455,7 +457,7 @@ export default async function Registro({
               <p className="mt-2 text-sm text-muted">
                 Este cliente foi adicionado à mão e ainda não está na base, então não há
                 região, consultor ou atendimento vinculados.
-                {usuario.admin && " Clique em “Criar cadastro” para poder editar esses dados."}
+                {podeCadastrar && " Clique em “Criar cadastro” para poder editar esses dados."}
               </p>
             )}
           </section>

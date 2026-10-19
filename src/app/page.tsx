@@ -9,6 +9,7 @@ import { agendarCliente, finalizarComNota, reabrirComMotivo } from "./acoes";
 import Agendar from "./Agendar";
 import LimparAgendamento from "./LimparAgendamento";
 import { exigirAcessoCompleto } from "@/lib/auth";
+import { pode } from "@/lib/permissoes";
 import { podeAgendarCliente, podeAlterarCliente, podeAssumirCliente } from "@/lib/responsavel";
 import Shell from "./Shell";
 import Selo from "./Selo";
@@ -270,7 +271,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
         </Link>
       </div>
 
-      {!usuario.admin && !usuario.nomeResponsavel && (
+      {!pode(usuario, "trocarResp") && !usuario.nomeResponsavel && (
         <p
           role="status"
           className="flex items-center gap-2 rounded-lg border border-line bg-subtle px-4 py-3 text-sm text-muted"
@@ -587,7 +588,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
                               }
                               grupos={gruposDeResponsavel(l, equipes)}
                               outros={nomes}
-                              podeTrocarResponsavel={usuario.admin}
+                              podeTrocarResponsavel={pode(usuario, "trocarResp")}
                               podeRemover={podeAlterar(l)}
                             />
                           )}
@@ -597,7 +598,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
                               id={l.id}
                               nome={l.nome}
                               voltar={atual.toString()}
-                              limpaResponsavel={usuario.admin}
+                              limpaResponsavel={pode(usuario, "trocarResp")}
                             />
                           )}
                           {!podeAlterar(l) ? null : l.status === "Finalizado" ? (

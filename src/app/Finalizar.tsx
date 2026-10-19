@@ -284,12 +284,15 @@ export function Janela({
   titulo,
   subtitulo,
   onFechar,
+  larga = false,
   children,
 }: {
   icone: NomeIcone;
   titulo: string;
   subtitulo?: string;
   onFechar: () => void;
+  /** Janela mais larga, para formulários com muitos campos. */
+  larga?: boolean;
   children: ReactNode;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
@@ -305,7 +308,7 @@ export function Janela({
         if (e.target === ref.current) ref.current?.close();
       }}
       aria-labelledby="janela-titulo"
-      className="m-auto max-h-[calc(100dvh-1.5rem)] w-[calc(100%-1.5rem)] max-w-md overflow-y-auto overscroll-contain rounded-xl sm:w-[calc(100%-2rem)] border border-line bg-surface p-0 text-ink shadow-pop backdrop:bg-night/50 backdrop:backdrop-blur-[2px]"
+      className={`m-auto max-h-[calc(100dvh-1.5rem)] w-[calc(100%-1.5rem)] ${larga ? "max-w-2xl" : "max-w-md"} overflow-y-auto overscroll-contain rounded-xl sm:w-[calc(100%-2rem)] border border-line bg-surface p-0 text-ink shadow-pop backdrop:bg-night/50 backdrop:backdrop-blur-[2px]`}
     >
       <div className="flex items-start gap-3 px-4 pt-5 sm:px-6">
         <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-full bg-subtle text-ink">

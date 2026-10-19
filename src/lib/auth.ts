@@ -5,6 +5,7 @@ import { cache } from "react";
 import { prisma } from "@/lib/db";
 import { hashSenha, precisaRehash, verificarSenha } from "@/lib/senha";
 import { limparTentativasLogin, loginBloqueado, registrarFalhaLogin } from "@/lib/limitador";
+import { pode, podeAcessarAdmin, permissoesEfetivas, type Permissao } from "@/lib/permissoes";
 
 const COOKIE = "presafra_sessao";
 const VALIDADE_SEGUNDOS = 60 * 60 * 24 * 30;
@@ -13,7 +14,10 @@ export interface UsuarioSessao {
   id: number;
   nome: string;
   email: string;
+  /** Administrador total: tem todas as permissões e é o único a gerenciar usuários. */
   admin: boolean;
+  /** O que a conta pode de fato (todas, para o admin) — ver src/lib/permissoes.ts. */
+  permissoes: Permissao[];
   /** Conta restrita ao Painel (ex.: TV da sala) — ver exigirAcessoCompleto (o Painel, só de leitura, é aberto a todos os usuários). */
   somentePainel: boolean;
   /** Nome ligado à conta na lista de responsáveis; só quem tem pode alterar clientes (além do admin). */
@@ -110,6 +114,7 @@ const carregarSessao = cache(async (): Promise<UsuarioSessao | null> => {
     nome: usuario.nome,
     email: usuario.email,
     admin: usuario.admin,
+    permissoes: permissoesEfetivas(usuario),
     somentePainel: usuario.somentePainel,
     nomeResponsavel: usuario.nomeResponsavel?.trim() || null,
   };
@@ -128,10 +133,26 @@ export async function exigirLogin(): Promise<UsuarioSessao> {
   return usuario;
 }
 
-// Use no topo de toda página e Server Action restrita a administradores.
+// Use no topo de toda página e Server Action restrita ao administrador total (hoje, só a gestão
+// de usuários: ela não se delega, senão quem a tivesse liberaria qualquer coisa para si).
 export async function exigirAdmin(): Promise<UsuarioSessao> {
   const usuario = await exigirLogin();
   if (!usuario.admin) redirect("/");
+  return usuario;
+}
+
+// Use no topo de toda página e Server Action que exige uma permissão liberada (o admin total
+// tem todas). Quem não tem volta para a página inicial.
+export async function exigirPermissao(permissao: Permissao): Promise<UsuarioSessao> {
+  const usuario = await exigirLogin();
+  if (!pode(usuario, permissao)) redirect("/");
+  return usuario;
+}
+
+// Entrada da área de Administração: o admin total ou quem tem ao menos uma permissão de lá.
+export async function exigirAreaAdmin(): Promise<UsuarioSessao> {
+  const usuario = await exigirLogin();
+  if (!podeAcessarAdmin(usuario)) redirect("/");
   return usuario;
 }
 

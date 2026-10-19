@@ -175,14 +175,18 @@ describe("agendamentosDoCalendario", () => {
 });
 
 describe("podeAlterarAtividade", () => {
-  const maria = { id: 1, nome: "Maria", admin: false };
-  const admin = { id: 9, nome: "Chefe", admin: true };
+  const maria = { id: 1, nome: "Maria", permissoes: [] as string[] };
+  const admin = { id: 9, nome: "Chefe", permissoes: ["atividades"] };
 
   it("o dono altera a própria atividade", () => {
     expect(podeAlterarAtividade(maria, { criadoPorId: 1, criadoPor: "Maria" })).toBe(true);
   });
   it("outro usuário comum não altera a atividade do colega", () => {
     expect(podeAlterarAtividade(maria, { criadoPorId: 2, criadoPor: "Jean" })).toBe(false);
+  });
+  it("só a permissão de atividades libera as de outras pessoas", () => {
+    expect(podeAlterarAtividade({ ...maria, permissoes: ["safras"] }, { criadoPorId: 2, criadoPor: "Jean" })).toBe(false);
+    expect(podeAlterarAtividade({ ...maria, permissoes: ["atividades"] }, { criadoPorId: 2, criadoPor: "Jean" })).toBe(true);
   });
   it("o admin altera a de qualquer pessoa", () => {
     expect(podeAlterarAtividade(admin, { criadoPorId: 2, criadoPor: "Jean" })).toBe(true);

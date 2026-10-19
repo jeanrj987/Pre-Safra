@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
+import { TODAS_PERMISSOES } from "./permissoes";
 import { podeAgendarCliente, podeAlterarCliente, podeAssumirCliente } from "./responsavel";
 
+const todas = [...TODAS_PERMISSOES];
+
 describe("podeAlterarCliente", () => {
-  const maria = { admin: false, nomeResponsavel: "Maria" };
-  const semLigacao = { admin: false, nomeResponsavel: null };
-  const admin = { admin: true, nomeResponsavel: null };
+  const maria = { permissoes: [], nomeResponsavel: "Maria" };
+  const semLigacao = { permissoes: [], nomeResponsavel: null };
+  const admin = { permissoes: todas, nomeResponsavel: null };
 
   it("o usuário altera o cliente em que ele é o responsável", () => {
     expect(podeAlterarCliente(maria, "Maria")).toBe(true);
@@ -16,7 +19,7 @@ describe("podeAlterarCliente", () => {
     expect(podeAlterarCliente(maria, null)).toBe(false);
   });
   it("ignora maiúsculas, acentos e espaços nas pontas ao comparar", () => {
-    expect(podeAlterarCliente({ admin: false, nomeResponsavel: "José" }, " jose ")).toBe(true);
+    expect(podeAlterarCliente({ permissoes: [], nomeResponsavel: "José" }, " jose ")).toBe(true);
   });
   it("nome parecido não basta: tem que ser o mesmo", () => {
     expect(podeAlterarCliente(maria, "Maria Silva")).toBe(false);
@@ -32,7 +35,7 @@ describe("podeAlterarCliente", () => {
 });
 
 describe("podeAssumirCliente", () => {
-  const maria = { admin: false, nomeResponsavel: "Maria" };
+  const maria = { permissoes: [], nomeResponsavel: "Maria" };
 
   it("assume o cliente que ainda não tem responsável", () => {
     expect(podeAssumirCliente(maria, null)).toBe(true);
@@ -43,14 +46,14 @@ describe("podeAssumirCliente", () => {
     expect(podeAssumirCliente(maria, "Maria")).toBe(false);
   });
   it("sem ligação não assume; o admin escolhe o responsável em vez de assumir", () => {
-    expect(podeAssumirCliente({ admin: false, nomeResponsavel: null }, null)).toBe(false);
-    expect(podeAssumirCliente({ admin: true, nomeResponsavel: "Maria" }, null)).toBe(false);
+    expect(podeAssumirCliente({ permissoes: [], nomeResponsavel: null }, null)).toBe(false);
+    expect(podeAssumirCliente({ permissoes: todas, nomeResponsavel: "Maria" }, null)).toBe(false);
   });
 });
 
 describe("podeAgendarCliente", () => {
-  const maria = { admin: false, nomeResponsavel: "Maria" };
-  const semLigacao = { admin: false, nomeResponsavel: null };
+  const maria = { permissoes: [], nomeResponsavel: "Maria" };
+  const semLigacao = { permissoes: [], nomeResponsavel: null };
 
   it("qualquer usuário agenda cliente que já tem responsável, mesmo o de outra pessoa", () => {
     expect(podeAgendarCliente(maria, "Jean")).toBe(true);
@@ -61,6 +64,23 @@ describe("podeAgendarCliente", () => {
     expect(podeAgendarCliente(semLigacao, null)).toBe(false);
   });
   it("o admin agenda qualquer um", () => {
-    expect(podeAgendarCliente({ admin: true, nomeResponsavel: null }, null)).toBe(true);
+    expect(podeAgendarCliente({ permissoes: todas, nomeResponsavel: null }, null)).toBe(true);
+  });
+});
+
+describe("permissões soltas", () => {
+  it("todosClientes sozinha deixa alterar o cliente de qualquer responsável", () => {
+    const u = { permissoes: ["todosClientes"], nomeResponsavel: null };
+    expect(podeAlterarCliente(u, "Jean")).toBe(true);
+    expect(podeAlterarCliente(u, null)).toBe(true);
+  });
+  it("trocarResp sozinha não dá acesso aos clientes dos outros", () => {
+    const u = { permissoes: ["trocarResp"], nomeResponsavel: "Maria" };
+    expect(podeAlterarCliente(u, "Jean")).toBe(false);
+  });
+  it("quem escolhe o responsável agenda cliente sem responsável e não assume", () => {
+    const u = { permissoes: ["trocarResp"], nomeResponsavel: null };
+    expect(podeAgendarCliente(u, null)).toBe(true);
+    expect(podeAssumirCliente({ permissoes: ["trocarResp"], nomeResponsavel: "Maria" }, null)).toBe(false);
   });
 });

@@ -8,11 +8,28 @@ import { contemNome } from "@/lib/texto";
 import BotaoAcao from "@/app/BotaoAcao";
 import BotaoExcluir from "@/app/BotaoExcluir";
 import Icone from "@/app/Icone";
+import {
+  filtrarPermissoes,
+  papelDe,
+  ROTULO_PAPEL,
+  ROTULO_PERMISSAO,
+  type Papel,
+} from "@/lib/permissoes";
 import EditarUsuario from "./EditarUsuario";
 import NovoUsuario from "./NovoUsuario";
 import RedefinirSenha from "./RedefinirSenha";
 
 export const metadata = { title: "Usuários" };
+
+// Lê o papel escolhido e, no Personalizado, as permissões marcadas (nos demais papéis elas não valem).
+function lerAcesso(formData: FormData) {
+  const papel = String(formData.get("papel") ?? "comum") as Papel;
+  return {
+    admin: papel === "admin",
+    somentePainel: papel === "painel",
+    permissoes: papel === "personalizado" ? filtrarPermissoes(formData.getAll("permissoes").map(String)) : [],
+  };
+}
 
 export default async function AdminUsuarios({
   searchParams,
@@ -36,9 +53,7 @@ export default async function AdminUsuarios({
       .trim()
       .toLowerCase();
     const senha = String(formData.get("senha") ?? "");
-    const papel = String(formData.get("papel") ?? "comum");
-    const admin = papel === "admin";
-    const somentePainel = papel === "painel";
+    const { admin, somentePainel, permissoes } = lerAcesso(formData);
     const nomeResponsavel = String(formData.get("nomeResponsavel") ?? "").trim() || null;
     if (!nome || !email) return { erro: "Preencha o nome e o e-mail." };
     if (senha.length < 10) return { erro: "A senha precisa ter pelo menos 10 caracteres." };
@@ -50,7 +65,7 @@ export default async function AdminUsuarios({
       return { erro: "Escolha um nome da lista de responsáveis." };
     }
     await prisma.usuario.create({
-      data: { nome, email, senhaHash: await hashSenha(senha), admin, somentePainel, nomeResponsavel },
+      data: { nome, email, senhaHash: await hashSenha(senha), admin, somentePainel, permissoes, nomeResponsavel },
     });
     revalidatePath("/admin/usuarios");
     return {};
@@ -66,9 +81,7 @@ export default async function AdminUsuarios({
     const email = String(formData.get("email") ?? "")
       .trim()
       .toLowerCase();
-    const papel = String(formData.get("papel") ?? "comum");
-    const admin = papel === "admin";
-    const somentePainel = papel === "painel";
+    const { admin, somentePainel, permissoes } = lerAcesso(formData);
     const nomeResponsavel = String(formData.get("nomeResponsavel") ?? "").trim() || null;
     if (!nome || !email) return { erro: "Preencha o nome e o e-mail." };
 
@@ -96,7 +109,7 @@ export default async function AdminUsuarios({
       }
     }
 
-    await prisma.usuario.update({ where: { id }, data: { nome, email, admin, somentePainel, nomeResponsavel } });
+    await prisma.usuario.update({ where: { id }, data: { nome, email, admin, somentePainel, permissoes, nomeResponsavel } });
     revalidatePath("/admin/usuarios");
     return {};
   }
@@ -191,8 +204,7 @@ export default async function AdminUsuarios({
                     {u.email}
                   </div>
                   <div className="mt-0.5 text-xs font-normal text-muted @2xl:hidden">
-                    {u.admin ? "Admin" : u.somentePainel ? "Somente Painel" : "Comum"} ·{" "}
-                    {u.ativo ? "Ativo" : "Inativo"}
+                    {ROTULO_PAPEL[papelDe(u)]} · {u.ativo ? "Ativo" : "Inativo"}
                   </div>
                   <div className="mt-0.5 text-xs font-normal text-muted @2xl:hidden">
                     <LigacaoResponsavel usuario={u} nomes={nomesResponsaveis} />
@@ -200,7 +212,7 @@ export default async function AdminUsuarios({
                 </td>
                 <td className="hidden px-3 py-3 align-top text-muted @2xl:table-cell">{u.email}</td>
                 <td className="hidden px-3 py-3 align-top @2xl:table-cell">
-                  {u.admin ? "Admin" : u.somentePainel ? "Somente Painel" : "Comum"}
+                  <PapelEAcesso usuario={u} />
                 </td>
                 <td className="hidden px-3 py-3 align-top @2xl:table-cell">
                   <LigacaoResponsavel usuario={u} nomes={nomesResponsaveis} />
@@ -224,7 +236,8 @@ export default async function AdminUsuarios({
                       usuario={{
                         nome: u.nome,
                         email: u.email,
-                        papel: u.admin ? "admin" : u.somentePainel ? "painel" : "comum",
+                        papel: papelDe(u),
+                        permissoes: filtrarPermissoes(u.permissoes),
                         nomeResponsavel: u.nomeResponsavel ?? "",
                       }}
                       nomes={nomesResponsaveis}
@@ -245,6 +258,21 @@ export default async function AdminUsuarios({
         </table>
       </div>
     </section>
+  );
+}
+
+// O papel da conta e, no Personalizado, quantas permissões ela tem (a lista completa aparece ao passar o mouse).
+function PapelEAcesso({ usuario }: { usuario: { admin: boolean; somentePainel: boolean; permissoes: string[] } }) {
+  const papel = papelDe(usuario);
+  if (papel !== "personalizado") return <>{ROTULO_PAPEL[papel]}</>;
+  const lista = filtrarPermissoes(usuario.permissoes);
+  return (
+    <span title={lista.map((p) => ROTULO_PERMISSAO[p]).join(", ")}>
+      {ROTULO_PAPEL[papel]}
+      <span className="block text-xs text-muted">
+        {lista.length} {lista.length === 1 ? "permissão" : "permissões"}
+      </span>
+    </span>
   );
 }
 

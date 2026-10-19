@@ -1,6 +1,6 @@
 import { FUSO_NEGOCIO } from "@/lib/fuso";
 import { revalidatePath } from "next/cache";
-import { exigirAdmin } from "@/lib/auth";
+import { exigirPermissao } from "@/lib/auth";
 import {
   gravarMetaFaq,
   gravarSegundosPaginaTelao,
@@ -58,7 +58,7 @@ export default async function AdminSugestoes({
   searchParams: Promise<{ pagina?: string; tipo?: string }>;
 }) {
   const [, sp, existentes, segundosPagina, telaoAtivo, metaFaq] = await Promise.all([
-    exigirAdmin(),
+    exigirPermissao("sugestoes"),
     searchParams,
     prisma.sugestao.findMany({ select: { id: true, tipo: true }, orderBy: { id: "desc" } }),
     lerSegundosPaginaTelao(),
@@ -96,14 +96,14 @@ export default async function AdminSugestoes({
 
   async function alternarOculta(id: number, oculta: boolean) {
     "use server";
-    await exigirAdmin();
+    await exigirPermissao("sugestoes");
     await prisma.sugestao.update({ where: { id }, data: { oculta } });
     revalidatePath("/admin/sugestoes");
   }
 
   async function salvarTempoTelao(formData: FormData) {
     "use server";
-    await exigirAdmin();
+    await exigirPermissao("sugestoes");
     const segundos = validarSegundosPagina(formData.get("segundos"));
     if (segundos === null) return;
     await gravarSegundosPaginaTelao(segundos);
@@ -112,7 +112,7 @@ export default async function AdminSugestoes({
 
   async function salvarMetaFaq(formData: FormData) {
     "use server";
-    await exigirAdmin();
+    await exigirPermissao("sugestoes");
     // Vazio remove a meta; um valor preenchido e inválido é ignorado em vez de apagar a meta atual
     const texto = String(formData.get("meta") ?? "").trim();
     if (texto === "") {
@@ -127,21 +127,21 @@ export default async function AdminSugestoes({
 
   async function alternarTelao(formData: FormData) {
     "use server";
-    await exigirAdmin();
+    await exigirPermissao("sugestoes");
     await gravarTelaoAtivo(formData.get("ativar") === "1");
     revalidatePath("/admin/sugestoes");
   }
 
   async function excluir(id: number) {
     "use server";
-    await exigirAdmin();
+    await exigirPermissao("sugestoes");
     await prisma.sugestao.deleteMany({ where: { id } });
     revalidatePath("/admin/sugestoes");
   }
 
   async function alterarOcultaLote(oculta: boolean, formData: FormData) {
     "use server";
-    await exigirAdmin();
+    await exigirPermissao("sugestoes");
     await prisma.sugestao.updateMany({
       where: { id: { in: idsDoFormulario(formData) } },
       data: { oculta },
@@ -151,7 +151,7 @@ export default async function AdminSugestoes({
 
   async function excluirLote(formData: FormData) {
     "use server";
-    await exigirAdmin();
+    await exigirPermissao("sugestoes");
     await prisma.sugestao.deleteMany({ where: { id: { in: idsDoFormulario(formData) } } });
     revalidatePath("/admin/sugestoes");
   }

@@ -17,6 +17,9 @@ model Usuario {
   // Conta restrita ao Painel (ex.: TV da sala) — não vê Clientes, Novo cliente nem Admin,
   // mesmo sem ser admin. Ver exigirAcessoPainel()/exigirAcessoCompleto() em src/lib/auth.ts.
   somentePainel Boolean  @default(false)
+  // Permissões liberadas uma a uma por um admin (catálogo em src/lib/permissoes.ts). Vale para quem
+  // não é admin nem "somente Painel"; o admin tem todas. Vazio = usuário comum.
+  permissoes    String[] @default([])
   // Como esta pessoa aparece na lista de responsáveis dos clientes (ex.: "Maria"), escolhido por um
   // admin em Admin → Usuários. Usuário comum só altera os clientes cujo responsável é este nome;
   // vazio = só vê. Ver podeAlterarCliente() em src/lib/responsavel.ts.

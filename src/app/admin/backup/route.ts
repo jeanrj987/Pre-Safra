@@ -1,5 +1,6 @@
 import ExcelJS from "exceljs";
 import { usuarioAtual } from "@/lib/auth";
+import { pode } from "@/lib/permissoes";
 import { prisma } from "@/lib/db";
 import { FUSO_NEGOCIO } from "@/lib/fuso";
 import { rotuloDoTipo } from "@/lib/sugestoes";
@@ -64,7 +65,7 @@ function adicionarAba<T>(planilha: ExcelJS.Workbook, nome: string, colunas: Colu
 
 export async function GET() {
   const usuario = await usuarioAtual();
-  if (!usuario?.admin) return new Response(null, { status: 401 });
+  if (!usuario || !pode(usuario, "backup")) return new Response(null, { status: 401 });
 
   const [clientes, safras, preSafras, conclusoes, atividades, sugestoes, usuarios, configuracoes] =
     await Promise.all([
@@ -239,6 +240,7 @@ export async function GET() {
         { cabecalho: "E-mail", valor: (u) => u.email, largura: 32 },
         { cabecalho: "Admin", valor: (u) => sim(u.admin), largura: 8 },
         { cabecalho: "Somente Painel", valor: (u) => sim(u.somentePainel), largura: 15 },
+        { cabecalho: "Permissões", valor: (u) => u.permissoes.join(", "), largura: 30 },
         { cabecalho: "Nome de responsável", valor: (u) => u.nomeResponsavel, largura: 21 },
         { cabecalho: "Ativo", valor: (u) => sim(u.ativo), largura: 8 },
         { cabecalho: "Criado em", valor: (u) => u.criadoEm, formato: "dataHora" },
