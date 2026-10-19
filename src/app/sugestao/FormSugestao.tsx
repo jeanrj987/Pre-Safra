@@ -5,6 +5,7 @@ import { LIMITES, TIPOS_SUGESTAO, type TipoSugestao } from "@/lib/sugestoes";
 import { mascararWhatsapp } from "@/lib/whatsapp";
 import { enviarSugestao, type Resultado } from "./acoes";
 import CampoAnexos from "./CampoAnexos";
+import Ditado from "./Ditado";
 
 // text-base (16px) nos campos: abaixo disso o Safari do iPhone dá zoom ao focar.
 const CAMPO = "campo text-base";
@@ -159,6 +160,7 @@ export default function FormSugestao() {
             className={CAMPO}
           />
         </label>
+        <Ditado texto={texto} aoMudar={mudarTexto} max={LIMITES.texto.max} desabilitado={enviando} />
         <CampoAnexos arquivos={anexos} aoMudar={setAnexos} desabilitado={enviando} />
       </div>
 

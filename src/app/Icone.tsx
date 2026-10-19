@@ -133,6 +133,12 @@ const CAMINHOS = {
       <path d="m21 15-5-5L5 21" />
     </>
   ),
+  microfone: (
+    <>
+      <rect x="9" y="2" width="6" height="12" rx="3" />
+      <path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v4" />
+    </>
+  ),
   linkExterno: <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14 21 3" />,
 } as const;
 
