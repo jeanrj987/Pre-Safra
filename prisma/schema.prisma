@@ -140,10 +140,29 @@ model Sugestao {
   // Escondida do telão pelo admin (moderação); continua na lista do admin
   oculta            Boolean  @default(false)
   criadoEm          DateTime @default(now())
+  anexos            AnexoSugestao[]
 
   @@index([criadoEm])
   @@index([whatsapp, criadoEm])
   @@index([tipo, oculta, id])
+}
+
+// Imagem ou PDF que a pessoa anexou à sugestão (limites em src/lib/anexos.ts). Fica no próprio
+// banco: são poucos arquivos pequenos e assim não depende de outro serviço de armazenamento.
+// Só o admin abre (rota /admin/sugestoes/anexo/[id]); o telão nunca mostra.
+model AnexoSugestao {
+  id         Int      @id @default(autoincrement())
+  sugestaoId Int
+  sugestao   Sugestao @relation(fields: [sugestaoId], references: [id], onDelete: Cascade)
+  nome       String
+  // Tipo detectado pelos primeiros bytes do arquivo no servidor, nunca o que o navegador disse
+  tipo       String
+  tamanho    Int
+  dados      Bytes
+  criadoEm   DateTime @default(now())
+
+  @@index([sugestaoId])
+  @@index([criadoEm])
 }
 
 // Ajustes globais editáveis pelo admin, um por linha (chave -> valor em texto).

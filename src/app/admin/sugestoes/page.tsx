@@ -12,6 +12,7 @@ import {
   validarSegundosPagina,
 } from "@/lib/configuracoes";
 import { prisma } from "@/lib/db";
+import { formatarTamanho } from "@/lib/anexos";
 import { formatarWhatsapp, linkWhatsapp } from "@/lib/whatsapp";
 import {
   ehTipoSugestao,
@@ -73,6 +74,8 @@ export default async function AdminSugestoes({
   const paginaAtual = Math.min(Math.max(Number(sp.pagina) || 1, 1), totalPaginas);
   const sugestoes = await prisma.sugestao.findMany({
     where: filtro ? { tipo: filtro } : undefined,
+    // Sem o conteúdo dos arquivos: a lista só precisa de nome, tipo e tamanho
+    include: { anexos: { select: { id: true, nome: true, tipo: true, tamanho: true }, orderBy: { id: "asc" } } },
     orderBy: { id: "desc" },
     skip: (paginaAtual - 1) * TAMANHO_PAGINA,
     take: TAMANHO_PAGINA,
@@ -320,6 +323,24 @@ export default async function AdminSugestoes({
                     <div title={s.texto} className="line-clamp-2 break-all">
                       {s.texto}
                     </div>
+                    {s.anexos.length > 0 && (
+                      <ul aria-label="Anexos" className="mt-2 flex flex-wrap gap-1.5">
+                        {s.anexos.map((a) => (
+                          <li key={a.id} className="min-w-0">
+                            <a
+                              href={`/admin/sugestoes/anexo/${a.id}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex max-w-56 items-center gap-1.5 rounded-md border border-line bg-primary-faint px-2 py-1 text-xs font-medium text-primary hover:bg-primary-soft"
+                            >
+                              <Icone nome={a.tipo === "application/pdf" ? "arquivo" : "imagem"} className="size-3.5" />
+                              <span className="truncate">{a.nome}</span>
+                              <span className="num shrink-0 text-muted">{formatarTamanho(a.tamanho)}</span>
+                            </a>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                   </td>
                   <td className="hidden px-3 py-3 align-top @3xl:table-cell">
                     {s.possivelDuplicada && (

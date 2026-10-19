@@ -26,7 +26,13 @@ export const LIMITES = {
 } as const;
 
 /** Envios aceitos por WhatsApp na última hora e, somando todo mundo, no último minuto (abuso do formulário público). */
-export const LIMITE_ENVIOS = { porWhatsappPorHora: 20, totalPorMinuto: 60 } as const;
+export const LIMITE_ENVIOS = {
+  porWhatsappPorHora: 20,
+  totalPorMinuto: 60,
+  // Arquivos enviados (cada um pesa no banco): por WhatsApp na última hora e, somando todos, no último minuto
+  anexosPorWhatsappPorHora: 15,
+  anexosTotalPorMinuto: 30,
+} as const;
 
 /**
  * Grade de cada página de uma coluna do telão (FAQ à esquerda, melhorias à direita, cada uma com a

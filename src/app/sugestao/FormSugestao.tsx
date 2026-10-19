@@ -4,6 +4,7 @@ import Icone from "@/app/Icone";
 import { LIMITES, TIPOS_SUGESTAO, type TipoSugestao } from "@/lib/sugestoes";
 import { mascararWhatsapp } from "@/lib/whatsapp";
 import { enviarSugestao, type Resultado } from "./acoes";
+import CampoAnexos from "./CampoAnexos";
 
 // text-base (16px) nos campos: abaixo disso o Safari do iPhone dá zoom ao focar.
 const CAMPO = "campo text-base";
@@ -39,6 +40,7 @@ export default function FormSugestao() {
   const [whatsapp, setWhatsapp] = useState("");
   const [topico, setTopico] = useState("");
   const [texto, setTexto] = useState("");
+  const [anexos, setAnexos] = useState<File[]>([]);
   const [site, setSite] = useState(""); // isca para robôs, ver acoes.ts
   const [resultado, setResultado] = useState<Resultado | null>(null);
   const [enviando, iniciar] = useTransition();
@@ -46,12 +48,13 @@ export default function FormSugestao() {
 
   function enviar(confirmar: boolean) {
     iniciar(async () => {
-      const r = await enviarSugestao({ tipo, nome, whatsapp, topico, texto, site, confirmar });
+      const r = await enviarSugestao({ tipo, nome, whatsapp, topico, texto, anexos, site, confirmar });
       setResultado(r);
       if (r.status === "salva") {
         // Mantém nome e WhatsApp: quem tem mais de uma ideia não precisa digitar tudo de novo
         setTopico("");
         setTexto("");
+        setAnexos([]);
       }
     });
   }
@@ -141,19 +144,23 @@ export default function FormSugestao() {
         />
       </label>
 
-      <label className="block">
-        <span className="rotulo">{TEXTOS[tipo].campo}</span>
-        <textarea
-          ref={campoTexto}
-          value={texto}
-          onChange={(e) => mudarTexto(e.target.value)}
-          required
-          maxLength={LIMITES.texto.max}
-          rows={4}
-          placeholder={TEXTOS[tipo].placeholder}
-          className={CAMPO}
-        />
-      </label>
+      {/* O botão de anexo fica fora do <label>: dentro dele, tocar no rótulo abriria o seletor */}
+      <div>
+        <label className="block">
+          <span className="rotulo">{TEXTOS[tipo].campo}</span>
+          <textarea
+            ref={campoTexto}
+            value={texto}
+            onChange={(e) => mudarTexto(e.target.value)}
+            required
+            maxLength={LIMITES.texto.max}
+            rows={4}
+            placeholder={TEXTOS[tipo].placeholder}
+            className={CAMPO}
+          />
+        </label>
+        <CampoAnexos arquivos={anexos} aoMudar={setAnexos} desabilitado={enviando} />
+      </div>
 
       {/* Isca para robôs: pessoas não veem nem alcançam com o teclado */}
       <div aria-hidden="true" className="absolute -left-[9999px] h-0 w-0 overflow-hidden">

@@ -6,7 +6,9 @@ const banco = vi.hoisted(() => ({
   create: vi.fn(),
 }));
 
-vi.mock("@/lib/db", () => ({ prisma: { sugestao: banco } }));
+const bancoAnexo = vi.hoisted(() => ({ count: vi.fn() }));
+
+vi.mock("@/lib/db", () => ({ prisma: { sugestao: banco, anexoSugestao: bancoAnexo } }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 // FAQ fixo: o teste não pode depender do conteúdo real da Base de Conhecimento, que muda a cada backup.
 vi.mock("@/lib/faq", () => ({
@@ -33,7 +35,11 @@ beforeEach(() => {
   banco.findFirst.mockResolvedValue(null);
   banco.count.mockResolvedValue(0);
   banco.create.mockResolvedValue({});
+  bancoAnexo.count.mockResolvedValue(0);
 });
+
+const PNG = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3];
+const arquivo = (bytes: number[], nome: string) => new File([new Uint8Array(bytes)], nome);
 
 describe("enviarSugestao", () => {
   it("salva uma ideia nova, normalizando nome, WhatsApp e tópico", async () => {
@@ -165,5 +171,46 @@ describe("enviarSugestao", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const r = await enviarSugestao(valida);
     expect(r).toEqual({ status: "erro", mensagem: expect.stringContaining("Não foi possível salvar") });
+  });
+  describe("com anexos", () => {
+    it("salva a imagem junto, com o tipo detectado pelos bytes", async () => {
+      // Nome e tipo declarados mentem: vale o que está dentro do arquivo
+      const r = await enviarSugestao({ ...valida, anexos: [arquivo(PNG, "print.pdf")] });
+      expect(r).toEqual({ status: "salva", revisar: false });
+      expect(banco.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          anexos: {
+            create: [
+              { nome: "print.pdf", tipo: "image/png", tamanho: PNG.length, dados: new Uint8Array(PNG) },
+            ],
+          },
+        }),
+      });
+    });
+
+    it("sem arquivos não manda a chave anexos", async () => {
+      await enviarSugestao({ ...valida, anexos: [] });
+      expect(banco.create.mock.calls[0][0].data).not.toHaveProperty("anexos");
+      expect(bancoAnexo.count).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ["arquivo que não é imagem nem PDF", [arquivo([0x4d, 0x5a, 0x90, 0], "programa.exe")]],
+      ["mais de 3 arquivos", [1, 2, 3, 4].map((n) => arquivo(PNG, `${n}.png`))],
+      ["arquivo maior que 2 MB", [arquivo([...PNG, ...new Array(2 * 1024 * 1024)], "grande.png")]],
+      ["anexos que não são arquivos", ["texto solto"]],
+    ])("rejeita %s sem tocar no banco", async (_nome, anexos) => {
+      const r = await enviarSugestao({ ...valida, anexos });
+      expect(r.status).toBe("erro");
+      expect(banco.create).not.toHaveBeenCalled();
+      expect(banco.count).not.toHaveBeenCalled();
+    });
+
+    it("recusa quando os arquivos passam do limite por hora", async () => {
+      bancoAnexo.count.mockResolvedValueOnce(15).mockResolvedValueOnce(0);
+      const r = await enviarSugestao({ ...valida, anexos: [arquivo(PNG, "a.png")] });
+      expect(r.status).toBe("erro");
+      expect(banco.create).not.toHaveBeenCalled();
+    });
   });
 });

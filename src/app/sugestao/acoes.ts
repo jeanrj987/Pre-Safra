@@ -1,5 +1,11 @@
 "use server";
 import { revalidatePath } from "next/cache";
+import {
+  LIMITES_ANEXO,
+  limparNomeAnexo,
+  tipoPelaAssinatura,
+  type TipoAnexo,
+} from "@/lib/anexos";
 import { prisma } from "@/lib/db";
 import { listarPerguntasFaq } from "@/lib/faq";
 import { acharPerguntaParecida } from "@/lib/similaridade";
@@ -34,6 +40,65 @@ async function excedeuLimiteDeEnvios(whatsapp: string): Promise<boolean> {
     prisma.sugestao.count({ where: { criadoEm: { gte: new Date(agora - UM_MINUTO_MS) } } }),
   ]);
   return doNumero >= LIMITE_ENVIOS.porWhatsappPorHora || total >= LIMITE_ENVIOS.totalPorMinuto;
+}
+
+async function excedeuLimiteDeAnexos(whatsapp: string, novos: number): Promise<boolean> {
+  const agora = Date.now();
+  const [doNumero, total] = await Promise.all([
+    prisma.anexoSugestao.count({
+      where: { sugestao: { whatsapp }, criadoEm: { gte: new Date(agora - UMA_HORA_MS) } },
+    }),
+    prisma.anexoSugestao.count({ where: { criadoEm: { gte: new Date(agora - UM_MINUTO_MS) } } }),
+  ]);
+  return (
+    doNumero + novos > LIMITE_ENVIOS.anexosPorWhatsappPorHora ||
+    total + novos > LIMITE_ENVIOS.anexosTotalPorMinuto
+  );
+}
+
+interface AnexoLido {
+  nome: string;
+  tipo: TipoAnexo;
+  tamanho: number;
+  dados: Uint8Array<ArrayBuffer>;
+}
+
+// Sem depender do construtor File: o que chega da Server Action é o File do Node, mas o teste e
+// outros ambientes podem ter outro. Conta o que o arquivo faz (tamanho, nome e leitura).
+const ehArquivo = (v: unknown): v is File =>
+  typeof v === "object" &&
+  v !== null &&
+  typeof (v as File).arrayBuffer === "function" &&
+  typeof (v as File).size === "number";
+
+// Confere o que veio no campo "anexos" (arquivos escolhidos no formulário). O cliente também
+// confere e reduz as fotos, mas aqui vale só o que o servidor mede e lê.
+async function lerAnexos(valor: unknown): Promise<AnexoLido[] | string> {
+  if (valor === undefined || valor === null) return [];
+  if (!Array.isArray(valor)) return "Não foi possível ler os anexos. Escolha os arquivos de novo.";
+  if (valor.length > LIMITES_ANEXO.arquivos) {
+    return `Anexe no máximo ${LIMITES_ANEXO.arquivos} arquivos.`;
+  }
+
+  let total = 0;
+  const lidos: AnexoLido[] = [];
+  for (const item of valor) {
+    if (!ehArquivo(item)) return "Não foi possível ler os anexos. Escolha os arquivos de novo.";
+    if (item.size > LIMITES_ANEXO.bytesPorArquivo) {
+      return `O arquivo “${limparNomeAnexo(item.name)}” passa de ${LIMITES_ANEXO.bytesPorArquivo / 1024 / 1024} MB.`;
+    }
+    total += item.size;
+    if (total > LIMITES_ANEXO.bytesTotal) {
+      return `Os anexos somam mais de ${LIMITES_ANEXO.bytesTotal / 1024 / 1024} MB. Tire algum arquivo.`;
+    }
+    const dados = new Uint8Array(await item.arrayBuffer());
+    const tipo = tipoPelaAssinatura(dados);
+    if (!tipo) {
+      return `O arquivo “${limparNomeAnexo(item.name)}” não é uma imagem (PNG, JPG ou WebP) nem um PDF.`;
+    }
+    lidos.push({ nome: limparNomeAnexo(item.name), tipo, tamanho: dados.length, dados });
+  }
+  return lidos;
 }
 
 // Rota PÚBLICA de propósito (qualquer pessoa com o QR code envia): por isso valida tudo no
@@ -72,9 +137,16 @@ export async function enviarSugestao(entrada: unknown): Promise<Resultado> {
     return erro(`A sugestão pode ter no máximo ${LIMITES.texto.max} caracteres.`);
   }
 
+  const anexos = await lerAnexos(dados.anexos);
+  if (typeof anexos === "string") return erro(anexos);
+
   try {
     if (await excedeuLimiteDeEnvios(whatsapp)) {
       return erro("Muitos envios em pouco tempo. Aguarde alguns minutos e tente de novo.");
+    }
+
+    if (anexos.length > 0 && (await excedeuLimiteDeAnexos(whatsapp, anexos.length))) {
+      return erro("Muitos arquivos enviados em pouco tempo. Aguarde alguns minutos e tente de novo.");
     }
 
     const repetida = await prisma.sugestao.findFirst({
@@ -99,6 +171,8 @@ export async function enviarSugestao(entrada: unknown): Promise<Resultado> {
         // Só chega aqui com uma parecida se a pessoa escolheu "enviar mesmo assim"
         possivelDuplicada: !!parecida,
         faqParecida: parecida?.item.pergunta ?? null,
+        // Sem anexos a chave nem entra, e a sugestão é gravada como antes
+        ...(anexos.length > 0 && { anexos: { create: anexos } }),
       },
     });
     revalidatePath("/admin/sugestoes");
