@@ -23,6 +23,7 @@ import {
 } from "@/lib/sugestoes";
 import { plural } from "@/lib/texto";
 import BotaoAcao from "@/app/BotaoAcao";
+import BotaoConfirmar from "@/app/BotaoConfirmar";
 import BotaoEnviar from "@/app/BotaoEnviar";
 import BotaoExcluir from "@/app/BotaoExcluir";
 import Icone from "@/app/Icone";
@@ -367,15 +368,23 @@ export default async function AdminSugestoes({
                   </td>
                   <td className="py-2.5 pl-3 pr-4 text-right align-top sm:pr-5">
                     <div className="flex items-center justify-end gap-1.5">
-                      <form action={mudarTipo.bind(null, s.id, s.tipo === "melhoria" ? "faq" : "melhoria")}>
-                        <BotaoAcao
-                          type="submit"
-                          icone={s.tipo === "melhoria" ? "nota" : "lampada"}
-                          tom="neutro"
-                          rotulo={s.tipo === "melhoria" ? "Mover para o FAQ" : "Mover para Melhorias (P&D)"}
-                          soIcone
-                        />
-                      </form>
+                      <BotaoConfirmar
+                        acao={mudarTipo.bind(null, s.id, s.tipo === "melhoria" ? "faq" : "melhoria")}
+                        icone={s.tipo === "melhoria" ? "nota" : "lampada"}
+                        rotulo={s.tipo === "melhoria" ? "Mover para o FAQ" : "Mover para Melhorias (P&D)"}
+                        titulo={s.tipo === "melhoria" ? "Mover para o FAQ?" : "Mover para Melhorias (P&D)?"}
+                        subtitulo={`${s.nome} · ${s.topico}`}
+                        confirmar="Mover"
+                        pendente="Movendo…"
+                      >
+                        <p>
+                          Esta sugestão está em <strong>{rotuloDoTipo(s.tipo)}</strong> e vai para{" "}
+                          <strong>{s.tipo === "melhoria" ? rotuloDoTipo("faq") : rotuloDoTipo("melhoria")}</strong>.
+                        </p>
+                        <p className="line-clamp-4 break-words rounded-lg border border-line bg-subtle/40 px-3 py-2 text-muted">
+                          {s.texto}
+                        </p>
+                      </BotaoConfirmar>
                       <form action={alternarOculta.bind(null, s.id, !s.oculta)}>
                         <BotaoAcao
                           type="submit"
