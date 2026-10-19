@@ -101,6 +101,18 @@ export default async function AdminSugestoes({
     revalidatePath("/admin/sugestoes");
   }
 
+  async function mudarTipo(id: number, tipo: string) {
+    "use server";
+    await exigirPermissao("sugestoes");
+    if (!ehTipoSugestao(tipo)) return;
+    await prisma.sugestao.updateMany({
+      where: { id },
+      // A comparação com o FAQ só vale para FAQ: ao virar melhoria, o aviso de duplicada sai
+      data: tipo === "melhoria" ? { tipo, possivelDuplicada: false, faqParecida: null } : { tipo },
+    });
+    revalidatePath("/admin/sugestoes");
+  }
+
   async function salvarTempoTelao(formData: FormData) {
     "use server";
     await exigirPermissao("sugestoes");
@@ -355,6 +367,15 @@ export default async function AdminSugestoes({
                   </td>
                   <td className="py-2.5 pl-3 pr-4 text-right align-top sm:pr-5">
                     <div className="flex items-center justify-end gap-1.5">
+                      <form action={mudarTipo.bind(null, s.id, s.tipo === "melhoria" ? "faq" : "melhoria")}>
+                        <BotaoAcao
+                          type="submit"
+                          icone={s.tipo === "melhoria" ? "nota" : "lampada"}
+                          tom="neutro"
+                          rotulo={s.tipo === "melhoria" ? "Mover para o FAQ" : "Mover para Melhorias (P&D)"}
+                          soIcone
+                        />
+                      </form>
                       <form action={alternarOculta.bind(null, s.id, !s.oculta)}>
                         <BotaoAcao
                           type="submit"
