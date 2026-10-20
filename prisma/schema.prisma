@@ -8,36 +8,25 @@ datasource db {
 }
 
 model Usuario {
-  id            Int      @id @default(autoincrement())
-  nome          String
-  email         String   @unique
-  // Formato "scrypt:N:r:p:saltHex:hashHex" — ver src/lib/senha.ts
-  senhaHash     String
-  admin         Boolean  @default(false)
-  // Conta restrita ao Painel (ex.: TV da sala) — não vê Clientes, Novo cliente nem Admin,
-  // mesmo sem ser admin. Ver exigirAcessoPainel()/exigirAcessoCompleto() em src/lib/auth.ts.
-  somentePainel Boolean  @default(false)
-  // Permissões liberadas uma a uma por um admin (catálogo em src/lib/permissoes.ts). Vale para quem
-  // não é admin nem "somente Painel"; o admin tem todas. Vazio = usuário comum.
-  permissoes    String[] @default([])
-  // Como esta pessoa aparece na lista de responsáveis dos clientes (ex.: "Maria"), escolhido por um
-  // admin em Admin → Usuários. Usuário comum só altera os clientes cujo responsável é este nome;
-  // vazio = só vê. Ver podeAlterarCliente() em src/lib/responsavel.ts.
+  id              Int      @id @default(autoincrement())
+  nome            String
+  email           String   @unique
+  senhaHash       String
+  admin           Boolean  @default(false)
+  ativo           Boolean  @default(true)
+  criadoEm        DateTime @default(now())
+  atualizadoEm    DateTime @updatedAt
+  somentePainel   Boolean  @default(false)
   nomeResponsavel String?
-  ativo         Boolean  @default(true)
-  criadoEm      DateTime @default(now())
-  atualizadoEm  DateTime @updatedAt
+  permissoes      String[] @default([])
 }
 
-// Um período de Pré-Safra por cultura (ex.: "Soja 2026", "Milho 2026"), com início/prazo
-// próprios. Substitui o antigo campo PreSafra.anoSafra (só um ano, sem distinguir cultura).
 model Safra {
   id           Int        @id @default(autoincrement())
   nome         String     @unique
   cultura      String?
   inicio       DateTime   @db.Date
   prazo        DateTime   @db.Date
-  // Aparece no seletor de safra enquanto true; admin arquiva (false) em vez de apagar
   ativa        Boolean    @default(true)
   criadoEm     DateTime   @default(now())
   atualizadoEm DateTime   @updatedAt
@@ -47,102 +36,72 @@ model Safra {
 model Cliente {
   id           Int        @id @default(autoincrement())
   nome         String     @unique
-  cidade       String?
   uf           String?
-  // Região de atendimento (ex.: "Norte MT a PA/RR"), vinda da planilha de clientes
-  regiao       String?
   consultor    String?
-  // Dupla de atendentes da região (ex.: "Maria e Jean")
   atendente    String?
-  // Comercial responsável pelo cliente; vazio = vale o comercial da região (COMERCIAL_POR_REGIAO)
-  comercial    String?
   gerente      String?
   criadoEm     DateTime   @default(now())
   atualizadoEm DateTime   @updatedAt
+  regiao       String?
+  cidade       String?
+  comercial    String?
   preSafras    PreSafra[]
-}
-
-enum Formato {
-  Online
-  Presencial
 }
 
 model PreSafra {
   id                    Int         @id @default(autoincrement())
   clienteId             Int?
-  cliente               Cliente?    @relation(fields: [clienteId], references: [id], onDelete: SetNull)
-  // Preenchido só quando o cliente ainda não existe na base
   clienteNomeManual     String?
-  safraId               Int
-  safra                 Safra       @relation(fields: [safraId], references: [id])
   responsavel           String?
   dataPrevista          DateTime?   @db.Date
-  // Horário agendado no dia da data prevista, no formato "HH:MM" (grade fixa em src/lib/horarios.ts)
-  horario               String?
-  formato              Formato?
+  formato               Formato?
   configuradoSistema    Boolean     @default(false)
   melhoriasApresentadas Boolean     @default(false)
-  // Quem fez o agendamento atual e quando; nulo se foi feito antes destes campos existirem ou se
-  // o cliente não está agendado. O agendamento é aberto a todos os usuários (ver src/lib/responsavel.ts).
-  agendadoPor           String?
-  agendadoEm            DateTime?
-  // Cliente que não fará o Pré-Safra: sai da lista principal, mas pode ser reativado
-  inativo               Boolean     @default(false)
   observacoes           String?
-  // LEGADO: substituído pelo histórico em Conclusao. Só o script migrar-conclusoes lê este campo;
-  // depois de rodá-lo, o campo pode ser removido do schema.
-  observacaoConclusao   String?
-  // Por que o cliente foi inativado (ex.: não fará o Pré-Safra este ano)
-  motivoInativacao      String?
   criadoEm              DateTime    @default(now())
   atualizadoEm          DateTime    @updatedAt
+  inativo               Boolean     @default(false)
+  observacaoConclusao   String?
+  motivoInativacao      String?
+  safraId               Int
+  horario               String?
+  agendadoEm            DateTime?
+  agendadoPor           String?
   conclusoes            Conclusao[]
+  cliente               Cliente?    @relation(fields: [clienteId], references: [id])
+  safra                 Safra       @relation(fields: [safraId], references: [id])
 
   @@unique([clienteId, safraId])
   @@index([safraId])
 }
 
-// Lançamento livre da aba Calendário (ex.: dia de enviar aviso, dia de atualizar o cliente).
-// Compartilhado pela equipe toda; não depende de safra nem de cliente.
 model Atividade {
   id           Int      @id @default(autoincrement())
   titulo       String
   descricao    String?
   data         DateTime @db.Date
-  // "HH:MM" livre (qualquer minuto do dia). Nulo só em atividades lançadas antes de o horário
-  // ser obrigatório.
   horario      String?
   concluida    Boolean  @default(false)
-  // Nome de quem lançou, como em Conclusao.autor (só para exibição)
   criadoPor    String?
-  // Dono da atividade: só ele (ou um admin) pode editar, concluir ou excluir; os demais só veem.
-  // Nulo nas lançadas antes deste campo existir — nelas vale o nome (ver podeAlterarAtividade()).
-  criadoPorId  Int?
   criadoEm     DateTime @default(now())
   atualizadoEm DateTime @updatedAt
+  criadoPorId  Int?
 
   @@index([data])
 }
 
-// Sugestão do público (tema para o FAQ ou melhoria para o P&D), enviada via QR code (rota pública
-// /sugestao). A equipe entra em contato pelo WhatsApp depois para entender melhor a ideia.
 model Sugestao {
-  id                Int      @id @default(autoincrement())
-  // "faq" ou "melhoria" (ver TIPOS_SUGESTAO em src/lib/sugestoes.ts). As anteriores são todas FAQ.
-  tipo              String   @default("faq")
+  id                Int             @id @default(autoincrement())
   nome              String
-  // Só dígitos, com DDI: "5566999998888" (ver src/lib/whatsapp.ts)
   whatsapp          String
   topico            String
-  // Tópico sem acento/maiúscula: agrupa "Nota Fiscal" e "nota fiscal" e define a cor no telão
   topicoNorm        String
   texto             String
-  // true quando o sistema achou uma pergunta parecida no FAQ, mas a pessoa insistiu em enviar
-  possivelDuplicada Boolean  @default(false)
+  possivelDuplicada Boolean         @default(false)
   faqParecida       String?
-  // Escondida do telão pelo admin (moderação); continua na lista do admin
-  oculta            Boolean  @default(false)
-  criadoEm          DateTime @default(now())
+  oculta            Boolean         @default(false)
+  criadoEm          DateTime        @default(now())
+  tipo              String          @default("faq")
   anexos            AnexoSugestao[]
 
   @@index([criadoEm])
@@ -150,45 +109,40 @@ model Sugestao {
   @@index([tipo, oculta, id])
 }
 
-// Imagem ou PDF que a pessoa anexou à sugestão (limites em src/lib/anexos.ts). Fica no próprio
-// banco: são poucos arquivos pequenos e assim não depende de outro serviço de armazenamento.
-// Só o admin abre (rota /admin/sugestoes/anexo/[id]); o telão nunca mostra.
 model AnexoSugestao {
   id         Int      @id @default(autoincrement())
   sugestaoId Int
-  sugestao   Sugestao @relation(fields: [sugestaoId], references: [id], onDelete: Cascade)
   nome       String
-  // Tipo detectado pelos primeiros bytes do arquivo no servidor, nunca o que o navegador disse
   tipo       String
   tamanho    Int
   dados      Bytes
   criadoEm   DateTime @default(now())
+  sugestao   Sugestao @relation(fields: [sugestaoId], references: [id], onDelete: Cascade)
 
   @@index([sugestaoId])
   @@index([criadoEm])
 }
 
-// Ajustes globais editáveis pelo admin, um por linha (chave -> valor em texto).
-// Chaves conhecidas e seus limites ficam em src/lib/configuracoes.ts.
 model Configuracao {
   chave String @id
   valor String
 }
 
-// Uma finalização do Pré-Safra, guardada como entrada de histórico (nunca é sobrescrita).
-// Cada nova finalização cria uma entrada; ao reabrir, o motivo é gravado na entrada aberta.
 model Conclusao {
   id               Int       @id @default(autoincrement())
   preSafraId       Int
-  preSafra         PreSafra  @relation(fields: [preSafraId], references: [id], onDelete: Cascade)
   observacao       String?
-  // Nulo só nas entradas migradas do formato antigo, que não guardava o autor
   autor            String?
   criadoEm         DateTime  @default(now())
-  // Preenchidos quando o cliente é reaberto; nulo enquanto a finalização estiver valendo
   reabertoEm       DateTime?
   reabertoPor      String?
   motivoReabertura String?
+  preSafra         PreSafra  @relation(fields: [preSafraId], references: [id], onDelete: Cascade)
 
   @@index([preSafraId, criadoEm])
+}
+
+enum Formato {
+  Online
+  Presencial
 }
