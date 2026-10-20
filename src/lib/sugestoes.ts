@@ -102,6 +102,43 @@ export function matizesDoTelao(
   return matizes;
 }
 
+export interface PosicaoRanking {
+  whatsapp: string;
+  /** O nome do envio mais recente: a mesma pessoa pode digitar o nome de jeitos diferentes. */
+  nome: string;
+  quantas: number;
+}
+
+/**
+ * Quem mais enviou sugestões do tipo pedido. A pessoa é identificada pelo WhatsApp. Empata quem
+ * chegou primeiro (menor id) na frente; ocultas contam, pois a pessoa enviou do mesmo jeito.
+ */
+export function rankingPorPessoa(
+  itens: { id: number; tipo: string; nome: string; whatsapp: string }[],
+  tipo: TipoSugestao,
+  limite = 10,
+): PosicaoRanking[] {
+  const porPessoa = new Map<string, PosicaoRanking & { primeiroId: number; ultimoId: number }>();
+  for (const { id, tipo: t, nome, whatsapp } of itens) {
+    if ((ehTipoSugestao(t) ? t : "faq") !== tipo) continue;
+    const atual = porPessoa.get(whatsapp);
+    if (!atual) {
+      porPessoa.set(whatsapp, { whatsapp, nome, quantas: 1, primeiroId: id, ultimoId: id });
+      continue;
+    }
+    atual.quantas++;
+    atual.primeiroId = Math.min(atual.primeiroId, id);
+    if (id > atual.ultimoId) {
+      atual.ultimoId = id;
+      atual.nome = nome;
+    }
+  }
+  return [...porPessoa.values()]
+    .sort((a, b) => b.quantas - a.quantas || a.primeiroId - b.primeiroId)
+    .slice(0, limite)
+    .map(({ whatsapp, nome, quantas }) => ({ whatsapp, nome, quantas }));
+}
+
 /** O que o telão (tela pública do evento) recebe: nunca inclui sobrenome nem WhatsApp. */
 export interface SugestaoTelao {
   id: number;

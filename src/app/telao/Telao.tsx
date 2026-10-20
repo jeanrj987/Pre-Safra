@@ -250,6 +250,8 @@ export default function Telao({
   // No celular as colunas não cabem lado a lado: uma aba mostra uma de cada vez (a partir do lg
   // as duas aparecem juntas e a aba some)
   const [aba, setAba] = useState<TipoSugestao>("faq");
+  const [ranking, setRanking] = useState(inicial.ranking);
+  const [rankingAberto, setRankingAberto] = useState(false);
   const faq = useColuna(inicial.sugestoes.faq, inicial.segundosPagina, ligado);
   const melhoria = useColuna(inicial.sugestoes.melhoria, inicial.segundosPagina, ligado);
   const receberFaq = faq.receber;
@@ -273,6 +275,7 @@ export default function Telao({
         setSituacao("ok");
         setTotais(dados.totais);
         setMeta({ alvo: dados.metaFaq, recebidas: dados.faqRecebidas });
+        setRanking(dados.ranking);
         const paginaMs = dados.segundosPagina * 1000;
         receberFaq.current(dados.sugestoes.faq, paginaMs);
         receberMelhoria.current(dados.sugestoes.melhoria, paginaMs);
@@ -368,8 +371,18 @@ export default function Telao({
               Sem conexão — tentando de novo…
             </p>
           )}
+          <button
+            type="button"
+            onClick={() => setRankingAberto(true)}
+            className={`mt-2 inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-current px-3 py-1.5 text-xs font-semibold transition hover:bg-white/5 lg:mt-4 lg:flex lg:w-full lg:text-sm ${CIANO}`}
+          >
+            <Icone nome="trofeu" className="size-4 lg:size-5" />
+            Ver ranking
+          </button>
         </div>
       </aside>
+
+      {rankingAberto && <JanelaRanking ranking={ranking} onFechar={() => setRankingAberto(false)} />}
 
       <div role="tablist" aria-label="Tipo de ideia" className="flex shrink-0 gap-2 px-3 pt-3 lg:hidden">
         {(["faq", "melhoria"] as const).map((tipo) => {
@@ -506,6 +519,83 @@ function PainelColuna({
         )}
       </div>
     </section>
+  );
+}
+
+// Tela do ranking: quem mais enviou em cada tipo. Abre por cima do telão e acompanha a atualização
+// do servidor enquanto estiver aberta.
+function JanelaRanking({
+  ranking,
+  onFechar,
+}: {
+  ranking: DadosTelao["ranking"];
+  onFechar: () => void;
+}) {
+  const ref = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    ref.current?.showModal();
+  }, []);
+  return (
+    <dialog
+      ref={ref}
+      onClose={onFechar}
+      onClick={(e) => {
+        if (e.target === ref.current) ref.current?.close();
+      }}
+      aria-labelledby="ranking-titulo"
+      className="m-auto max-h-[calc(100dvh-1.5rem)] w-[calc(100%-1.5rem)] max-w-5xl overflow-y-auto overscroll-contain rounded-3xl border border-white/10 bg-night-raised p-0 text-white shadow-2xl backdrop:bg-black/60 backdrop:backdrop-blur-sm sm:w-[calc(100%-3rem)]"
+    >
+      <div className="flex items-center gap-3 px-5 pt-5 sm:px-8 sm:pt-7">
+        <Icone nome="trofeu" className={`size-8 sm:size-10 ${CIANO}`} />
+        <h2 id="ranking-titulo" className="flex-1 text-xl font-semibold tracking-tight sm:text-3xl">
+          Quem mais contribuiu
+        </h2>
+        <button
+          type="button"
+          onClick={() => ref.current?.close()}
+          aria-label="Fechar"
+          className="grid size-10 shrink-0 cursor-pointer place-items-center rounded-xl text-white/70 transition hover:bg-white/10 hover:text-white"
+        >
+          <Icone nome="x" className="size-6" />
+        </button>
+      </div>
+      <div className="grid gap-4 p-5 sm:p-8 md:grid-cols-2 md:gap-6">
+        {(["faq", "melhoria"] as const).map((tipo) => (
+          <section
+            key={tipo}
+            aria-label={`Ranking: ${TEXTOS_COLUNA[tipo].titulo}`}
+            className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 sm:p-5"
+          >
+            <h3 className="mb-3 text-base font-semibold sm:text-xl">{TEXTOS_COLUNA[tipo].titulo}</h3>
+            {ranking[tipo].length === 0 ? (
+              <p className="py-4 text-white/60">Ainda não há sugestões.</p>
+            ) : (
+              <ol className="space-y-2">
+                {ranking[tipo].map((p, i) => (
+                  <li
+                    key={i}
+                    className={`flex items-center gap-3 rounded-xl px-3 py-2 sm:text-lg ${
+                      i === 0 ? "bg-[#4bc2d6]/15" : "bg-white/[0.04]"
+                    }`}
+                  >
+                    <span
+                      className={`num w-9 shrink-0 font-display text-xl font-bold ${i < 3 ? CIANO : "text-white/60"}`}
+                    >
+                      {i + 1}º
+                    </span>
+                    <span className="min-w-0 flex-1 truncate font-medium">{p.nome}</span>
+                    <span className="num shrink-0 text-white/85">
+                      <span className="font-display font-bold text-white">{p.quantas}</span>{" "}
+                      {p.quantas === 1 ? "sugestão" : "sugestões"}
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </section>
+        ))}
+      </div>
+    </dialog>
   );
 }
 

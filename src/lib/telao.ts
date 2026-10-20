@@ -3,6 +3,8 @@ import { prisma } from "@/lib/db";
 import {
   matizesDoTelao,
   paraTelao,
+  primeiroNome,
+  rankingPorPessoa,
   SEGUNDOS_PAGINA_TELAO,
   TETO_NO_TELAO,
   TIPOS_SUGESTAO,
@@ -24,7 +26,17 @@ export interface DadosTelao {
   // Sugestões de FAQ recebidas, ocultas inclusive: ocultar é moderação do telão, não tira a
   // contribuição de quem enviou, então não pode fazer a barra da meta recuar.
   faqRecebidas: number;
+  // Quem mais enviou em cada tipo. Só primeiro nome e quantidade: o WhatsApp, que identifica a
+  // pessoa, e o sobrenome nunca saem do servidor.
+  ranking: Record<TipoSugestao, PosicaoRankingTelao[]>;
 }
+
+export interface PosicaoRankingTelao {
+  nome: string;
+  quantas: number;
+}
+
+const POSICOES_NO_RANKING = 10;
 
 const porTipo = <T>(valor: () => T): Record<TipoSugestao, T> => ({ faq: valor(), melhoria: valor() });
 
@@ -38,9 +50,10 @@ export async function carregarTelao(): Promise<DadosTelao> {
       segundosPagina: SEGUNDOS_PAGINA_TELAO.padrao,
       metaFaq: null,
       faqRecebidas: 0,
+      ranking: porTipo<PosicaoRankingTelao[]>(() => []),
     };
   }
-  const [listas, contagens, segundosPagina, metaFaq, faqRecebidas] = await Promise.all([
+  const [listas, contagens, segundosPagina, metaFaq, faqRecebidas, autores] = await Promise.all([
     Promise.all(
       TIPOS_SUGESTAO.map((tipo) =>
         prisma.sugestao.findMany({
@@ -55,6 +68,11 @@ export async function carregarTelao(): Promise<DadosTelao> {
     lerSegundosPaginaTelao(),
     lerMetaFaq(),
     prisma.sugestao.count({ where: { tipo: "faq" } }),
+    // Ocultas ficam de fora: ocultar é moderação do telão, que é público
+    prisma.sugestao.findMany({
+      where: { oculta: false },
+      select: { id: true, tipo: true, nome: true, whatsapp: true },
+    }),
   ]);
 
   const sugestoes = porTipo<SugestaoTelao[]>(() => []);
@@ -67,5 +85,12 @@ export async function carregarTelao(): Promise<DadosTelao> {
   for (const c of contagens) {
     if (c.tipo === "faq" || c.tipo === "melhoria") totais[c.tipo] = c._count._all;
   }
-  return { ativo: true, sugestoes, totais, segundosPagina, metaFaq, faqRecebidas };
+  const ranking = porTipo<PosicaoRankingTelao[]>(() => []);
+  for (const tipo of TIPOS_SUGESTAO) {
+    ranking[tipo] = rankingPorPessoa(autores, tipo, POSICOES_NO_RANKING).map((p) => ({
+      nome: primeiroNome(p.nome),
+      quantas: p.quantas,
+    }));
+  }
+  return { ativo: true, sugestoes, totais, segundosPagina, metaFaq, faqRecebidas, ranking };
 }
