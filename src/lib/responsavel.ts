@@ -12,6 +12,8 @@ import { normalizar } from "./texto";
 export interface UsuarioParaPermissao {
   permissoes: readonly string[];
   nomeResponsavel: string | null;
+  /** Nome da conta, gravado como autor da alteração quando existe. */
+  nome?: string;
 }
 
 const mesmoNome = (a: string, b: string) => normalizar(a.trim()) === normalizar(b.trim());
@@ -47,7 +49,7 @@ export async function assumirCliente(usuario: UsuarioParaPermissao, id: number):
   if (pode(usuario, "trocarResp") || !usuario.nomeResponsavel) return false;
   const { count } = await prisma.preSafra.updateMany({
     where: { id, inativo: false, OR: [{ responsavel: null }, { responsavel: "" }] },
-    data: { responsavel: usuario.nomeResponsavel },
+    data: { responsavel: usuario.nomeResponsavel, ...(usuario.nome ? { atualizadoPor: usuario.nome } : {}) },
   });
   return count > 0;
 }

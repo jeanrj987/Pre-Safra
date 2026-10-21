@@ -42,3 +42,7 @@ export function mascararWhatsapp(entrada: string): string {
 }
 
 export const linkWhatsapp = (normalizado: string) => `https://wa.me/${normalizado}`;
+
+/** Link que abre a conversa já com a mensagem escrita (a pessoa só confere e envia). */
+export const linkWhatsappComTexto = (normalizado: string, texto: string) =>
+  `https://wa.me/${normalizado}?text=${encodeURIComponent(texto)}`;

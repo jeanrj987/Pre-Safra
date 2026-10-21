@@ -12,8 +12,13 @@ import { pode } from "@/lib/permissoes";
 import { assumirCliente, podeAlterarCliente, podeAssumirCliente } from "@/lib/responsavel";
 import { prisma } from "@/lib/db";
 import { calcularStatus, diasEmAtraso, mesPrevisto } from "@/lib/status";
+import { dataMaximaIso } from "@/lib/diasUteis";
+import { dataMinimaIso, erroDataPrevista, inicioDoAgendamento, MENSAGEM_ERRO_DATA } from "@/lib/dataPrevista";
+import { motivoHorarioPassado } from "@/lib/horarios";
 import {
+  dataParaCampo,
   formatarAtraso,
+  formatarData,
   formatarDataHora,
   listarCidadesConhecidas,
   listarComerciaisConhecidos,
@@ -24,6 +29,12 @@ import {
 } from "@/lib/dados";
 import { comercialDaRegiao } from "@/lib/equipe";
 import { nomeMaiusculo } from "@/lib/texto";
+import { normalizarEmail } from "@/lib/email";
+import { formatarWhatsapp, normalizarWhatsapp } from "@/lib/whatsapp";
+import { STATUS_COM_PENDENCIA } from "@/lib/pendencia";
+import { enviarAviso, avisarMudancaDeData } from "@/lib/notificacoes/avisos";
+import { eventoSugerido, montarDadosAviso, montarMensagem, ROTULO_EVENTO } from "@/lib/notificacoes/modelos";
+import { criarNotificationService, ROTULO_CANAL } from "@/lib/notificacoes/servico";
 
 const texto = (f: FormData, k: string) => String(f.get(k) ?? "").trim() || null;
 
@@ -40,7 +51,7 @@ export default async function Registro({
 }: PageProps<"/registro/[id]">) {
   const usuario = await exigirAcessoCompleto();
   const { id: idStr } = await params;
-  const { salvo, conflito, semPermissao, voltar, erroNome } = await searchParams;
+  const { salvo, conflito, semPermissao, voltar, erroNome, erroData, erroContato, aviso, canal } = await searchParams;
   const id = Number(idStr);
   if (!Number.isInteger(id)) notFound();
 
@@ -49,6 +60,8 @@ export default async function Registro({
     include: {
       cliente: true,
       conclusoes: { orderBy: { criadoEm: "desc" } },
+      safra: { select: { inicio: true } },
+      notificacoes: { orderBy: { criadoEm: "desc" }, take: 5 },
     },
   });
   if (!r) notFound();
@@ -96,6 +109,63 @@ export default async function Registro({
   const sufixoVoltar = voltarAoCalendario ? `&voltar=${encodeURIComponent(voltarAoCalendario)}` : "";
   const nomeManual = r.clienteNomeManual;
 
+  // A data de finalização prevista é editável por qualquer usuário (não só o responsável), enquanto
+  // o cliente não foi finalizado nem inativado. Nunca pode ficar antes do início do agendamento.
+  const podeEditarData = !r.configuradoSistema && !r.inativo;
+  const inicioAgendamento = inicioDoAgendamento(r.agendadoEm, r.safra.inicio);
+  const mensagensErroData: Record<string, string> = {
+    ...MENSAGEM_ERRO_DATA,
+    indisponivel: "este cliente já foi finalizado ou inativado.",
+    horario: "o horário agendado de hoje já passou. Mude o horário em “Agendar”, na lista de clientes.",
+  };
+  const mensagemErroData = typeof erroData === "string" ? mensagensErroData[erroData] : undefined;
+
+  // Só a data: separada do formulário principal porque aquele só é editável pelo responsável.
+  async function salvarData(formData: FormData) {
+    "use server";
+    const sessao = await exigirAcessoCompleto();
+    function falhar(codigo: string): never {
+      redirect(`/registro/${id}?erroData=${codigo}${sufixoVoltar}`);
+    }
+    // Confere no banco: a tela pode estar desatualizada e o formulário pode ser forjado.
+    const atual = await prisma.preSafra.findUnique({
+      where: { id },
+      select: {
+        configuradoSistema: true,
+        inativo: true,
+        agendadoEm: true,
+        horario: true,
+        dataPrevista: true,
+        safra: { select: { inicio: true } },
+      },
+    });
+    if (!atual || atual.configuradoSistema || atual.inativo) falhar("indisponivel");
+    const dia = texto(formData, "dataPrevista") ?? "";
+    const erro = erroDataPrevista(dia, inicioDoAgendamento(atual.agendadoEm, atual.safra.inicio));
+    if (erro) falhar(erro);
+    if (atual.horario && motivoHorarioPassado(dia, atual.horario)) falhar("horario");
+    // As condições vão na própria gravação: se outra pessoa finalizou o cliente nesse meio tempo, nada muda.
+    const { count } = await prisma.preSafra.updateMany({
+      where: { id, configuradoSistema: false, inativo: false },
+      data: { dataPrevista: new Date(`${dia}T00:00:00Z`), atualizadoPor: sessao.nome },
+    });
+    if (count === 0) falhar("indisponivel");
+    // Só avisa o cliente se a data mudou de fato (e se o aviso automático estiver ligado).
+    if (atual.dataPrevista?.toISOString().slice(0, 10) !== dia) await avisarMudancaDeData(id, sessao.nome);
+    revalidatePath("/", "layout");
+    redirect(`/registro/${id}?salvo=1${sufixoVoltar}`);
+  }
+
+  // Envio manual pelo canal escolhido (API de WhatsApp ou e-mail); o resultado fica no histórico.
+  async function avisarCliente(canalEscolhido: string) {
+    "use server";
+    const sessao = await exigirAcessoCompleto();
+    if (canalEscolhido !== "whatsapp" && canalEscolhido !== "email") redirect(`/registro/${id}`);
+    const resultado = await enviarAviso({ preSafraId: id, canal: canalEscolhido, autor: sessao.nome });
+    revalidatePath(`/registro/${id}`);
+    redirect(`/registro/${id}?aviso=${resultado.ok ? "ok" : "falhou"}&canal=${canalEscolhido}${sufixoVoltar}`);
+  }
+
   // Um único formulário/botão salva tanto o agendamento (Pré-Safra) quanto o cadastro do
   // cliente (região, UF, equipe) — os dois viviam em formulários separados antes.
   async function salvar(formData: FormData) {
@@ -118,6 +188,17 @@ export default async function Registro({
       });
       if (repetido) redirect(`/registro/${id}?erroNome=repetido${sufixoVoltar}`);
     }
+    // Contatos para os avisos (só quem edita o cadastro): vazio apaga; preenchido precisa ser válido.
+    let whatsapp: string | null = null;
+    let email: string | null = null;
+    if (pode(sessao, "cadastrar") && formData.has("clienteId")) {
+      const whatsappTexto = texto(formData, "whatsapp");
+      whatsapp = whatsappTexto ? normalizarWhatsapp(whatsappTexto) : null;
+      if (whatsappTexto && !whatsapp) redirect(`/registro/${id}?erroContato=whatsapp${sufixoVoltar}`);
+      const emailTexto = texto(formData, "email");
+      email = emailTexto ? normalizarEmail(emailTexto) : null;
+      if (emailTexto && !email) redirect(`/registro/${id}?erroContato=email${sufixoVoltar}`);
+    }
     // Optimistic locking: só grava se ninguém alterou o registro desde que esta tela foi
     // carregada. Evita que duas pessoas editando o mesmo cliente ao mesmo tempo se
     // sobrescrevam silenciosamente (era o problema #1 da planilha antiga).
@@ -130,6 +211,7 @@ export default async function Registro({
         // O responsável é definido na lista de clientes, não neste formulário.
         // O agendamento (data, horário, formato) é feito só pelo botão "Agendar" da lista de clientes.
         observacoes: texto(formData, "observacoes"),
+        atualizadoPor: sessao.nome,
         // A seção de conclusão só existe no formulário de clientes finalizados; nos demais,
         // mantém o que já estava salvo (o status não é alterado aqui). As observações da
         // finalização não se editam: ficam no histórico, criadas ao finalizar.
@@ -155,6 +237,8 @@ export default async function Registro({
             atendente: texto(formData, "atendente"),
             consultor: texto(formData, "consultor"),
             comercial: texto(formData, "comercial"),
+            ...(formData.has("whatsapp") && { whatsapp }),
+            ...(formData.has("email") && { email }),
           },
         });
         revalidatePath("/", "layout");
@@ -198,7 +282,27 @@ export default async function Registro({
     ["Consultor", r.cliente?.consultor],
     ["Comercial", r.cliente?.comercial || comercialDaRegiao(r.cliente?.regiao ?? null)],
     ["Atendimento", r.cliente?.atendente],
+    ["WhatsApp", r.cliente?.whatsapp ? formatarWhatsapp(r.cliente.whatsapp) : null],
+    ["E-mail", r.cliente?.email],
   ] as const;
+
+  // Avisos ao cliente: só enquanto o Pré-Safra está em aberto. O link wa.me funciona sempre que há
+  // WhatsApp; o envio pela API e o e-mail dependem das variáveis de ambiente (ver .env.example).
+  const servicoAvisos = criarNotificationService();
+  const dadosAviso = montarDadosAviso({
+    nome,
+    whatsapp: r.cliente?.whatsapp ?? null,
+    email: r.cliente?.email ?? null,
+    status,
+    motivoPendencia: STATUS_COM_PENDENCIA.includes(status) ? r.motivoPendencia : null,
+    dataPrevista: r.dataPrevista,
+    horario: r.horario,
+    formato: r.formato,
+  });
+  const eventoAviso = eventoSugerido(status);
+  const mensagemAviso = montarMensagem(eventoAviso, dadosAviso);
+  const linkAviso = servicoAvisos.linkWhatsapp(dadosAviso, eventoAviso);
+  const podeAvisar = !r.configuradoSistema && !r.inativo;
   const atualizado = formatarDataHora(r.atualizadoEm);
 
   return (
@@ -256,6 +360,140 @@ export default async function Registro({
           Nada foi salvo:{" "}
           {erroNome === "repetido" ? "já existe um cliente com esse nome." : "preencha o nome do cliente."}
         </p>
+      )}
+
+      {erroContato && (
+        <p
+          role="alert"
+          className="flex items-center gap-2 rounded-lg bg-atrasado-bg px-4 py-3 text-sm font-medium text-atrasado-fg"
+        >
+          <Icone nome="alerta" />
+          Nada foi salvo:{" "}
+          {erroContato === "email"
+            ? "o e-mail do cliente é inválido."
+            : "o WhatsApp do cliente é inválido. Use o DDD e o número, ex.: (66) 99999-8888."}
+        </p>
+      )}
+
+      {aviso && (canal === "whatsapp" || canal === "email") && (
+        <p
+          role={aviso === "ok" ? "status" : "alert"}
+          className={`flex items-center gap-2 rounded-lg px-4 py-3 text-sm font-medium ${
+            aviso === "ok"
+              ? "border border-finalizado-dot/40 bg-finalizado-bg text-finalizado-fg"
+              : "bg-atrasado-bg text-atrasado-fg"
+          }`}
+        >
+          <Icone nome={aviso === "ok" ? "check" : "alerta"} />
+          {aviso === "ok"
+            ? `Aviso enviado por ${ROTULO_CANAL[canal]}.`
+            : `Não foi possível enviar por ${ROTULO_CANAL[canal]}. O motivo está no histórico de avisos, abaixo.`}
+        </p>
+      )}
+
+      {mensagemErroData && (
+        <p
+          role="alert"
+          className="flex items-center gap-2 rounded-lg bg-atrasado-bg px-4 py-3 text-sm font-medium text-atrasado-fg"
+        >
+          <Icone nome="alerta" />
+          Nada foi salvo: {mensagemErroData}
+        </p>
+      )}
+
+      <section className="card p-5 sm:p-6">
+        {podeEditarData ? (
+          <form action={salvarData} className="flex flex-wrap items-end gap-3">
+            <label className="block">
+              <span className="text-base font-semibold">Data de finalização prevista</span>
+              <input
+                type="date"
+                name="dataPrevista"
+                required
+                defaultValue={dataParaCampo(r.dataPrevista)}
+                min={dataMinimaIso(inicioAgendamento)}
+                max={dataMaximaIso()}
+                className="campo mt-3 w-44 tabular-nums"
+              />
+            </label>
+            <BotaoEnviar className="btn-primario">Salvar data</BotaoEnviar>
+          </form>
+        ) : (
+          <p className="text-sm">
+            <span className="text-base font-semibold">Data de finalização prevista</span>
+            <span className="mt-1 block text-muted">
+              {formatarData(r.dataPrevista)} · não se altera depois que o cliente é finalizado ou inativado.
+            </span>
+          </p>
+        )}
+        <p className="mt-3 text-xs text-muted">
+          Início do agendamento: {formatarData(new Date(`${inicioAgendamento}T00:00:00Z`))}. A data de finalização não
+          pode ser anterior a ele. Qualquer usuário pode alterá-la.
+        </p>
+      </section>
+
+      {podeAvisar && (
+        <section aria-labelledby="avisos-titulo" className="card space-y-4 p-5 sm:p-6">
+          <div>
+            <h2 id="avisos-titulo" className="text-base font-semibold">
+              Avisar o cliente
+            </h2>
+            <p className="mt-1 text-sm text-muted">
+              {ROTULO_EVENTO[eventoAviso]} · WhatsApp:{" "}
+              {r.cliente?.whatsapp ? formatarWhatsapp(r.cliente.whatsapp) : "não cadastrado"} · E-mail:{" "}
+              {r.cliente?.email ?? "não cadastrado"}
+            </p>
+          </div>
+          <details className="rounded-lg border border-line bg-canvas/60 p-3 text-sm">
+            <summary className="cursor-pointer font-medium">Ver a mensagem</summary>
+            <p className="mt-2 whitespace-pre-wrap break-words text-muted">{mensagemAviso.texto}</p>
+          </details>
+          <div className="flex flex-wrap items-center gap-2">
+            {linkAviso && (
+              <a href={linkAviso} target="_blank" rel="noopener noreferrer" className="btn-contorno">
+                <Icone nome="whatsapp" />
+                Abrir no WhatsApp
+              </a>
+            )}
+            {servicoAvisos.disponivel("whatsapp") && r.cliente?.whatsapp && (
+              <form action={avisarCliente.bind(null, "whatsapp")}>
+                <BotaoEnviar pendente="Enviando…" className="btn-contorno">
+                  <Icone nome="whatsapp" />
+                  Enviar pela API
+                </BotaoEnviar>
+              </form>
+            )}
+            {servicoAvisos.disponivel("email") && r.cliente?.email && (
+              <form action={avisarCliente.bind(null, "email")}>
+                <BotaoEnviar pendente="Enviando…" className="btn-contorno">
+                  <Icone nome="email" />
+                  Enviar e-mail
+                </BotaoEnviar>
+              </form>
+            )}
+            {!linkAviso && !r.cliente?.email && (
+              <p className="text-sm text-muted">
+                Cadastre o WhatsApp ou o e-mail do cliente
+                {podeCadastrar ? " em “Cadastro do cliente”, ao lado" : ""} para enviar avisos.
+              </p>
+            )}
+          </div>
+          {r.notificacoes.length > 0 && (
+            <ul className="space-y-1 border-t border-line pt-3 text-xs text-muted">
+              {r.notificacoes.map((n) => (
+                <li key={n.id}>
+                  <span className={n.ok ? "font-semibold text-finalizado-fg" : "font-semibold text-atrasado-fg"}>
+                    {n.ok ? "Enviado" : "Falhou"}
+                  </span>{" "}
+                  por {n.canal === "email" ? ROTULO_CANAL.email : ROTULO_CANAL.whatsapp} para {n.destino} em{" "}
+                  {formatarDataHora(n.criadoEm)}
+                  {n.autor && <> · por {n.autor}</>}
+                  {n.erro && <> · {n.erro}</>}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
       )}
 
       {(!podeEditar || semPermissao) && (
@@ -442,6 +680,29 @@ export default async function Registro({
                     valorInicial={r.cliente.comercial ?? ""}
                     opcoes={opcoesDeLista(opcoesComercial)}
                   />
+                  <label className="block">
+                    <span className="rotulo">WhatsApp</span>
+                    <input
+                      name="whatsapp"
+                      type="tel"
+                      inputMode="tel"
+                      autoComplete="off"
+                      placeholder="(66) 99999-8888"
+                      defaultValue={r.cliente.whatsapp ? formatarWhatsapp(r.cliente.whatsapp) : ""}
+                      className="campo"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="rotulo">E-mail</span>
+                    <input
+                      name="email"
+                      type="email"
+                      autoComplete="off"
+                      placeholder="contato@fazenda.com.br"
+                      defaultValue={r.cliente.email ?? ""}
+                      className="campo"
+                    />
+                  </label>
                 </div>
               ) : (
                 <dl className="mt-3 space-y-3 text-sm">
@@ -474,7 +735,10 @@ export default async function Registro({
             </section>
           )}
 
-          <p className="px-1 text-xs text-muted">Última alteração em {atualizado}</p>
+          <p className="px-1 text-xs text-muted">
+            Última alteração em {atualizado}
+            {r.atualizadoPor && <> · por {r.atualizadoPor}</>}
+          </p>
         </aside>
         </fieldset>
       </form>

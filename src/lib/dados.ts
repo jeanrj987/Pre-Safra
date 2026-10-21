@@ -3,6 +3,7 @@ import { COMERCIAL_POR_REGIAO, equipesPorRegiao, type GrupoEquipe } from "./equi
 import { prisma } from "@/lib/db";
 import { pessoasDaDupla } from "@/lib/painel";
 import { semRepetir } from "@/lib/texto";
+import { motivoPendenciaValido, STATUS_COM_PENDENCIA } from "@/lib/pendencia";
 import {
   calcularStatus,
   diasAtrasoNaConclusao,
@@ -40,11 +41,16 @@ export interface Linha {
   uf: string | null;
   regiao: string | null;
   consultor: string | null;
+  /** WhatsApp do cliente (só dígitos, com 55); base do botão de mensagem rápida. */
+  whatsapp: string | null;
   dataPrevista: Date | null;
   /** Horário agendado ("HH:MM") dentro da data prevista. */
   horario: string | null;
   formato: string | null;
   observacao: string | null;
+  /** Por que o cliente "A Fazer" ainda não foi agendado; só existe nesse status (ver lib/pendencia.ts). */
+  motivoPendencia: string | null;
+  observacaoPendencia: string | null;
   status: StatusPreSafra;
   dias: number | null;
   /** Finalizado depois da data prevista: quantos dias depois. */
@@ -65,7 +71,7 @@ export async function listarLinhas(safraId: number): Promise<Linha[]> {
   const registros = await prisma.preSafra.findMany({
     where: { safraId },
     include: {
-      cliente: { select: { nome: true, atendente: true, cidade: true, uf: true, regiao: true, consultor: true } },
+      cliente: { select: { nome: true, atendente: true, cidade: true, uf: true, regiao: true, consultor: true, whatsapp: true } },
       // Só a finalização em vigor interessa na lista; as anteriores ficam no histórico.
       conclusoes: {
         where: { reabertoEm: null },
@@ -84,6 +90,8 @@ export async function listarLinhas(safraId: number): Promise<Linha[]> {
         inativo: r.inativo,
         formato: r.formato,
       };
+      const status = calcularStatus(dados);
+      const pendente = STATUS_COM_PENDENCIA.includes(status);
       return {
         id: r.id,
         nome: r.cliente?.nome ?? r.clienteNomeManual ?? "(sem nome)",
@@ -94,6 +102,7 @@ export async function listarLinhas(safraId: number): Promise<Linha[]> {
         uf: r.cliente?.uf ?? null,
         regiao: r.cliente?.regiao ?? null,
         consultor: r.cliente?.consultor ?? null,
+        whatsapp: r.cliente?.whatsapp ?? null,
         dataPrevista: r.dataPrevista,
         horario: r.horario,
         formato: r.formato,
@@ -103,7 +112,9 @@ export async function listarLinhas(safraId: number): Promise<Linha[]> {
           (r.configuradoSistema && r.conclusoes[0]?.observacao?.trim()) ||
           r.observacoes?.trim() ||
           null,
-        status: calcularStatus(dados),
+        motivoPendencia: pendente && motivoPendenciaValido(r.motivoPendencia) ? r.motivoPendencia : null,
+        observacaoPendencia: pendente ? r.observacaoPendencia : null,
+        status,
         dias: diasEmAtraso(dados),
         atrasoNaConclusao:
           r.configuradoSistema && !r.inativo

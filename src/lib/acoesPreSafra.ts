@@ -52,6 +52,7 @@ export async function finalizarPendentes({
           configuradoSistema: true,
           melhoriasApresentadas: melhoriasDe(id),
           formato: formatoDe(id),
+          atualizadoPor: autor,
         },
       });
       if (count > 0) finalizados.push(id);
@@ -98,13 +99,13 @@ export async function reabrirIds({
         configuradoSistema: true,
         dataPrevista: { lt: new Date(diaHoje(new Date())) },
       },
-      data: { dataPrevista: null },
+      data: { dataPrevista: null, atualizadoPor: autor },
     }),
     // Volta para "A Fazer": sem formato (previsão/realizado) nem horário, o cliente precisa ser
     // agendado de novo.
     prisma.preSafra.updateMany({
       where: { id: { in: ids }, configuradoSistema: true },
-      data: { configuradoSistema: false, formato: null, horario: null },
+      data: { configuradoSistema: false, formato: null, horario: null, atualizadoPor: autor },
     }),
   ]);
   return count;

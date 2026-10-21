@@ -45,34 +45,55 @@ model Cliente {
   regiao       String?
   cidade       String?
   comercial    String?
+  whatsapp     String?
+  email        String?
   preSafras    PreSafra[]
 }
 
 model PreSafra {
-  id                    Int         @id @default(autoincrement())
+  id                    Int           @id @default(autoincrement())
   clienteId             Int?
   clienteNomeManual     String?
   responsavel           String?
-  dataPrevista          DateTime?   @db.Date
+  dataPrevista          DateTime?     @db.Date
   formato               Formato?
-  configuradoSistema    Boolean     @default(false)
-  melhoriasApresentadas Boolean     @default(false)
+  configuradoSistema    Boolean       @default(false)
+  melhoriasApresentadas Boolean       @default(false)
   observacoes           String?
-  criadoEm              DateTime    @default(now())
-  atualizadoEm          DateTime    @updatedAt
-  inativo               Boolean     @default(false)
+  criadoEm              DateTime      @default(now())
+  atualizadoEm          DateTime      @updatedAt
+  inativo               Boolean       @default(false)
   observacaoConclusao   String?
   motivoInativacao      String?
   safraId               Int
   horario               String?
   agendadoEm            DateTime?
   agendadoPor           String?
+  atualizadoPor         String?
+  motivoPendencia       String?
+  observacaoPendencia   String?
   conclusoes            Conclusao[]
-  cliente               Cliente?    @relation(fields: [clienteId], references: [id])
-  safra                 Safra       @relation(fields: [safraId], references: [id])
+  notificacoes          Notificacao[]
+  cliente               Cliente?      @relation(fields: [clienteId], references: [id])
+  safra                 Safra         @relation(fields: [safraId], references: [id])
 
   @@unique([clienteId, safraId])
   @@index([safraId])
+}
+
+model Notificacao {
+  id         Int      @id @default(autoincrement())
+  preSafraId Int
+  canal      String
+  evento     String
+  destino    String
+  ok         Boolean
+  erro       String?
+  autor      String?
+  criadoEm   DateTime @default(now())
+  preSafra   PreSafra @relation(fields: [preSafraId], references: [id], onDelete: Cascade)
+
+  @@index([preSafraId, criadoEm])
 }
 
 model Atividade {

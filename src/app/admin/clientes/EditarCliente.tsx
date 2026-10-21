@@ -5,6 +5,7 @@ import { Janela, RodapeJanela } from "@/app/Finalizar";
 import Icone from "@/app/Icone";
 import Seletor from "@/app/Seletor";
 import { comValorAtual, opcoesDeLista } from "@/app/seletorOpcoes";
+import { formatarWhatsapp } from "@/lib/whatsapp";
 
 interface Cliente {
   id: number;
@@ -15,6 +16,9 @@ interface Cliente {
   atendente: string | null;
   consultor: string | null;
   comercial: string | null;
+  /** Só dígitos, com 55. */
+  whatsapp: string | null;
+  email: string | null;
 }
 
 interface Listas {
@@ -121,6 +125,29 @@ export default function EditarCliente({
                 valorInicial={cliente.comercial ?? ""}
                 opcoes={opcoesDeLista(comValorAtual(cliente.comercial, listas.comerciais))}
               />
+              <label className="block">
+                <span className="rotulo">WhatsApp</span>
+                <input
+                  name="whatsapp"
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="off"
+                  placeholder="(66) 99999-8888"
+                  defaultValue={cliente.whatsapp ? formatarWhatsapp(cliente.whatsapp) : ""}
+                  className="campo"
+                />
+              </label>
+              <label className="block">
+                <span className="rotulo">E-mail</span>
+                <input
+                  name="email"
+                  type="email"
+                  autoComplete="off"
+                  placeholder="contato@fazenda.com.br"
+                  defaultValue={cliente.email ?? ""}
+                  className="campo"
+                />
+              </label>
             </div>
             <RodapeJanela onCancelar={fechar}>
               <BotaoEnviar pendente="Salvando…" className="btn-primario">

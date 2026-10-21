@@ -1,7 +1,11 @@
 "use server";
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { exigirAcessoCompleto } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { avisarMudancaDeData } from "@/lib/notificacoes/avisos";
+import { limparObservacaoPendencia, motivoPendenciaValido } from "@/lib/pendencia";
+import { diaHoje } from "@/lib/status";
 import { finalizarPendentes, formatoValido, reabrirIds, type Formato } from "@/lib/acoesPreSafra";
 import { motivoDataIndisponivel } from "@/lib/diasUteis";
 import { horarioValido, motivoHorarioPassado } from "@/lib/horarios";
@@ -84,6 +88,38 @@ export async function reabrirComMotivo(formData: FormData) {
   voltarPara(formData, feitos, "reabertos");
 }
 
+// Motivo de pendência de quem está "A Fazer" ou "Atrasado", trocado na própria linha (seletor + observação curta).
+// Qualquer usuário com acesso completo pode registrá-lo, como no agendamento. Devolve o texto do
+// problema (ou null se gravou) para a linha mostrá-lo. Só vale para quem está pendente de fato:
+// a condição vai na própria gravação, então um cliente agendado ou finalizado por outra pessoa
+// nesse meio tempo não recebe motivo. Pendente = sem formato (A Fazer) ou com a data já vencida (Atrasado).
+export async function salvarMotivoPendencia(
+  id: number,
+  motivo: string,
+  observacao: string,
+): Promise<string | null> {
+  const sessao = await exigirAcessoCompleto();
+  if (!Number.isInteger(id)) return "Cliente inválido.";
+  if (motivo !== "" && !motivoPendenciaValido(motivo)) return "Motivo inválido.";
+  const { count } = await prisma.preSafra.updateMany({
+    where: {
+      id,
+      configuradoSistema: false,
+      inativo: false,
+      OR: [{ formato: null }, { dataPrevista: { lt: new Date(diaHoje(new Date())) } }],
+    },
+    data: {
+      motivoPendencia: motivo || null,
+      // Observação sem motivo não faz sentido: ao voltar para "Sem motivo definido", ela sai junto.
+      observacaoPendencia: motivo ? limparObservacaoPendencia(observacao) : null,
+      atualizadoPor: sessao.nome,
+    },
+  });
+  if (count === 0) return "Este cliente não está mais pendente. Atualize a página.";
+  revalidatePath("/");
+  return null;
+}
+
 // Janela "Agendar" da lista: grava de uma vez responsável, data, horário e formato ("Online" ou
 // "Presencial" deixa o cliente como "Agendado Online"/"Agendado Presencial"). Os quatro campos
 // são obrigatórios. O botão "Remover agendamento" (campo "remover") limpa data, horário, formato
@@ -100,7 +136,14 @@ export async function agendarCliente(formData: FormData) {
 
   const registro = await prisma.preSafra.findUnique({
     where: { id },
-    select: { responsavel: true, configuradoSistema: true, inativo: true },
+    select: {
+      responsavel: true,
+      configuradoSistema: true,
+      inativo: true,
+      dataPrevista: true,
+      horario: true,
+      formato: true,
+    },
   });
   if (!registro || registro.configuradoSistema || registro.inativo) {
     voltarPara(formData, 0, "agendados");
@@ -117,6 +160,7 @@ export async function agendarCliente(formData: FormData) {
         formato: null,
         agendadoPor: null,
         agendadoEm: null,
+        atualizadoPor: sessao.nome,
         ...(pode(sessao, "trocarResp") ? { responsavel: null } : {}),
       },
     });
@@ -159,7 +203,17 @@ export async function agendarCliente(formData: FormData) {
       formato,
       agendadoPor: sessao.nome,
       agendadoEm: new Date(),
+      atualizadoPor: sessao.nome,
+      // Agendado, o cliente deixa de estar pendente: o motivo anterior não vale mais.
+      motivoPendencia: null,
+      observacaoPendencia: null,
     },
   });
+  // Avisa o cliente só se data, horário ou formato mudaram (e se o aviso automático estiver ligado).
+  const mudou =
+    registro.dataPrevista?.toISOString().slice(0, 10) !== dataTexto ||
+    registro.horario !== horario ||
+    registro.formato !== formato;
+  if (mudou) await avisarMudancaDeData(id, sessao.nome);
   voltarPara(formData, 1, "agendados");
 }

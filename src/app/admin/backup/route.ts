@@ -3,6 +3,7 @@ import { usuarioAtual } from "@/lib/auth";
 import { pode } from "@/lib/permissoes";
 import { prisma } from "@/lib/db";
 import { FUSO_NEGOCIO } from "@/lib/fuso";
+import { rotuloMotivoPendencia } from "@/lib/pendencia";
 import { rotuloDoTipo } from "@/lib/sugestoes";
 
 // Backup em planilha: uma aba por tabela do banco, para consultar ou montar gráficos no Excel.
@@ -67,7 +68,7 @@ export async function GET() {
   const usuario = await usuarioAtual();
   if (!usuario || !pode(usuario, "backup")) return new Response(null, { status: 401 });
 
-  const [clientes, safras, preSafras, conclusoes, atividades, sugestoes, usuarios, configuracoes] =
+  const [clientes, safras, preSafras, conclusoes, notificacoes, atividades, sugestoes, usuarios, configuracoes] =
     await Promise.all([
       prisma.cliente.findMany({ orderBy: { id: "asc" } }),
       prisma.safra.findMany({ orderBy: { id: "asc" } }),
@@ -78,6 +79,10 @@ export async function GET() {
       prisma.conclusao.findMany({
         orderBy: { id: "asc" },
         include: { preSafra: { select: { cliente: { select: { nome: true } }, clienteNomeManual: true, safra: { select: { nome: true } } } } },
+      }),
+      prisma.notificacao.findMany({
+        orderBy: { id: "asc" },
+        include: { preSafra: { select: { cliente: { select: { nome: true } }, clienteNomeManual: true } } },
       }),
       prisma.atividade.findMany({ orderBy: { id: "asc" } }),
       prisma.sugestao.findMany({ orderBy: { id: "asc" } }),
@@ -109,6 +114,8 @@ export async function GET() {
         { cabecalho: "Atendente", valor: (c) => c.atendente },
         { cabecalho: "Comercial", valor: (c) => c.comercial },
         { cabecalho: "Gerente", valor: (c) => c.gerente },
+        { cabecalho: "WhatsApp", valor: (c) => c.whatsapp, largura: 16 },
+        { cabecalho: "E-mail", valor: (c) => c.email, largura: 30 },
         { cabecalho: "Criado em", valor: (c) => c.criadoEm, formato: "dataHora" },
         { cabecalho: "Atualizado em", valor: (c) => c.atualizadoEm, formato: "dataHora" },
       ],
@@ -157,8 +164,15 @@ export async function GET() {
         { cabecalho: "Inativo", valor: (p) => sim(p.inativo), largura: 9 },
         { cabecalho: "Motivo da inativação", valor: (p) => p.motivoInativacao, largura: 30 },
         { cabecalho: "Observações", valor: (p) => p.observacoes, largura: 40 },
+        {
+          cabecalho: "Motivo da pendência",
+          valor: (p) => (p.motivoPendencia ? rotuloMotivoPendencia(p.motivoPendencia) : null),
+          largura: 24,
+        },
+        { cabecalho: "Observação da pendência", valor: (p) => p.observacaoPendencia, largura: 30 },
         { cabecalho: "Criado em", valor: (p) => p.criadoEm, formato: "dataHora" },
         { cabecalho: "Atualizado em", valor: (p) => p.atualizadoEm, formato: "dataHora" },
+        { cabecalho: "Atualizado por", valor: (p) => p.atualizadoPor },
       ],
       preSafras,
     ),
@@ -186,6 +200,27 @@ export async function GET() {
         { cabecalho: "Motivo da reabertura", valor: (c) => c.motivoReabertura, largura: 40 },
       ],
       conclusoes,
+    ),
+  );
+
+  registrar(
+    "Notificações",
+    adicionarAba(
+      planilha,
+      "Notificações",
+      [
+        { cabecalho: "ID", valor: (n) => n.id, formato: "numero", largura: 8 },
+        { cabecalho: "Pré-Safra ID", valor: (n) => n.preSafraId, formato: "numero", largura: 13 },
+        { cabecalho: "Cliente", valor: (n) => n.preSafra.cliente?.nome ?? n.preSafra.clienteNomeManual, largura: 40 },
+        { cabecalho: "Canal", valor: (n) => n.canal, largura: 11 },
+        { cabecalho: "Evento", valor: (n) => n.evento, largura: 16 },
+        { cabecalho: "Destino", valor: (n) => n.destino, largura: 28 },
+        { cabecalho: "Enviado", valor: (n) => sim(n.ok), largura: 10 },
+        { cabecalho: "Erro", valor: (n) => n.erro, largura: 36 },
+        { cabecalho: "Autor", valor: (n) => n.autor },
+        { cabecalho: "Data", valor: (n) => n.criadoEm, formato: "dataHora" },
+      ],
+      notificacoes,
     ),
   );
 

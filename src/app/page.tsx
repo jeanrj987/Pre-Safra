@@ -5,7 +5,10 @@ import { bateFiltroResponsavel, equipesPorRegiao, gruposDeResponsavel, regioesDo
 import Seletor from "./Seletor";
 import { Bolinha, opcoesDePessoas } from "./seletorOpcoes";
 import { normalizar, plural } from "@/lib/texto";
-import { agendarCliente, finalizarComNota, reabrirComMotivo } from "./acoes";
+import { agendarCliente, finalizarComNota, reabrirComMotivo, salvarMotivoPendencia } from "./acoes";
+import MotivoPendencia from "./MotivoPendencia";
+import { montarDadosAviso } from "@/lib/notificacoes/modelos";
+import { criarNotificationService } from "@/lib/notificacoes/servico";
 import Agendar from "./Agendar";
 import LimparAgendamento from "./LimparAgendamento";
 import { exigirAcessoCompleto } from "@/lib/auth";
@@ -29,10 +32,19 @@ import {
   nomesPossiveis,
 } from "@/lib/dados";
 import { STATUS_AGENDADOS } from "@/lib/status";
+import {
+  bateFiltroMotivo,
+  FILTRO_SEM_MOTIVO,
+  filtrosMotivoValidos,
+  MOTIVOS_PENDENCIA,
+  ROTULO_SEM_MOTIVO,
+  STATUS_COM_PENDENCIA,
+} from "@/lib/pendencia";
 import { obterSafraSelecionada, tituloPreSafra } from "@/lib/safra";
 
-// "Agendado" agrupa "Agendado Online" e "Agendado Presencial" (card Agendados).
-type FiltroStatus = "Atrasado" | "A Fazer" | "Agendado" | "Finalizado";
+// "Agendado" agrupa "Agendado Online" e "Agendado Presencial" (card Agendados). "Pendente" é o atalho
+// "Ainda não fizeram": todos os ativos que não estão finalizados.
+type FiltroStatus = "Atrasado" | "A Fazer" | "Agendado" | "Finalizado" | "Pendente";
 
 const TAMANHO_PAGINA = 50;
 // Tamanhos de página que o usuário pode escolher; "todos" mostra a lista inteira numa página só.
@@ -65,6 +77,12 @@ export default async function Home({ searchParams }: PageProps<"/">) {
       (Array.isArray(sp.regiao) ? sp.regiao : [sp.regiao ?? ""]).map((r) => r.trim()).filter(Boolean),
     ),
   ];
+  // Motivo de pendência (vários de uma vez, ?motivo=A&motivo=B): só existe em quem está "A Fazer" ou
+  // "Atrasado", então o filtro só aparece em "Todos", nesses dois e em "Ainda não fizeram".
+  const temMotivo = !status || status === "A Fazer" || status === "Atrasado" || status === "Pendente";
+  const motivosSel = temMotivo
+    ? filtrosMotivoValidos(Array.isArray(sp.motivo) ? sp.motivo : [sp.motivo ?? ""])
+    : [];
   // Online ou Presencial, o que foi agendado (ou realizado, no caso dos finalizados). Só existe
   // nas abas "Agendados" e "Finalizados"; nas demais o filtro nem aparece e o parâmetro é ignorado.
   const temFormato = status === "Agendado" || status === "Finalizado";
@@ -118,13 +136,16 @@ export default async function Home({ searchParams }: PageProps<"/">) {
       ? true
       : status === "Agendado"
         ? STATUS_AGENDADOS.some((a) => a === s)
-        : s === status);
+        : status === "Pendente"
+          ? s !== "Finalizado"
+          : s === status);
 
   const filtradas = todas.filter(
     (l) =>
       (!q || normalizar(l.nome).includes(normalizar(q))) &&
       bateStatus(l.status) &&
       bateFiltroResponsavel(l, resps) &&
+      bateFiltroMotivo(l, motivosSel) &&
       (regioesSel.length === 0 || (!!l.regiao && regioesSel.includes(l.regiao))) &&
       (!formato || l.formato === formato) &&
       (!comentario || (!!l.observacao && normalizar(l.observacao).includes(normalizar(comentario)))),
@@ -154,6 +175,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
     if (status) p.set("status", status);
     resps.forEach((r) => p.append("responsavel", r));
     regioesSel.forEach((r) => p.append("regiao", r));
+    motivosSel.forEach((m) => p.append("motivo", m));
     if (formato) p.set("formato", formato);
     if (comentario) p.set("comentario", comentario);
     if (paginaAtual > 1) p.set("pagina", String(paginaAtual));
@@ -174,11 +196,23 @@ export default async function Home({ searchParams }: PageProps<"/">) {
   // Trocar de card começa uma lista nova: só o status vale, busca, responsável e formato zeram.
   const href = (novo: string) => (novo ? `/?${new URLSearchParams({ status: novo })}` : "/");
 
+  // Atalho "Ainda não fizeram": liga e desliga o status "Pendente" mantendo os demais filtros.
+  const hrefPendentes = (() => {
+    const p = new URLSearchParams(atual);
+    p.delete("pagina");
+    p.delete("formato");
+    p.delete("comentario");
+    if (status === "Pendente") p.delete("status");
+    else p.set("status", "Pendente");
+    const s = p.toString();
+    return s ? `/?${s}` : "/";
+  })();
+
   const pctDe = (n: number) => (cont.todos ? Math.round((n / cont.todos) * 100) : 0);
   const pct = pctDe(cont.Finalizado);
   // Todo card termina com a fatia que representa no total, igual ao de Finalizados.
   const doTotal = (n: number) => `${pctDe(n)}% do total`;
-  const filtrando = !!(q || status || resps.length > 0 || regioesSel.length > 0 || formato || comentario);
+  const filtrando = !!(q || status || resps.length > 0 || regioesSel.length > 0 || motivosSel.length > 0 || formato || comentario);
   // Ação em lote só existe onde faz sentido: finalizar vale para agendados e reabrir, para
   // finalizados. Nas demais telas (Todos, Atrasados, A Fazer) não há caixas de seleção nem barra.
   const comSelecao = status === "Agendado" || status === "Finalizado";
@@ -193,11 +227,12 @@ export default async function Home({ searchParams }: PageProps<"/">) {
     "A Fazer": "Clientes A Fazer",
     Agendado: "Clientes agendados",
     Finalizado: "Clientes finalizados",
+    Pendente: "Clientes que ainda não fizeram o Pré-Safra",
   };
 
   // Cada indicador é também um filtro: clicar de novo no ativo remove o filtro.
   const indicador = (
-    id: FiltroStatus,
+    id: Exclude<FiltroStatus, "Pendente">,
     rotulo: string,
     valor: number,
     legenda: string,
@@ -227,6 +262,12 @@ export default async function Home({ searchParams }: PageProps<"/">) {
     );
   };
 
+  // Link wa.me do cliente da linha (null sem WhatsApp cadastrado ou já finalizado): o texto muda
+  // com o status, e quem clica só confere a mensagem e envia.
+  const servicoAvisos = criarNotificationService();
+  const linkWhatsappDa = (l: (typeof linhas)[number]) =>
+    l.status === "Finalizado" ? null : servicoAvisos.linkWhatsapp(montarDadosAviso({ ...l, email: null }));
+
   // Status só para leitura: responsável, data, horário e Online/Presencial são definidos na
   // janela do botão "Agendar" (coluna de ações). O atraso aparece junto, já que a data não está na lista.
   const statusDaLinha = (l: (typeof linhas)[number]) => (
@@ -243,6 +284,16 @@ export default async function Home({ searchParams }: PageProps<"/">) {
           </span>
         )}
       </div>
+      {STATUS_COM_PENDENCIA.includes(l.status) && (
+        <MotivoPendencia
+          key={`${l.id}|${l.motivoPendencia ?? ""}|${l.observacaoPendencia ?? ""}`}
+          id={l.id}
+          nome={l.nome}
+          motivo={l.motivoPendencia ?? ""}
+          observacao={l.observacaoPendencia ?? ""}
+          salvar={salvarMotivoPendencia}
+        />
+      )}
       {l.dias ? (
         <div className="mt-1 text-xs font-medium text-atrasado-fg">{formatarAtraso(l.dias)}</div>
       ) : null}
@@ -399,6 +450,23 @@ export default async function Home({ searchParams }: PageProps<"/">) {
             enviarAoMudar
             opcoes={regioes.map((r) => ({ valor: r, rotulo: r }))}
           />
+          {temMotivo && (
+            <Seletor
+              nome="motivo"
+              rotulo="Filtrar por motivo de pendência"
+              ocultarRotulo
+              tamanho="compacto"
+              multiplo
+              valoresIniciais={motivosSel}
+              unidadePlural="motivos"
+              placeholder="Todos os motivos"
+              enviarAoMudar
+              opcoes={[
+                ...MOTIVOS_PENDENCIA.map((m) => ({ valor: m.valor, rotulo: m.rotulo })),
+                { valor: FILTRO_SEM_MOTIVO, rotulo: ROTULO_SEM_MOTIVO },
+              ]}
+            />
+          )}
           {temFormato && (
             <Seletor
               nome="formato"
@@ -445,6 +513,14 @@ export default async function Home({ searchParams }: PageProps<"/">) {
               { valor: "todos", rotulo: "Todos os clientes" },
             ]}
           />
+          <Link
+            href={hrefPendentes}
+            aria-pressed={status === "Pendente"}
+            title="Todos os clientes que ainda não finalizaram o Pré-Safra"
+            className={`btn-contorno !h-9 ${status === "Pendente" ? "!border-primary bg-primary-soft/40 text-primary" : ""}`}
+          >
+            Ainda não fizeram
+          </Link>
           {filtrando && (
             <Link href="/" className="btn-discreto">
               <Icone nome="x" />
@@ -571,6 +647,19 @@ export default async function Home({ searchParams }: PageProps<"/">) {
                             >
                               {l.responsavel ? `Responsável: ${l.responsavel}` : "Sem responsável"}
                             </span>
+                          )}
+                          {/* Mensagem rápida: abre o WhatsApp com o texto pronto (aviso de data ou lembrete). */}
+                          {linkWhatsappDa(l) && (
+                            <a
+                              href={linkWhatsappDa(l) ?? undefined}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              title={`Enviar mensagem pelo WhatsApp para ${l.nome}`}
+                              aria-label={`Enviar mensagem pelo WhatsApp para ${l.nome}`}
+                              className="btn-discreto btn-sm !px-2"
+                            >
+                              <Icone nome="whatsapp" />
+                            </a>
                           )}
                           {/* Finalizado não se agenda: lá aparece só o Reabrir. */}
                           {podeAgendar(l) && l.status !== "Finalizado" && (

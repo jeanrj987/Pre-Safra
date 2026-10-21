@@ -275,6 +275,8 @@ export default async function AdminClientes({
                           atendente: c.atendente,
                           consultor: c.consultor,
                           comercial: c.comercial,
+                          whatsapp: c.whatsapp,
+                          email: c.email,
                         }}
                         listas={listas}
                         salvar={salvarCadastro.bind(null, c.id)}
