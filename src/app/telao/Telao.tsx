@@ -31,7 +31,7 @@ const OURO = "#f4c95d";
 const CELEBRACAO_ATRASO_MS = 800;
 const BANNER_MS = 7000;
 // Por quanto tempo os canhões de confete seguem atirando
-const CONFETE_MS = 6000;
+const CONFETE_MS = 5 * 60 * 1000;
 // Folga para a última peça atirada cair da tela
 const QUEDA_CONFETE_MS = 4000;
 const CORES_CONFETE = ["#4bc2d6", OURO, "#ffffff", "#f08a5d", "#9be3a4"];
