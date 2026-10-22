@@ -65,16 +65,19 @@ export default function FormSugestao() {
     enviar(false);
   }
 
+  // Avisos de "já existe algo parecido" (no FAQ ou entre as sugestões): a pessoa decide o que fazer
+  const comAviso = resultado?.status === "faq" || resultado?.status === "sugestao";
+
   function mudarTexto(valor: string) {
     setTexto(valor);
-    // Depois de editar a ideia o aviso do FAQ deixa de valer
-    if (resultado?.status === "faq") setResultado(null);
+    // Depois de editar a ideia o aviso deixa de valer
+    if (comAviso) setResultado(null);
   }
 
   function mudarTipo(valor: TipoSugestao) {
     setTipo(valor);
     // Os avisos ("já existe no FAQ", "salva") falam do tipo anterior
-    if (resultado?.status === "faq" || resultado?.status === "salva") setResultado(null);
+    if (comAviso || resultado?.status === "salva") setResultado(null);
   }
 
   function mudarIdeia() {
@@ -194,17 +197,30 @@ export default function FormSugestao() {
           </div>
         )}
 
-        {resultado?.status === "faq" && (
+        {(resultado?.status === "faq" || resultado?.status === "sugestao") && (
           <div className="rounded-lg bg-afazer-bg px-4 py-3 text-afazer-fg">
             <div className="flex items-start gap-3">
               <Icone nome="info" className="mt-0.5 size-5" />
               <div>
-                <p className="text-sm font-semibold">
-                  Isso já tem no FAQ. Que tal dar outra sugestão?
-                </p>
-                <p className="mt-1 text-sm">
-                  Pergunta parecida que já existe: <strong>“{resultado.pergunta}”</strong>
-                </p>
+                {resultado.status === "faq" ? (
+                  <>
+                    <p className="text-sm font-semibold">
+                      Isso já tem no FAQ. Que tal dar outra sugestão?
+                    </p>
+                    <p className="mt-1 text-sm">
+                      Pergunta parecida que já existe: <strong>“{resultado.pergunta}”</strong>
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm font-semibold">
+                      Alguém já sugeriu algo parecido. Que tal dar outra sugestão?
+                    </p>
+                    <p className="mt-1 break-words text-sm">
+                      Sugestão parecida: <strong>{resultado.assunto}</strong> — “{resultado.texto}”
+                    </p>
+                  </>
+                )}
               </div>
             </div>
             <div className="mt-3 flex flex-col gap-2 sm:flex-row">
@@ -234,7 +250,7 @@ export default function FormSugestao() {
         )}
       </div>
 
-      {resultado?.status !== "faq" && (
+      {!comAviso && (
         <button type="submit" disabled={enviando} aria-busy={enviando} className="btn-primario w-full">
           {enviando ? "Verificando…" : "Enviar sugestão"}
         </button>

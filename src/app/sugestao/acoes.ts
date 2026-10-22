@@ -23,9 +23,34 @@ export type Resultado =
   | { status: "salva"; revisar?: boolean }
   // Já existe algo parecido no FAQ: nada foi salvo, a pessoa decide se muda a ideia ou insiste
   | { status: "faq"; pergunta: string }
+  // Outra pessoa já sugeriu algo parecido (e não é do FAQ): nada foi salvo, mesma decisão. Nunca
+  // devolve nome nem WhatsApp de quem enviou, só o assunto e o começo do texto.
+  | { status: "sugestao"; assunto: string; texto: string }
   | { status: "erro"; mensagem: string };
 
 const erro = (mensagem: string): Resultado => ({ status: "erro", mensagem });
+
+// Quantas sugestões de FAQ recentes entram na comparação, para ela não crescer com o banco.
+const LIMITE_COMPARADAS = 500;
+const TAMANHO_RESUMO = 160;
+
+const resumir = (texto: string) =>
+  texto.length > TAMANHO_RESUMO ? `${texto.slice(0, TAMANHO_RESUMO).trimEnd()}…` : texto;
+
+// Sugestões ocultas ficam de fora: foram tiradas do telão e não são "o que já foi sugerido".
+async function acharSugestaoParecida(topico: string, texto: string) {
+  const recentes = await prisma.sugestao.findMany({
+    where: { tipo: "faq", oculta: false },
+    orderBy: { id: "desc" },
+    take: LIMITE_COMPARADAS,
+    select: { topico: true, texto: true },
+  });
+  const parecida = acharPerguntaParecida(
+    `${topico} ${texto}`,
+    recentes.map((s) => ({ ...s, pergunta: `${s.topico} ${s.texto}` })),
+  );
+  return parecida?.item ?? null;
+}
 
 const UM_DIA_MS = 24 * 60 * 60 * 1000;
 const UMA_HORA_MS = 60 * 60 * 1000;
@@ -159,6 +184,14 @@ export async function enviarSugestao(entrada: unknown): Promise<Resultado> {
     const parecida =
       tipo === "faq" ? acharPerguntaParecida(texto, await listarPerguntasFaq()) : null;
     if (parecida && !confirmar) return { status: "faq", pergunta: parecida.item.pergunta };
+
+    // Quem já confirmou um aviso não recebe outro: "enviar assim mesmo" vale para tudo
+    if (tipo === "faq" && !parecida && !confirmar) {
+      const jaSugerida = await acharSugestaoParecida(topico, texto);
+      if (jaSugerida) {
+        return { status: "sugestao", assunto: jaSugerida.topico, texto: resumir(jaSugerida.texto) };
+      }
+    }
 
     await prisma.sugestao.create({
       data: {

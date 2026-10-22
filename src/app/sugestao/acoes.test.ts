@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const banco = vi.hoisted(() => ({
   findFirst: vi.fn(),
+  findMany: vi.fn(),
   count: vi.fn(),
   create: vi.fn(),
 }));
@@ -33,6 +34,7 @@ const valida = {
 beforeEach(() => {
   vi.clearAllMocks();
   banco.findFirst.mockResolvedValue(null);
+  banco.findMany.mockResolvedValue([]);
   banco.count.mockResolvedValue(0);
   banco.create.mockResolvedValue({});
   bancoAnexo.count.mockResolvedValue(0);
@@ -76,6 +78,57 @@ describe("enviarSugestao", () => {
         possivelDuplicada: true,
         faqParecida: "Como emitir uma nota fiscal de venda?",
       }),
+    });
+  });
+
+  describe("sugestão parecida com a de outra pessoa", () => {
+    const jaEnviada = {
+      topico: "Aplicativo",
+      texto: "Aplicativo de celular para acompanhar a colheita em tempo real no campo",
+    };
+    const parecida = { ...valida, topico: "App de colheita", texto: "Aplicativo de celular para acompanhar a colheita" };
+
+    it("avisa e NÃO salva, sem expor nome nem WhatsApp", async () => {
+      banco.findMany.mockResolvedValue([jaEnviada]);
+      const r = await enviarSugestao(parecida);
+      expect(r).toEqual({ status: "sugestao", assunto: "Aplicativo", texto: jaEnviada.texto });
+      expect(banco.create).not.toHaveBeenCalled();
+      // Só olha FAQ que está à mostra no telão
+      expect(banco.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { tipo: "faq", oculta: false } }),
+      );
+    });
+
+    it("corta o texto da outra sugestão no aviso", async () => {
+      banco.findMany.mockResolvedValue([{ ...jaEnviada, texto: `${jaEnviada.texto} ${"x".repeat(300)}` }]);
+      const r = await enviarSugestao(parecida);
+      expect(r.status === "sugestao" && r.texto.length).toBeLessThanOrEqual(161);
+    });
+
+    it("salva quando a pessoa insiste, sem marcar como duplicada do FAQ", async () => {
+      banco.findMany.mockResolvedValue([jaEnviada]);
+      expect(await enviarSugestao({ ...parecida, confirmar: true })).toEqual({ status: "salva", revisar: false });
+      expect(banco.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ possivelDuplicada: false, faqParecida: null }),
+      });
+    });
+
+    it("salva quando as sugestões existentes tratam de outro assunto", async () => {
+      banco.findMany.mockResolvedValue([{ topico: "Boleto", texto: "Enviar boleto por e-mail ao cliente" }]);
+      expect(await enviarSugestao(parecida)).toEqual({ status: "salva", revisar: false });
+    });
+
+    it("o aviso do FAQ vem antes e não consulta as outras sugestões", async () => {
+      banco.findMany.mockResolvedValue([jaEnviada]);
+      const r = await enviarSugestao({ ...valida, texto: "Como faço para emitir nota fiscal de venda?" });
+      expect(r.status).toBe("faq");
+      expect(banco.findMany).not.toHaveBeenCalled();
+    });
+
+    it("melhoria para o P&D não é comparada com as sugestões de FAQ", async () => {
+      banco.findMany.mockResolvedValue([jaEnviada]);
+      expect(await enviarSugestao({ ...parecida, tipo: "melhoria" })).toEqual({ status: "salva", revisar: false });
+      expect(banco.findMany).not.toHaveBeenCalled();
     });
   });
 
