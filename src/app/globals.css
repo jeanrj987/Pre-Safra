@@ -274,3 +274,38 @@ table,
     transform: translateY(3px);
   }
 }
+
+/* Meta de FAQ batida: o banner desce com um quique, fica um tempo e some. */
+@keyframes telao-banner {
+  0% {
+    opacity: 0;
+    transform: translateY(-140%);
+  }
+  6% {
+    opacity: 1;
+    transform: translateY(6%);
+  }
+  9%,
+  92% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-30%);
+  }
+}
+/* Barra da meta batida: o brilho atravessa o preenchimento e o contorno do trilho pulsa. */
+@keyframes telao-meta-brilho {
+  from {
+    transform: translateX(-120%);
+  }
+  to {
+    transform: translateX(320%);
+  }
+}
+@keyframes telao-meta-pulso {
+  50% {
+    box-shadow: 0 0 0 5px rgba(244, 201, 93, 0.18);
+  }
+}

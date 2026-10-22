@@ -17,11 +17,24 @@ const CIANO = "text-[#4bc2d6]";
 const SAIDA_MS = 700;
 // Quanto o cartão novo fica marcado: a troca de página, a queda em cascata e os 9s do telao-brilho
 const DESTAQUE_MS = 13000;
+// Chegou ideia nova: a coluna volta para a primeira página e fica nela pelo menos esse tempo, mesmo
+// que o admin tenha configurado páginas mais curtas, para dar tempo de ver quem enviou.
+const NOVA_FICA_MS = 30000;
 // Na troca de página os cartões saem e entram um após o outro, em cascata
 const CASCATA_SAIDA_MS = 20;
 const CASCATA_ENTRADA_MS = 60;
 // A cada troca de página todas as cores giram esse tanto (ângulo áureo: nunca repete a paleta)
 const GIRO_DE_COR_GRAUS = 137.508;
+// Meta de FAQ batida com o telão aberto: o banner e o confete esperam a barra terminar de encher
+// (1s de transição); o banner dura BANNER_MS e os canhões de confete, CONFETE_MS, a partir daí.
+const OURO = "#f4c95d";
+const CELEBRACAO_ATRASO_MS = 800;
+const BANNER_MS = 7000;
+// Por quanto tempo os canhões de confete seguem atirando
+const CONFETE_MS = 6000;
+// Folga para a última peça atirada cair da tela
+const QUEDA_CONFETE_MS = 4000;
+const CORES_CONFETE = ["#4bc2d6", OURO, "#ffffff", "#f08a5d", "#9be3a4"];
 
 type Vagas = (SugestaoTelao | null)[];
 interface Saida {
@@ -68,7 +81,12 @@ interface Coluna {
   receber: MutableRefObject<(todas: SugestaoTelao[], paginaMs: number) => void>;
 }
 
-function useColuna(inicial: SugestaoTelao[], segundosPagina: number, ligado: boolean): Coluna {
+function useColuna(
+  inicial: SugestaoTelao[],
+  segundosPagina: number,
+  ligado: boolean,
+  aoChegarNova: () => void,
+): Coluna {
   const [todasIniciais] = useState(() => inicial);
   const [paginaMsInicial] = useState(() => segundosPagina * 1000);
   const [tela, setTela] = useState<Tela>(() => montarTela(todasIniciais, 0, 0));
@@ -76,6 +94,11 @@ function useColuna(inicial: SugestaoTelao[], segundosPagina: number, ligado: boo
   const telaRef = useRef(tela);
   const [novas, setNovas] = useState<Set<number>>(() => new Set());
   const receber = useRef<Coluna["receber"]["current"]>(() => {});
+  // Sempre a versão mais recente do callback, sem refazer o efeito a cada renderização
+  const avisarNova = useRef(aoChegarNova);
+  useEffect(() => {
+    avisarNova.current = aoChegarNova;
+  });
 
   useEffect(() => {
     if (!ligado) return;
@@ -122,7 +145,7 @@ function useColuna(inicial: SugestaoTelao[], segundosPagina: number, ligado: boo
 
     // Tudo cai e a página `alvo` entra no lugar. Quando é o giro normal, o que estava na página que
     // sai já foi visto e para de brilhar; quando chega ideia nova, as que ainda brilham continuam.
-    function irPara(alvo: number, giro: boolean) {
+    function irPara(alvo: number, giro: boolean, fica = 0) {
       trocando = true;
       clearTimeout(rotacao);
       const t = telaRef.current;
@@ -143,7 +166,7 @@ function useColuna(inicial: SugestaoTelao[], segundosPagina: number, ligado: boo
         () => {
           trocando = false;
           aplicar(montarTela(todas, alvo, deslocamento));
-          girarDepois();
+          girarDepois(fica);
           // Pega o que chegou durante a troca
           processar();
         },
@@ -151,13 +174,13 @@ function useColuna(inicial: SugestaoTelao[], segundosPagina: number, ligado: boo
       );
     }
 
-    function girarDepois() {
+    function girarDepois(minimoMs = 0) {
       clearTimeout(rotacao);
       rotacao = setTimeout(() => {
         const paginas = totalPaginas(todas.length);
         if (paginas > 1 && !trocando) irPara((telaRef.current.pagina + 1) % paginas, true);
         else girarDepois();
-      }, paginaMs);
+      }, Math.max(paginaMs, minimoMs));
     }
 
     function processar() {
@@ -174,7 +197,8 @@ function useColuna(inicial: SugestaoTelao[], segundosPagina: number, ligado: boo
         agendar(() => {
           if (marcadas === brilhando) marcar(new Set());
         }, DESTAQUE_MS);
-        return irPara(0, false);
+        avisarNova.current();
+        return irPara(0, false, NOVA_FICA_MS);
       }
 
       // Some da tela o que o admin escondeu
@@ -252,8 +276,11 @@ export default function Telao({
   const [aba, setAba] = useState<TipoSugestao>("faq");
   const [ranking, setRanking] = useState(inicial.ranking);
   const [rankingAberto, setRankingAberto] = useState(false);
-  const faq = useColuna(inicial.sugestoes.faq, inicial.segundosPagina, ligado);
-  const melhoria = useColuna(inicial.sugestoes.melhoria, inicial.segundosPagina, ligado);
+  // No celular, ideia nova leva a aba para a coluna dela, senão ninguém a veria chegar
+  const faq = useColuna(inicial.sugestoes.faq, inicial.segundosPagina, ligado, () => setAba("faq"));
+  const melhoria = useColuna(inicial.sugestoes.melhoria, inicial.segundosPagina, ligado, () =>
+    setAba("melhoria"),
+  );
   const receberFaq = faq.receber;
   const receberMelhoria = melhoria.receber;
   const total = totais.faq + totais.melhoria;
@@ -445,7 +472,7 @@ function PainelColuna({
   return (
     <section
       aria-label={titulo}
-      className={`${abaAtiva ? "flex" : "hidden lg:flex"} shrink-0 flex-col rounded-3xl border border-white/10 bg-white/[0.03] p-3 lg:min-h-0 lg:min-w-0 lg:flex-1 lg:shrink lg:p-4`}
+      className={`${abaAtiva ? "flex" : "hidden lg:flex"} relative shrink-0 flex-col rounded-3xl border border-white/10 bg-white/[0.03] p-3 lg:min-h-0 lg:min-w-0 lg:flex-1 lg:shrink lg:p-4`}
     >
       {/* No celular a aba já mostra o título e a contagem */}
       <header className="hidden items-baseline justify-between gap-3 px-1 pb-3 lg:flex">
@@ -600,10 +627,28 @@ function JanelaRanking({
 }
 
 // Progresso da meta de sugestões de FAQ. A barra para em 100%, mas o número continua subindo
-// depois de a meta ser batida.
+// depois de a meta ser batida. Ao cruzar a meta com o telão aberto, comemora uma vez: banner e
+// confete. Quem abre o telão com a meta já batida vê só a barra dourada, sem comemoração.
 function BarraMeta({ alvo, recebidas }: { alvo: number; recebidas: number }) {
   const percentual = Math.min(100, Math.floor((recebidas / alvo) * 100));
   const atingida = recebidas >= alvo;
+  const [anterior, setAnterior] = useState(recebidas);
+  const [celebrando, setCelebrando] = useState(false);
+
+  // Só conta como bater a meta quando o número de sugestões cresce e passa dela. Mudar a meta no
+  // Admin não comemora: baixar o alvo abaixo do que já chegou não é um feito de quem enviou.
+  if (recebidas !== anterior) {
+    setAnterior(recebidas);
+    if (anterior < alvo && recebidas >= alvo) setCelebrando(true);
+  }
+
+  useEffect(() => {
+    if (!celebrando) return;
+    // Dá tempo de a última peça de confete cair antes de desmontar tudo
+    const t = setTimeout(() => setCelebrando(false), CELEBRACAO_ATRASO_MS + CONFETE_MS + QUEDA_CONFETE_MS);
+    return () => clearTimeout(t);
+  }, [celebrando]);
+
   return (
     <div className="px-1 pb-3">
       <div className="mb-1.5 flex items-baseline justify-between gap-3 text-sm text-white/85 lg:text-base">
@@ -611,7 +656,10 @@ function BarraMeta({ alvo, recebidas }: { alvo: number; recebidas: number }) {
           Meta: <span className="num font-semibold text-white">{recebidas}</span> de{" "}
           <span className="num font-semibold text-white">{alvo}</span> sugestões
         </p>
-        <p className={`num font-semibold ${atingida ? CIANO : "text-white"}`}>
+        <p
+          className={`num inline-flex items-center gap-1.5 font-semibold ${atingida ? "text-[#f4c95d]" : "text-white"}`}
+        >
+          {atingida && <Icone nome="check" className="size-5 lg:size-6" />}
           {atingida ? "Meta atingida!" : `${percentual}%`}
         </p>
       </div>
@@ -623,14 +671,124 @@ function BarraMeta({ alvo, recebidas }: { alvo: number; recebidas: number }) {
         aria-valuenow={Math.min(recebidas, alvo)}
         aria-valuetext={`${recebidas} de ${alvo} sugestões`}
         className="h-3 overflow-hidden rounded-full bg-white/10 lg:h-4"
+        style={
+          atingida
+            ? { boxShadow: `0 0 0 2px ${OURO}59`, animation: "telao-meta-pulso 2.4s ease-in-out infinite" }
+            : undefined
+        }
       >
         <div
-          className="h-full rounded-full bg-[#4bc2d6] transition-[width] duration-1000 ease-out"
-          style={{ width: `${percentual}%` }}
-        />
+          className="relative h-full overflow-hidden rounded-full bg-[#4bc2d6] transition-[width] duration-1000 ease-out"
+          style={{
+            width: `${percentual}%`,
+            ...(atingida && {
+              backgroundImage: `linear-gradient(90deg, #4bc2d6, ${OURO})`,
+              boxShadow: `0 0 18px ${OURO}8c`,
+            }),
+          }}
+        >
+          {atingida && (
+            <span
+              className="absolute inset-y-0 left-0 w-2/5"
+              style={{
+                background: "linear-gradient(100deg, transparent, rgba(255,255,255,0.65), transparent)",
+                animation: "telao-meta-brilho 2.6s ease-in-out infinite",
+              }}
+            />
+          )}
+        </div>
       </div>
+      {celebrando && (
+        <>
+          <div
+            role="status"
+            className="absolute inset-x-3 top-3 z-10 rounded-2xl bg-gradient-to-br from-[#f4c95d] to-[#f9e29a] px-4 py-3 text-center text-[#2a2208] shadow-2xl lg:inset-x-4 lg:top-4 lg:py-4"
+            style={{
+              animation: `telao-banner ${BANNER_MS}ms ease-out ${CELEBRACAO_ATRASO_MS}ms both`,
+            }}
+          >
+            <strong className="block font-display text-xl font-extrabold tracking-tight lg:text-3xl">
+              Meta de FAQ atingida!
+            </strong>
+            <span className="text-sm font-semibold lg:text-base">
+              {alvo} de {alvo} sugestões. Obrigado a todos.
+            </span>
+          </div>
+          <Confete />
+        </>
+      )}
     </div>
   );
+}
+
+// Confete em canvas sobre a tela toda: dois canhões, um em cada canto de baixo, atiram para cima e
+// para dentro. Sem biblioteca; termina sozinho quando a última peça sai da tela.
+function Confete() {
+  const ref = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = ref.current;
+    const ctx = canvas?.getContext("2d");
+    if (!canvas || !ctx || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    const dpr = window.devicePixelRatio || 1;
+    const largura = window.innerWidth;
+    const altura = window.innerHeight;
+    canvas.width = largura * dpr;
+    canvas.height = altura * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    const escala = altura / 900;
+    const nova = (lado: number) => ({
+      x: lado ? largura : 0,
+      y: altura,
+      vx: (lado ? -1 : 1) * (3 + Math.random() * 7) * escala,
+      vy: -(14 + Math.random() * 14) * escala,
+      r: (3 + Math.random() * 4) * Math.max(escala, 0.8),
+      a: Math.random() * Math.PI * 2,
+      va: (Math.random() - 0.5) * 0.4,
+      cor: CORES_CONFETE[Math.floor(Math.random() * CORES_CONFETE.length)],
+    });
+    // Uma rajada forte na largada; depois os canhões seguem atirando até acabar CONFETE_MS
+    let pecas = [0, 1].flatMap((lado) => Array.from({ length: 90 }, () => nova(lado)));
+
+    let quadro = 0;
+    let inicio = 0;
+    function desenhar(agora: number) {
+      if (!ctx) return;
+      if (!inicio) inicio = agora;
+      const atirando = agora - inicio < CONFETE_MS;
+      if (atirando) pecas.push(nova(0), nova(0), nova(1), nova(1));
+      ctx.clearRect(0, 0, largura, altura);
+      pecas = pecas.filter((p) => p.y <= altura + 20);
+      for (const p of pecas) {
+        p.vy += 0.4 * escala;
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vx *= 0.99;
+        p.a += p.va;
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.a);
+        ctx.fillStyle = p.cor;
+        ctx.fillRect(-p.r, -p.r / 2, p.r * 2, p.r);
+        ctx.restore();
+      }
+      if (atirando || pecas.length > 0) quadro = requestAnimationFrame(desenhar);
+      else ctx.clearRect(0, 0, largura, altura);
+    }
+
+    // Só começa quando o banner entra, depois de a barra terminar de encher
+    const t = setTimeout(() => {
+      quadro = requestAnimationFrame(desenhar);
+    }, CELEBRACAO_ATRASO_MS);
+    return () => {
+      clearTimeout(t);
+      cancelAnimationFrame(quadro);
+    };
+  }, []);
+
+  return <canvas ref={ref} aria-hidden="true" className="pointer-events-none fixed inset-0 z-[60] size-full" />;
 }
 
 function Cartao({
