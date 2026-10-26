@@ -5,7 +5,7 @@ const CHAVE_SEGUNDOS_PAGINA = "telaoSegundosPorPagina";
 const CHAVE_META_FAQ = "metaFaq";
 const CHAVE_TELAO_ATIVO = "telaoAtivo";
 
-// Enquanto o telão está aberto ele consulta o servidor a cada poucos segundos, o que consome
+// Enquanto o telão está aberto ele consulta o servidor a cada 30 segundos, o que consome
 // o plano da hospedagem. Por isso vem desligado: o admin liga só nos dias em que for usar.
 export async function lerTelaoAtivo(): Promise<boolean> {
   const linha = await prisma.configuracao.findUnique({ where: { chave: CHAVE_TELAO_ATIVO } });

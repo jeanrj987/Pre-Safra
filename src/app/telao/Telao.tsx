@@ -9,7 +9,8 @@ import {
 } from "@/lib/sugestoes";
 import type { DadosTelao } from "@/lib/telao";
 
-const INTERVALO_MS = 3000;
+// De quanto em quanto tempo o telão consulta o servidor (cada consulta gasta a transferência do banco)
+const INTERVALO_MS = 30_000;
 // Ciano dos ícones e do botão da barra lateral; fixo porque o telão é sempre escuro (o primary do
 // tema claro é escuro demais para esse fundo).
 const CIANO = "text-[#4bc2d6]";
@@ -627,8 +628,10 @@ function JanelaRanking({
 }
 
 // Progresso da meta de sugestões de FAQ. A barra para em 100%, mas o número continua subindo
-// depois de a meta ser batida. Ao cruzar a meta com o telão aberto, comemora uma vez: banner e
-// confete. Quem abre o telão com a meta já batida vê só a barra dourada, sem comemoração.
+// depois de a meta ser batida. Ao cruzar a meta com o telão aberto, comemora: banner e confete.
+// O horário da comemoração fica guardado no navegador: se a página for recarregada antes de o
+// confete acabar, ele continua só pelo tempo que faltava (sem o banner). Depois disso, quem abre o
+// telão com a meta já batida vê só a barra dourada.
 function BarraMeta({ alvo, recebidas }: { alvo: number; recebidas: number }) {
   const percentual = Math.min(100, Math.floor((recebidas / alvo) * 100));
   const atingida = recebidas >= alvo;
@@ -644,10 +647,11 @@ function BarraMeta({ alvo, recebidas }: { alvo: number; recebidas: number }) {
 
   useEffect(() => {
     if (!celebrando) return;
+    guardarComemoracao(alvo);
     // Dá tempo de a última peça de confete cair antes de desmontar tudo
     const t = setTimeout(() => setCelebrando(false), CELEBRACAO_ATRASO_MS + CONFETE_MS + QUEDA_CONFETE_MS);
     return () => clearTimeout(t);
-  }, [celebrando]);
+  }, [celebrando, alvo]);
 
   return (
     <div className="px-1 pb-3">
@@ -714,22 +718,60 @@ function BarraMeta({ alvo, recebidas }: { alvo: number; recebidas: number }) {
               {alvo} de {alvo} sugestões. Obrigado a todos.
             </span>
           </div>
-          <Confete />
+          <Confete alvo={alvo} />
         </>
       )}
+      {/* Recarregou no meio da comemoração: o confete retoma de onde faltava (se não faltar nada, não faz nada) */}
+      {!celebrando && atingida && <Confete alvo={alvo} retomada />}
     </div>
   );
 }
 
+// Guarda quando a comemoração começou, para o confete continuar se a página for recarregada. O
+// alvo vai junto: se o admin trocar a meta, a comemoração guardada deixa de valer.
+const CHAVE_COMEMORACAO = "telao-meta-faq-comemoracao";
+
+function guardarComemoracao(alvo: number) {
+  try {
+    localStorage.setItem(CHAVE_COMEMORACAO, JSON.stringify({ alvo, em: Date.now() }));
+  } catch {
+    // Sem armazenamento (navegação privada, por exemplo): só não retoma depois de recarregar
+  }
+}
+
+// Quanto do confete ainda faltava (ms), ou 0 se não há comemoração guardada, ela já acabou ou era
+// de outra meta.
+function lerRestanteDaComemoracao(alvo: number): number {
+  try {
+    const guardado = JSON.parse(localStorage.getItem(CHAVE_COMEMORACAO) ?? "null");
+    if (!guardado || guardado.alvo !== alvo || typeof guardado.em !== "number") return 0;
+    const falta = guardado.em + CELEBRACAO_ATRASO_MS + CONFETE_MS - Date.now();
+    return falta > 0 ? falta : 0;
+  } catch {
+    return 0;
+  }
+}
+
 // Confete em canvas sobre a tela toda: dois canhões, um em cada canto de baixo, atiram para cima e
-// para dentro. Sem biblioteca; termina sozinho quando a última peça sai da tela.
-function Confete() {
+// para dentro. Sem biblioteca; termina sozinho quando a última peça sai da tela. Na comemoração
+// nova atira por CONFETE_MS depois de CELEBRACAO_ATRASO_MS; na `retomada` (página recarregada)
+// atira já, só pelo tempo que faltava.
+function Confete({ alvo, retomada = false }: { alvo: number; retomada?: boolean }) {
   const ref = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     const canvas = ref.current;
     const ctx = canvas?.getContext("2d");
     if (!canvas || !ctx || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    let atrasoMs = CELEBRACAO_ATRASO_MS;
+    let duracaoMs = CONFETE_MS;
+    if (retomada) {
+      const falta = lerRestanteDaComemoracao(alvo);
+      if (falta <= 0) return;
+      atrasoMs = 0;
+      duracaoMs = falta;
+    }
 
     const dpr = window.devicePixelRatio || 1;
     const largura = window.innerWidth;
@@ -749,7 +791,7 @@ function Confete() {
       va: (Math.random() - 0.5) * 0.4,
       cor: CORES_CONFETE[Math.floor(Math.random() * CORES_CONFETE.length)],
     });
-    // Uma rajada forte na largada; depois os canhões seguem atirando até acabar CONFETE_MS
+    // Uma rajada forte na largada; depois os canhões seguem atirando até acabar `duracaoMs`
     let pecas = [0, 1].flatMap((lado) => Array.from({ length: 90 }, () => nova(lado)));
 
     let quadro = 0;
@@ -757,7 +799,7 @@ function Confete() {
     function desenhar(agora: number) {
       if (!ctx) return;
       if (!inicio) inicio = agora;
-      const atirando = agora - inicio < CONFETE_MS;
+      const atirando = agora - inicio < duracaoMs;
       if (atirando) pecas.push(nova(0), nova(0), nova(1), nova(1));
       ctx.clearRect(0, 0, largura, altura);
       pecas = pecas.filter((p) => p.y <= altura + 20);
@@ -778,15 +820,15 @@ function Confete() {
       else ctx.clearRect(0, 0, largura, altura);
     }
 
-    // Só começa quando o banner entra, depois de a barra terminar de encher
+    // Na comemoração nova só começa quando o banner entra, depois de a barra terminar de encher
     const t = setTimeout(() => {
       quadro = requestAnimationFrame(desenhar);
-    }, CELEBRACAO_ATRASO_MS);
+    }, atrasoMs);
     return () => {
       clearTimeout(t);
       cancelAnimationFrame(quadro);
     };
-  }, []);
+  }, [alvo, retomada]);
 
   return <canvas ref={ref} aria-hidden="true" className="pointer-events-none fixed inset-0 z-[60] size-full" />;
 }

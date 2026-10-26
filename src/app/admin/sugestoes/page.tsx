@@ -245,9 +245,9 @@ export default async function AdminSugestoes({
             {telaoAtivo ? "Desativar telão" : "Ativar telão"}
           </BotaoEnviar>
           <p className="basis-full text-xs text-muted">
-            Aberto, o telão consulta o servidor a cada poucos segundos e consome o plano da
+            Aberto, o telão consulta o servidor a cada 30 segundos e consome o plano da
             hospedagem. Deixe desativado e ative só nos dias de uso. Ao ativar, recarregue o telão; ao
-            desativar, ele para sozinho em alguns segundos.
+            desativar, ele para sozinho em até 30 segundos.
           </p>
         </form>
         <TempoTelao segundos={segundosPagina} salvar={salvarTempoTelao} />
