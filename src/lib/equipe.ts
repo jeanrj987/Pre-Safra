@@ -15,6 +15,14 @@ export const COMERCIAL_POR_REGIAO: Record<string, string> = {
   "Oeste MT": "Pablo",
 };
 
+// Regiões dos parceiros, no mesmo formato das demais ("Nome a UF/UF"). Aparecem nas listas de
+// região do cadastro mesmo antes de existir algum cliente nelas; depois disso, valem os clientes.
+export const REGIOES_DE_PARCEIROS = [
+  "Agro Integra a SP/PR/SC",
+  "Maxiagro a PA/MA/GO",
+  "Apb Informática a MS/GO",
+];
+
 // Quem responde pela Pré-Safra em cada dupla de atendentes (o primeiro nome basta):
 // Amanda e Cauê → Amanda; Gabriel e Samuel → Samuel; Maria e Jean → Maria; Marcos e Jéssica → Marcos.
 // Se uma dupla mudar, é só acertar aqui.

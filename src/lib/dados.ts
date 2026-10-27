@@ -1,5 +1,5 @@
 import { FUSO_NEGOCIO } from "./fuso";
-import { COMERCIAL_POR_REGIAO, equipesPorRegiao, type GrupoEquipe } from "./equipe";
+import { COMERCIAL_POR_REGIAO, REGIOES_DE_PARCEIROS, equipesPorRegiao, type GrupoEquipe } from "./equipe";
 import { prisma } from "@/lib/db";
 import { pessoasDaDupla } from "@/lib/painel";
 import { semRepetir } from "@/lib/texto";
@@ -226,16 +226,16 @@ export const UFS_BRASIL = [
   "PA", "PB", "PE", "PI", "PR", "RJ", "RN", "RO", "RR", "RS", "SC", "SE", "SP", "TO",
 ];
 
-/** Regiões já usadas em algum cliente, para sugerir no cadastro em vez de exigir digitar do zero. */
+/** Regiões já usadas em algum cliente, mais as dos parceiros, para sugerir no cadastro em vez de exigir digitar do zero. */
 export async function listarRegioesConhecidas(): Promise<string[]> {
   const linhas = await prisma.cliente.findMany({
     where: { regiao: { not: null } },
     distinct: ["regiao"],
     select: { regiao: true },
   });
-  return linhas
-    .map((l) => l.regiao as string)
-    .sort((a, b) => a.localeCompare(b, "pt-BR"));
+  return [...new Set([...linhas.map((l) => l.regiao as string), ...REGIOES_DE_PARCEIROS])].sort((a, b) =>
+    a.localeCompare(b, "pt-BR"),
+  );
 }
 
 /** Duplas de atendentes já cadastradas (ex.: "Maria e Jean"), para sugerir no cadastro. */
