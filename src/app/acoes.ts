@@ -7,6 +7,7 @@ import { avisarMudancaDeData } from "@/lib/notificacoes/avisos";
 import { limparObservacaoPendencia, motivoPendenciaValido } from "@/lib/pendencia";
 import { diaHoje } from "@/lib/status";
 import { finalizarPendentes, formatoValido, reabrirIds, type Formato } from "@/lib/acoesPreSafra";
+import { ITENS_FINALIZACAO, type MarcasFinalizacao } from "@/lib/finalizacao";
 import { motivoDataIndisponivel } from "@/lib/diasUteis";
 import { horarioValido, motivoHorarioPassado } from "@/lib/horarios";
 import { pode } from "@/lib/permissoes";
@@ -57,21 +58,24 @@ export async function finalizarComNota(formData: FormData) {
       select: { id: true },
     })
   ).map((p) => p.id);
-  // Formato, melhorias e observação vêm um por cliente (o modal aplica um padrão para todos
-  // no formato, ajustável por linha) — nenhum dos três é decidido em bloco para a seleção
+  // Formato, itens de conferência e observação vêm um por cliente (o modal aplica um padrão
+  // para todos no formato, ajustável por linha) — nenhum é decidido em bloco para a seleção
   // inteira.
   const formatoDe = (id: number): Formato | null => {
     const v = textoDe(formData, `formato_${id}`);
     return formatoValido(v) ? v : null;
   };
-  const melhoriasDe = (id: number) => formData.get(`melhorias_${id}`) === "on";
+  const marcasDe = (id: number): MarcasFinalizacao =>
+    Object.fromEntries(
+      ITENS_FINALIZACAO.map((i) => [i.chave, formData.get(`${i.chave}_${id}`) === "on"]),
+    ) as MarcasFinalizacao;
   const observacaoDe = (id: number) => textoDe(formData, `observacao_${id}`);
 
   const { feitos, faltaFormato } = await finalizarPendentes({
     ids,
     formatoDe,
     observacaoDe,
-    melhoriasDe,
+    marcasDe,
     autor: sessao.nome,
   });
   voltarPara(formData, faltaFormato ? 0 : feitos, "finalizados");

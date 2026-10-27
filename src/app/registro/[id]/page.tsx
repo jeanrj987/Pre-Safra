@@ -29,6 +29,7 @@ import {
 } from "@/lib/dados";
 import { comercialDaRegiao } from "@/lib/equipe";
 import { nomeMaiusculo } from "@/lib/texto";
+import { ITENS_FINALIZACAO } from "@/lib/finalizacao";
 import { normalizarEmail } from "@/lib/email";
 import { formatarWhatsapp, normalizarWhatsapp } from "@/lib/whatsapp";
 import { STATUS_COM_PENDENCIA } from "@/lib/pendencia";
@@ -215,9 +216,10 @@ export default async function Registro({
         // A seção de conclusão só existe no formulário de clientes finalizados; nos demais,
         // mantém o que já estava salvo (o status não é alterado aqui). As observações da
         // finalização não se editam: ficam no histórico, criadas ao finalizar.
-        ...(formData.has("secaoConclusao") && {
-          melhoriasApresentadas: formData.get("melhoriasApresentadas") === "on",
-        }),
+        ...(formData.has("secaoConclusao") &&
+          Object.fromEntries(
+            ITENS_FINALIZACAO.map((i) => [i.chave, formData.get(i.chave) === "on"]),
+          )),
       },
     });
     if (count === 0) redirect(`/registro/${id}?conflito=1${sufixoVoltar}`);
@@ -537,15 +539,17 @@ export default async function Registro({
                   <Icone nome="check" />
                   Pré-Safra concluído
                 </h2>
-                <label className="flex cursor-pointer items-center gap-3">
-                  <input
-                    type="checkbox"
-                    name="melhoriasApresentadas"
-                    defaultChecked={r.melhoriasApresentadas}
-                    className="size-4 accent-primary"
-                  />
-                  <span className="text-sm font-medium">Melhorias apresentadas ao cliente</span>
-                </label>
+                {ITENS_FINALIZACAO.map((it) => (
+                  <label key={it.chave} className="flex cursor-pointer items-center gap-3">
+                    <input
+                      type="checkbox"
+                      name={it.chave}
+                      defaultChecked={r[it.chave]}
+                      className="size-4 accent-primary"
+                    />
+                    <span className="text-sm font-medium">{it.rotulo}</span>
+                  </label>
+                ))}
                 <input type="hidden" name="secaoConclusao" value="1" />
               </section>
             )}

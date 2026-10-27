@@ -59,7 +59,10 @@ model PreSafra {
   formato               Formato?
   configuradoSistema    Boolean       @default(false)
   melhoriasApresentadas Boolean       @default(false)
-  observacoes           String?
+  sistemaAtualizado     Boolean       @default(false)
+  safraFechada          Boolean       @default(false)
+  safraNovaConfigurada  Boolean       @default(false)
+  observacoes          String?
   criadoEm              DateTime      @default(now())
   atualizadoEm          DateTime      @updatedAt
   inativo               Boolean       @default(false)

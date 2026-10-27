@@ -4,6 +4,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "./db";
 import { finalizarPendentes, reabrirIds } from "./acoesPreSafra";
+import { marcasVazias } from "./finalizacao";
 
 const MARCA = "TESTE_AUTOMATIZADO_ACOES_PRESAFRA";
 
@@ -36,7 +37,7 @@ describe("finalizarPendentes", () => {
       ids: [idA, idB],
       formatoDe: (id) => (id === idA ? "Online" : null),
       observacaoDe: () => "obs",
-      melhoriasDe: () => true,
+      marcasDe: () => ({ ...marcasVazias(), melhoriasApresentadas: true }),
       autor: "Teste",
     });
     expect(r).toEqual({ feitos: 0, faltaFormato: true });
@@ -50,7 +51,7 @@ describe("finalizarPendentes", () => {
       ids: [idA],
       formatoDe: () => "Online",
       observacaoDe: () => "primeira finalização",
-      melhoriasDe: () => true,
+      marcasDe: () => ({ ...marcasVazias(), melhoriasApresentadas: true }),
       autor: "Teste",
     });
     expect(r).toEqual({ feitos: 1, faltaFormato: false });
@@ -71,7 +72,7 @@ describe("finalizarPendentes", () => {
       ids: [idA],
       formatoDe: () => "Online",
       observacaoDe: () => "segunda tentativa",
-      melhoriasDe: () => true,
+      marcasDe: () => ({ ...marcasVazias(), melhoriasApresentadas: true }),
       autor: "Teste",
     });
     expect(r).toEqual({ feitos: 0, faltaFormato: false });
@@ -138,7 +139,7 @@ describe("reabrirIds", () => {
       ids: [idA],
       formatoDe: () => "Presencial",
       observacaoDe: () => "reagendado",
-      melhoriasDe: () => false,
+      marcasDe: () => marcasVazias(),
       autor: "Teste",
     });
     expect(r).toEqual({ feitos: 1, faltaFormato: false });

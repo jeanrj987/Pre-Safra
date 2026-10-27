@@ -6,6 +6,12 @@ import BotaoEnviar from "./BotaoEnviar";
 import Icone, { type NomeIcone } from "./Icone";
 import { lerSelecionados, limparSelecao } from "./selecao";
 import { plural } from "@/lib/texto";
+import {
+  ITENS_FINALIZACAO,
+  marcasVazias,
+  type ChaveItem,
+  type MarcasFinalizacao,
+} from "@/lib/finalizacao";
 
 // Lê os clientes marcados na lista — inclui os que a busca/paginação escondeu da tela no
 // momento, já que a seleção fica persistida (ver selecao.ts), não só no DOM.
@@ -23,8 +29,8 @@ export function lerVoltar(): string {
   return document.querySelector<HTMLInputElement>('input[name="voltar"]')?.value ?? "";
 }
 
-// Botão "Finalizar": abre uma janela para registrar as melhorias apresentadas e uma
-// observação antes de confirmar. Serve para um cliente (id) ou para os marcados na lista.
+// Botão "Finalizar": abre uma janela para registrar os itens de conferência (melhorias,
+// versão do sistema, fechamento e safra nova) e uma observação antes de confirmar. Serve para um cliente (id) ou para os marcados na lista.
 export default function Finalizar({
   acao,
   id,
@@ -49,9 +55,21 @@ export default function Finalizar({
   // uma vez; cada linha da lista pode depois ser ajustada individualmente (exceções).
   const [formatoPadrao, setFormatoPadrao] = useState<"" | "Online" | "Presencial">("");
   const [formatos, setFormatos] = useState<Record<string, string>>({});
-  // Melhorias apresentadas, também por cliente — nunca em bloco: quem finaliza vários de uma
-  // vez pode ter apresentado as novidades só para parte deles.
-  const [melhorias, setMelhorias] = useState<Record<string, boolean>>({});
+  // Itens de conferência (melhorias, versão, safra), também por cliente — nunca em bloco: quem
+  // finaliza vários de uma vez pode ter feito isso só para parte deles.
+  const [marcas, setMarcas] = useState<Record<string, MarcasFinalizacao>>({});
+
+  const marcar = (alvo: string, chave: ChaveItem, valor: boolean) =>
+    setMarcas((m) => ({ ...m, [alvo]: { ...(m[alvo] ?? marcasVazias()), [chave]: valor } }));
+  const marcarTodos = (valor: boolean) =>
+    setMarcas(
+      Object.fromEntries(
+        ids.map((i) => [
+          i,
+          Object.fromEntries(ITENS_FINALIZACAO.map((it) => [it.chave, valor])) as MarcasFinalizacao,
+        ]),
+      ),
+    );
 
   function abrir() {
     let novosIds: string[];
@@ -66,7 +84,7 @@ export default function Finalizar({
     setIds(novosIds);
     setFormatoPadrao("");
     setFormatos({});
-    setMelhorias(Object.fromEntries(novosIds.map((i) => [i, false])));
+    setMarcas(Object.fromEntries(novosIds.map((i) => [i, marcasVazias()])));
     setVoltar(lerVoltar());
     setAberto(true);
   }
@@ -103,14 +121,16 @@ export default function Finalizar({
             {ids.map((i) => (
               <input key={`f-${i}`} type="hidden" name={`formato_${i}`} value={formatos[i] ?? ""} />
             ))}
-            {ids.map((i) => (
-              <input
-                key={`m-${i}`}
-                type="hidden"
-                name={`melhorias_${i}`}
-                value={melhorias[i] ? "on" : ""}
-              />
-            ))}
+            {ids.flatMap((i) =>
+              ITENS_FINALIZACAO.map((it) => (
+                <input
+                  key={`${it.chave}-${i}`}
+                  type="hidden"
+                  name={`${it.chave}_${i}`}
+                  value={marcas[i]?.[it.chave] ? "on" : ""}
+                />
+              )),
+            )}
             <input type="hidden" name="voltar" value={voltar} />
             <div className="space-y-5 px-4 py-5 sm:px-6">
               <fieldset className="space-y-2">
@@ -142,20 +162,14 @@ export default function Finalizar({
                 <div>
                   <div className="mb-1.5 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
                     <span className="rotulo !mb-0">
-                      Melhorias e observação — defina cliente por cliente
+                      Conferência e observação — defina cliente por cliente
                     </span>
                     <div className="flex gap-3 text-xs font-medium text-primary">
-                      <button
-                        type="button"
-                        onClick={() => setMelhorias(Object.fromEntries(ids.map((i) => [i, true])))}
-                      >
-                        Marcar melhorias para todas
+                      <button type="button" onClick={() => marcarTodos(true)}>
+                        Marcar tudo para todos
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => setMelhorias(Object.fromEntries(ids.map((i) => [i, false])))}
-                      >
-                        Desmarcar todas
+                      <button type="button" onClick={() => marcarTodos(false)}>
+                        Desmarcar tudo
                       </button>
                     </div>
                   </div>
@@ -182,17 +196,22 @@ export default function Finalizar({
                             ))}
                           </div>
                         </div>
-                        <label className="flex cursor-pointer items-center gap-2 text-xs text-muted">
-                          <input
-                            type="checkbox"
-                            checked={melhorias[i] ?? false}
-                            onChange={(e) =>
-                              setMelhorias((m) => ({ ...m, [i]: e.target.checked }))
-                            }
-                            className="size-3.5 accent-primary"
-                          />
-                          Melhorias apresentadas ao cliente
-                        </label>
+                        <div className="grid gap-1.5 sm:grid-cols-2">
+                          {ITENS_FINALIZACAO.map((it) => (
+                            <label
+                              key={it.chave}
+                              className="flex cursor-pointer items-center gap-2 text-xs text-muted"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={marcas[i]?.[it.chave] ?? false}
+                                onChange={(e) => marcar(i, it.chave, e.target.checked)}
+                                className="size-3.5 accent-primary"
+                              />
+                              {it.rotulo}
+                            </label>
+                          ))}
+                        </div>
                         <textarea
                           name={`observacao_${i}`}
                           rows={2}
@@ -208,25 +227,28 @@ export default function Finalizar({
                 </div>
               ) : (
                 <>
-                  <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-line p-3 transition hover:bg-subtle">
-                    <input
-                      type="checkbox"
-                      checked={ids.length > 0 ? (melhorias[ids[0]] ?? false) : false}
-                      onChange={(e) => {
-                        const alvo = ids[0];
-                        if (alvo) setMelhorias((m) => ({ ...m, [alvo]: e.target.checked }));
-                      }}
-                      className="mt-0.5 size-4 accent-primary"
-                    />
-                    <span>
-                      <span className="block text-sm font-medium">
-                        Melhorias apresentadas ao cliente
-                      </span>
-                      <span className="block text-xs text-muted">
-                        Marque se as novidades do sistema foram apresentadas.
-                      </span>
-                    </span>
-                  </label>
+                  <div className="space-y-2">
+                    {ITENS_FINALIZACAO.map((it) => (
+                      <label
+                        key={it.chave}
+                        className="flex cursor-pointer items-start gap-3 rounded-lg border border-line p-3 transition hover:bg-subtle"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={ids.length > 0 ? (marcas[ids[0]]?.[it.chave] ?? false) : false}
+                          onChange={(e) => {
+                            const alvo = ids[0];
+                            if (alvo) marcar(alvo, it.chave, e.target.checked);
+                          }}
+                          className="mt-0.5 size-4 accent-primary"
+                        />
+                        <span>
+                          <span className="block text-sm font-medium">{it.rotulo}</span>
+                          <span className="block text-xs text-muted">{it.ajuda}</span>
+                        </span>
+                      </label>
+                    ))}
+                  </div>
                   <label className="block">
                     <span className="rotulo">
                       Observação da conclusão{" "}

@@ -3,6 +3,7 @@
 // sem precisar simular cookies()/redirect() do Next (que exigem contexto de requisição).
 import { prisma } from "./db";
 import { diaHoje } from "./status";
+import type { MarcasFinalizacao } from "./finalizacao";
 
 export type Formato = "Online" | "Presencial";
 export const formatoValido = (v: string | null): v is Formato => v === "Online" || v === "Presencial";
@@ -19,15 +20,15 @@ export async function finalizarPendentes({
   ids,
   formatoDe,
   observacaoDe,
-  melhoriasDe,
+  marcasDe,
   autor,
 }: {
   ids: number[];
   formatoDe: (id: number) => Formato | null;
   /** Observação da conclusão daquele cliente — cada um tem a sua, não uma só para o lote. */
   observacaoDe: (id: number) => string | null;
-  /** Se as melhorias foram apresentadas para aquele cliente — decidido um a um, não em bloco. */
-  melhoriasDe: (id: number) => boolean;
+  /** Itens de conferência (melhorias, versão, safra) daquele cliente — decididos um a um, não em bloco. */
+  marcasDe: (id: number) => MarcasFinalizacao;
   autor: string;
 }): Promise<ResultadoFinalizar> {
   const pendentes = await prisma.preSafra.findMany({
@@ -50,7 +51,7 @@ export async function finalizarPendentes({
         where: { id, configuradoSistema: false },
         data: {
           configuradoSistema: true,
-          melhoriasApresentadas: melhoriasDe(id),
+          ...marcasDe(id),
           formato: formatoDe(id),
           atualizadoPor: autor,
         },
