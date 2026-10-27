@@ -17,6 +17,7 @@
     "migrar-safra": "tsx scripts/migrar-safra-2026.ts",
     "criar-usuario": "tsx scripts/criar-usuario.ts",
     "gerar-faq": "tsx scripts/gerar-faq.ts",
+    "foto:diaria": "tsx scripts/foto-diaria.ts",
     "db:push": "prisma db push"
   },
   "dependencies": {

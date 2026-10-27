@@ -74,21 +74,21 @@ model Cliente {
 }
 
 model PreSafra {
-  id                    Int           @id @default(autoincrement())
+  id                    Int            @id @default(autoincrement())
   clienteId             Int?
   clienteNomeManual     String?
   responsavel           String?
-  dataPrevista          DateTime?     @db.Date
+  dataPrevista          DateTime?      @db.Date
   formato               Formato?
-  configuradoSistema    Boolean       @default(false)
-  melhoriasApresentadas Boolean       @default(false)
-  sistemaAtualizado     Boolean       @default(false)
-  safraFechada          Boolean       @default(false)
-  safraNovaConfigurada  Boolean       @default(false)
+  configuradoSistema    Boolean        @default(false)
+  melhoriasApresentadas Boolean        @default(false)
+  sistemaAtualizado     Boolean        @default(false)
+  safraFechada          Boolean        @default(false)
+  safraNovaConfigurada  Boolean        @default(false)
   observacoes           String?
-  criadoEm              DateTime      @default(now())
-  atualizadoEm          DateTime      @updatedAt
-  inativo               Boolean       @default(false)
+  criadoEm              DateTime       @default(now())
+  atualizadoEm          DateTime       @updatedAt
+  inativo               Boolean        @default(false)
   observacaoConclusao   String?
   motivoInativacao      String?
   safraId               Int
@@ -100,11 +100,31 @@ model PreSafra {
   observacaoPendencia   String?
   conclusoes            Conclusao[]
   notificacoes          Notificacao[]
-  cliente               Cliente?      @relation(fields: [clienteId], references: [id])
-  safra                 Safra         @relation(fields: [safraId], references: [id])
+  fotos                 FotoPreSafra[]
+  cliente               Cliente?       @relation(fields: [clienteId], references: [id])
+  safra                 Safra          @relation(fields: [safraId], references: [id])
 
   @@unique([clienteId, safraId])
   @@index([safraId])
+}
+
+// Foto diária do estado de cada Pré-Safra (ver src/lib/fotos.ts): sem ela não há como saber, depois,
+// quantos clientes estavam atrasados em certo dia, porque o PreSafra guarda só o estado de agora.
+model FotoPreSafra {
+  id              Int       @id @default(autoincrement())
+  dia             DateTime  @db.Date
+  safraId         Int
+  preSafraId      Int
+  status          String
+  responsavel     String?
+  regiao          String?
+  formato         String?
+  dataPrevista    DateTime? @db.Date
+  motivoPendencia String?
+  preSafra        PreSafra  @relation(fields: [preSafraId], references: [id], onDelete: Cascade)
+
+  @@unique([dia, preSafraId])
+  @@index([safraId, dia])
 }
 
 model Notificacao {

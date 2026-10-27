@@ -18,7 +18,7 @@ import BotaoTema from "./BotaoTema";
 import IndicadorLink from "./IndicadorLink";
 import SeletorSafra from "./SeletorSafra";
 
-type Pagina = "clientes" | "painel" | "calendario" | "novo" | "admin" | "telao";
+type Pagina = "clientes" | "painel" | "relatorios" | "calendario" | "novo" | "admin" | "telao";
 
 type ItemNav = {
   id: Pagina;
@@ -39,6 +39,15 @@ const COOKIE_SIDEBAR = "presafra_sidebar_colapsada";
 const NAV_CLIENTES: ItemNav = { id: "clientes", href: "/", rotulo: "Clientes", rotuloCurto: "Clientes", icone: "lista" };
 // Só de leitura, liberado a todos os usuários (a conta "somente Painel", ex.: TV da sala, só vê isto e o Telão).
 const NAV_PAINEL: ItemNav = { id: "painel", href: "/painel", rotulo: "Painel", rotuloCurto: "Painel", icone: "painel" };
+// Relatórios da safra, com impressão em PDF. Aberto a todo usuário com acesso completo (só a conta
+// "somente Painel" fica de fora): mostra o que as listas e o Painel já mostram, sem contatos.
+const NAV_RELATORIOS: ItemNav = {
+  id: "relatorios",
+  href: "/relatorios",
+  rotulo: "Relatórios",
+  rotuloCurto: "Relat.",
+  icone: "arquivo",
+};
 // Lançamentos livres da equipe (avisos, atualizações de cliente…). Não aparece para a conta
 // "somente Painel": ver exigirAcessoCompleto() em src/lib/auth.ts.
 const NAV_CALENDARIO: ItemNav = {
@@ -94,6 +103,7 @@ export default async function Shell({
     : [
         NAV_CLIENTES,
         NAV_PAINEL,
+        NAV_RELATORIOS,
         NAV_CALENDARIO,
         NAV_NOVO,
         ...(usuario && pode(usuario, "telao") ? [NAV_TELAO] : []),
@@ -106,13 +116,13 @@ export default async function Shell({
     <div
       data-shell
       data-colapsada={String(sidebarColapsada)}
-      className="group/shell min-h-screen lg:data-[colapsada=false]:pl-60 lg:data-[colapsada=true]:pl-16"
+      className="group/shell min-h-screen lg:data-[colapsada=false]:pl-60 lg:data-[colapsada=true]:pl-16 print:pl-0!"
     >
       {/* Desktop: sidebar fixa (navegação escala na vertical conforme surgem módulos).
           Quando a pessoa clica em "Esconder menu" na topbar, o botão troca o atributo
           data-colapsada no navegador (sem ir ao servidor) e o CSS reduz a sidebar a uma faixa
           estreita só com os ícones (rótulos escondidos, dicas no hover via title). */}
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-60 flex-col overflow-hidden bg-night text-white lg:flex lg:group-data-[colapsada=true]/shell:w-16">
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-60 flex-col overflow-hidden bg-night text-white lg:flex lg:group-data-[colapsada=true]/shell:w-16 print:hidden!">
         <div className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-white/10 pl-5 pr-3 group-data-[colapsada=true]/shell:justify-center group-data-[colapsada=true]/shell:px-0">
           <Link
             href="/"
@@ -181,7 +191,7 @@ export default async function Shell({
       </aside>
 
       {/* Desktop: topbar fina só com o contexto (onde estou / qual safra) */}
-      <header className="sticky top-0 z-30 hidden h-14 items-center gap-3 border-b border-line bg-surface/90 px-4 backdrop-blur lg:flex">
+      <header className="sticky top-0 z-30 hidden h-14 items-center gap-3 border-b border-line bg-surface/90 px-4 backdrop-blur lg:flex print:hidden!">
         <span className="text-sm font-semibold text-ink">{paginaAtual?.rotulo}</span>
         <span className="h-4 w-px bg-line-strong" aria-hidden="true" />
         {safras.length > 0 ? (
@@ -205,7 +215,7 @@ export default async function Shell({
       {/* Celular e tablet: barra escura. Primeira linha com marca, safra e atalhos; a navegação
           fica numa linha própria embaixo (ícone + rótulo curto no celular, rótulo completo a
           partir de sm), dividindo a largura igualmente — nada precisa rolar nem quebrar. */}
-      <header className="sticky top-0 z-30 bg-night text-white lg:hidden">
+      <header className="sticky top-0 z-30 bg-night text-white lg:hidden print:hidden!">
         <div className="mx-auto flex h-14 max-w-7xl items-center gap-3 px-4 sm:px-8">
           <Link href="/" className="flex shrink-0 items-center gap-3" aria-label="Início">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -286,6 +296,8 @@ export default async function Shell({
             ? "max-w-[1800px] space-y-4 pt-4 pb-8"
             : ativo === "calendario"
               ? "max-w-[1600px] space-y-4 pt-6 pb-8"
+              : ativo === "relatorios"
+              ? "max-w-[1400px] space-y-5 pt-6 pb-12 print:max-w-none print:space-y-3 print:p-0"
               : ativo === "clientes"
               ? "max-w-[1600px] space-y-6 pt-8 pb-28"
               : "max-w-7xl space-y-6 pt-8 pb-28"

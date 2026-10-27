@@ -7,6 +7,7 @@ App web interno da ControlSoft que acompanha, por safra, a revisão e a configur
 - **Clientes** (`/`): lista com filtros (incluindo motivo de pendência), agendamento por cliente (responsável, data, horário, Online/Presencial), finalizar e reabrir em lote. Cliente A Fazer ou Atrasado recebe um **motivo de pendência**.
 - **Registro do cliente** (`/registro/[id]`): observações, histórico de finalizações, data de finalização editável e **avisos ao cliente** por WhatsApp (link `wa.me` ou API) e e-mail.
 - **Painel** (`/painel`): metas, ritmo e gargalos da safra (somente leitura).
+- **Relatórios** (`/relatorios`): situação da safra, por pessoa (responsável, região ou consultor), conferência dos itens de finalização e evolução dia a dia, com filtros e **Salvar em PDF** (impressão do navegador). A evolução usa uma foto diária do estado dos clientes (ver "Fotos diárias" abaixo).
 - **Calendário** (`/calendario`): atividades da equipe e agendamentos dos clientes.
 - **Novo cliente** (`/novo`): cadastro avulso e importação de planilha (admin).
 - **Admin** (`/admin`): clientes, safras, usuários e sugestões, com **Backup em Excel** de todas as tabelas e exportação dos clientes.
@@ -39,6 +40,7 @@ Os avisos ao cliente são opcionais: sem configuração, só o link `wa.me` do r
 | `npm run importar`, `importar:gifnoc`, `importar:cidades` | importação de clientes (use `--simular` antes) |
 | `npm run padronizar:nomes` | coloca o nome dos clientes em maiúsculas (`--simular` antes) |
 | `npm run criar-usuario` | cria ou redefine um usuário |
+| `npm run foto:diaria` | tira agora a foto diária do estado dos Pré-Safras (alimenta Relatórios → Evolução); repetir no mesmo dia só refaz a foto |
 | `npm run gerar-faq` | gera `src/data/faq.json` a partir do backup da Base de Conhecimento |
 | `npx tsx scripts/restaurar-backup.ts <backup.xlsx> [--limpar]` | restaura num banco **local** o backup em Excel (recusa qualquer banco fora de `localhost`) |
 
@@ -50,6 +52,15 @@ Variáveis de ambiente do projeto na Vercel (veja `.env.example`): `DATABASE_URL
 
 - `APP_URL`: endereço público do sistema, **com `https://`** (ex.: `https://presafra.seudominio.com.br`). **Obrigatória para gerar o link de redefinição de senha**: sem ela o botão avisa e não gera nada. Em produção um endereço `http://` é recusado.
 - `RESEND_API_KEY` e `EMAIL_REMETENTE` (opcionais): servem só para os avisos por e-mail ao cliente e para o aviso "sua senha foi alterada" ao usuário. O remetente tem o formato `Pré-Safra <avisos@seudominio.com.br>`, de um **domínio verificado** no Resend. Não existe recuperação de senha por e-mail.
+
+### Fotos diárias (Relatórios → Evolução)
+
+O sistema guarda só a situação de agora; para saber como a safra estava em um dia passado, o cron da Vercel (`vercel.json`, todo dia às 23h UTC, 19h em Mato Grosso) chama `/api/cron/foto-diaria`, que grava a situação de cada Pré-Safra das safras ativas na tabela `FotoPreSafra`. **A história começa na primeira foto**: nada antes dela pode ser recuperado.
+
+- Defina `CRON_SECRET` (texto aleatório longo) nas variáveis da Vercel: ela o envia como `Authorization: Bearer`. Sem a variável a rota recusa tudo e nenhuma foto é tirada.
+- Rode `npm run db:push` no banco de produção **antes** de publicar (cria a tabela `FotoPreSafra`).
+- Depois de publicar, abra Relatórios → Evolução e use "Tirar a foto de hoje agora" (exige a permissão Safras) para já ter o primeiro ponto.
+- As fotos **não entram** no Backup em Excel.
 
 ### Esqueci a senha
 
