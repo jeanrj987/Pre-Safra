@@ -78,6 +78,9 @@ export default async function Login({ searchParams }: PageProps<"/login">) {
                 aria-describedby={erro ? "erro-senha" : undefined}
               />
             </label>
+            <p className="-mt-2 text-right text-sm text-muted">
+              Esqueceu a senha? Peça ao administrador um link para criar uma nova.
+            </p>
             {erro && (
               <p
                 id="erro-senha"

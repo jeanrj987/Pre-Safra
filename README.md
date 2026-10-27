@@ -44,6 +44,19 @@ Os avisos ao cliente são opcionais: sem configuração, só o link `wa.me` do r
 
 Os scripts rodam contra o banco de `DATABASE_URL`: confira o alvo antes. Depois de atualizar o código, rode `npm run db:push` em cada banco (dev e produção) para criar as colunas e tabelas novas.
 
+## Publicando (Vercel)
+
+Variáveis de ambiente do projeto na Vercel (veja `.env.example`): `DATABASE_URL`, `AUTH_SECRET` e `APP_URL`.
+
+- `APP_URL`: endereço público do sistema, **com `https://`** (ex.: `https://presafra.seudominio.com.br`). **Obrigatória para gerar o link de redefinição de senha**: sem ela o botão avisa e não gera nada. Em produção um endereço `http://` é recusado.
+- `RESEND_API_KEY` e `EMAIL_REMETENTE` (opcionais): servem só para os avisos por e-mail ao cliente e para o aviso "sua senha foi alterada" ao usuário. O remetente tem o formato `Pré-Safra <avisos@seudominio.com.br>`, de um **domínio verificado** no Resend. Não existe recuperação de senha por e-mail.
+
+### Esqueci a senha
+
+Não há recuperação por e-mail: quem esqueceu a senha pede ao administrador. Em **Administração > Usuários**, o administrador clica em "Gerar link de redefinição", **copia o link** e o envia à pessoa (por WhatsApp ou Teams). O link vale por **24 horas** e só pode ser usado **uma vez**; gerar outro cancela o anterior. A pessoa abre o link, escolhe a própria senha e entra normalmente. O link só aparece na janela em que foi gerado: se for perdido, basta gerar outro.
+
+**Antes de publicar esta versão, rode `npm run db:push` contra o banco de produção.** O login passou a gravar as tentativas na tabela `TentativaAcesso` (e a redefinição de senha usa a `TokenRecuperacao`). Se o código novo subir antes das tabelas existirem, ninguém consegue entrar: o login falha de propósito (não libera o acesso quando não consegue contar as tentativas). Ordem: `db:push` primeiro, publicação depois. O `db:push` só cria tabelas e índices novos, então o código antigo continua funcionando enquanto isso.
+
 ## Documentação
 
 Fica fora do git (pastas locais): `Vault/` (notas técnicas em Obsidian; comece por `Vault/000_Index.md`) e `docs/` (manuais em PDF, capturas de tela e o script que os gera).

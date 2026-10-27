@@ -6,6 +6,7 @@ import Icone from "@/app/Icone";
 import { Janela, RodapeJanela } from "@/app/Finalizar";
 import SeletorNomeResponsavel from "./SeletorNomeResponsavel";
 import SeletorPapel from "./SeletorPapel";
+import { SENHA_MAX, SENHA_MIN } from "@/lib/politica-senha";
 
 // A ação devolve a mensagem de erro (ex.: e-mail já usado) para mostrar dentro da própria janela;
 // se deu certo, a janela fecha.
@@ -63,7 +64,8 @@ export default function NovoUsuario({
                 <CampoSenha
                   name="senha"
                   required
-                  minLength={10}
+                  minLength={SENHA_MIN}
+                  maxLength={SENHA_MAX}
                   autoComplete="new-password"
                 />
               </label>

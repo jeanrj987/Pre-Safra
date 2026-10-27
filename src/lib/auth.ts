@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { cache } from "react";
 import { prisma } from "@/lib/db";
 import { hashSenha, precisaRehash, verificarSenha } from "@/lib/senha";
-import { limparTentativasLogin, loginBloqueado, registrarFalhaLogin } from "@/lib/limitador";
+import { limparTentativasLogin, registrarTentativaLogin } from "@/lib/limitador";
 import { pode, podeAcessarAdmin, permissoesEfetivas, type Permissao } from "@/lib/permissoes";
 
 const COOKIE = "presafra_sessao";
@@ -42,19 +42,20 @@ function iguais(a: string, b: string): boolean {
 
 export async function autenticar(email: string, senha: string) {
   const chave = email.trim().toLowerCase();
-  // Bloqueia por e-mail (não por IP): mais simples e suficiente para uma equipe pequena
-  // atrás de logins nominais — evita tentativa por força bruta contra uma conta específica.
-  if (loginBloqueado(chave)) return null;
+  // Limite por e-mail (não por IP): mais simples e suficiente para uma equipe pequena atrás de
+  // logins nominais; freia força bruta contra uma conta específica (8 tentativas em 10 minutos).
+  // A tentativa é gravada ANTES de conferir a senha: o scrypt é lento e, se gravássemos depois,
+  // várias requisições simultâneas passariam todas pela checagem antes de alguma ser contada.
+  // Bloqueado: nada é gravado nem conferido. Se o banco falhar, o erro sobe e o login NÃO é
+  // liberado (falha fechada).
+  if (!(await registrarTentativaLogin(chave))) return null;
 
   const usuario = await prisma.usuario.findUnique({ where: { email: chave } });
   // Sem usuário (ou inativo), confere contra um hash falso mesmo assim: o tempo de resposta não
   // revela se o e-mail existe.
   const senhaConfere = await verificarSenha(senha, usuario?.senhaHash ?? (await obterHashFalso()));
-  if (!usuario?.ativo || !senhaConfere) {
-    registrarFalhaLogin(chave);
-    return null;
-  }
-  limparTentativasLogin(chave);
+  if (!usuario?.ativo || !senhaConfere) return null; // a falha já está registrada
+  await limparTentativasLogin(chave);
   return atualizarCustoDoHash(usuario, senha);
 }
 

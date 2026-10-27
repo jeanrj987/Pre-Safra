@@ -8,17 +8,40 @@ datasource db {
 }
 
 model Usuario {
-  id              Int      @id @default(autoincrement())
-  nome            String
-  email           String   @unique
-  senhaHash       String
-  admin           Boolean  @default(false)
-  ativo           Boolean  @default(true)
-  criadoEm        DateTime @default(now())
-  atualizadoEm    DateTime @updatedAt
-  somentePainel   Boolean  @default(false)
-  nomeResponsavel String?
-  permissoes      String[] @default([])
+  id                Int                @id @default(autoincrement())
+  nome              String
+  email             String             @unique
+  senhaHash         String
+  admin             Boolean            @default(false)
+  ativo             Boolean            @default(true)
+  criadoEm          DateTime           @default(now())
+  atualizadoEm      DateTime           @updatedAt
+  somentePainel     Boolean            @default(false)
+  nomeResponsavel   String?
+  permissoes        String[]           @default([])
+  tokensRecuperacao TokenRecuperacao[]
+}
+
+model TokenRecuperacao {
+  id        Int       @id @default(autoincrement())
+  usuarioId Int
+  tokenHash String    @unique
+  expiraEm  DateTime
+  usadoEm   DateTime?
+  criadoEm  DateTime  @default(now())
+  usuario   Usuario   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@index([usuarioId])
+}
+
+model TentativaAcesso {
+  id       Int      @id @default(autoincrement())
+  tipo     String
+  chave    String
+  criadoEm DateTime @default(now())
+
+  @@index([tipo, chave, criadoEm])
+  @@index([criadoEm])
 }
 
 model Safra {
@@ -62,7 +85,7 @@ model PreSafra {
   sistemaAtualizado     Boolean       @default(false)
   safraFechada          Boolean       @default(false)
   safraNovaConfigurada  Boolean       @default(false)
-  observacoes          String?
+  observacoes           String?
   criadoEm              DateTime      @default(now())
   atualizadoEm          DateTime      @updatedAt
   inativo               Boolean       @default(false)

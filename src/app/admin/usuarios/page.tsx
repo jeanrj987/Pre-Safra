@@ -1,7 +1,11 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { exigirAdmin } from "@/lib/auth";
 import { hashSenha } from "@/lib/senha";
+import { limparTentativasLogin } from "@/lib/limitador";
+import { mensagemErroSenha, MENSAGEM_ERRO_SENHA, validarSenha } from "@/lib/politica-senha";
+import { avisarSenhaAlterada, invalidarTokensDoUsuario } from "@/lib/recuperacao";
 import { prisma } from "@/lib/db";
 import { listarNomesResponsaveis } from "@/lib/dados";
 import { contemNome } from "@/lib/texto";
@@ -16,6 +20,7 @@ import {
   type Papel,
 } from "@/lib/permissoes";
 import EditarUsuario from "./EditarUsuario";
+import GerarLinkRedefinicao from "./GerarLinkRedefinicao"; // link do admin
 import NovoUsuario from "./NovoUsuario";
 import RedefinirSenha from "./RedefinirSenha";
 
@@ -38,6 +43,7 @@ export default async function AdminUsuarios({
 }) {
   const eu = await exigirAdmin();
   const { erro } = await searchParams;
+  const mensagemErro = mensagemErroSenha(erro);
   const [usuarios, nomesResponsaveis] = await Promise.all([
     prisma.usuario.findMany({ orderBy: { nome: "asc" } }),
     listarNomesResponsaveis(),
@@ -56,7 +62,8 @@ export default async function AdminUsuarios({
     const { admin, somentePainel, permissoes } = lerAcesso(formData);
     const nomeResponsavel = String(formData.get("nomeResponsavel") ?? "").trim() || null;
     if (!nome || !email) return { erro: "Preencha o nome e o e-mail." };
-    if (senha.length < 10) return { erro: "A senha precisa ter pelo menos 10 caracteres." };
+    const problemaSenha = validarSenha(senha);
+    if (problemaSenha) return { erro: MENSAGEM_ERRO_SENHA[problemaSenha] };
     if (await prisma.usuario.findUnique({ where: { email } })) {
       return { erro: "Já existe um usuário com esse e-mail." };
     }
@@ -110,6 +117,8 @@ export default async function AdminUsuarios({
     }
 
     await prisma.usuario.update({ where: { id }, data: { nome, email, admin, somentePainel, permissoes, nomeResponsavel } });
+    // Links de redefinição já gerados foram pensados para o e-mail antigo: deixam de valer.
+    if (email !== alvo.email) await invalidarTokensDoUsuario(id);
     revalidatePath("/admin/usuarios");
     return {};
   }
@@ -130,6 +139,8 @@ export default async function AdminUsuarios({
       }
     }
     await prisma.usuario.update({ where: { id }, data: { ativo: novoAtivo } });
+    // Conta desativada não pode ter link de redefinição pendente (ao reativar, o admin gera outro).
+    if (!novoAtivo) await invalidarTokensDoUsuario(id);
     revalidatePath("/admin/usuarios");
   }
 
@@ -157,8 +168,16 @@ export default async function AdminUsuarios({
     "use server";
     await exigirAdmin();
     const senha = String(formData.get("senha") ?? "");
-    if (senha.length < 10) redirect("/admin/usuarios?erro=senha");
+    const problemaSenha = validarSenha(senha);
+    if (problemaSenha) redirect(`/admin/usuarios?erro=${problemaSenha}`);
+    const alvo = await prisma.usuario.findUnique({ where: { id }, select: { email: true, nome: true } });
+    if (!alvo) return;
     await prisma.usuario.update({ where: { id }, data: { senhaHash: await hashSenha(senha) } });
+    // A senha antiga some, então qualquer link de redefinição pendente e o bloqueio por excesso de
+    // tentativas de login também não fazem mais sentido.
+    await invalidarTokensDoUsuario(id);
+    await limparTentativasLogin(alvo.email);
+    after(() => avisarSenhaAlterada(alvo.email, alvo.nome));
     revalidatePath("/admin/usuarios");
   }
 
@@ -169,13 +188,13 @@ export default async function AdminUsuarios({
         <NovoUsuario acao={criarUsuario} nomes={nomesResponsaveis} />
       </div>
 
-      {erro && (
+      {mensagemErro && (
         <p
           role="alert"
           className="mx-4 mt-4 flex items-center gap-2 rounded-lg bg-atrasado-bg px-3 py-2 text-sm font-medium text-atrasado-fg sm:mx-5"
         >
           <Icone nome="alerta" />
-          A senha precisa ter pelo menos 10 caracteres.
+          {mensagemErro}
         </p>
       )}
 
@@ -221,6 +240,12 @@ export default async function AdminUsuarios({
                 <td className="py-2.5 pl-3 pr-4 text-right align-top sm:pr-5">
                   <div className="flex items-center justify-end gap-1.5">
                     <RedefinirSenha acao={redefinirSenha.bind(null, u.id)} nome={u.nome} />
+                    {/* link do admin */}
+                    <GerarLinkRedefinicao
+                      usuarioId={u.id}
+                      nome={u.nome}
+                      indisponivel={!u.ativo ? "conta inativa" : u.somentePainel ? "conta só do Painel" : undefined}
+                    />
                     {u.id !== eu.id && (
                       <form action={alternarAtivo.bind(null, u.id, !u.ativo)} className="inline">
                         <BotaoAcao

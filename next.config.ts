@@ -19,6 +19,15 @@ const nextConfig: NextConfig = {
           { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
         ],
       },
+      // Vem DEPOIS da regra geral de propósito: em caso de chave repetida, a última regra vence.
+      // O link de redefinição carrega um token (no fragmento da URL): nada de Referer nem de cache.
+      {
+        source: "/redefinir-senha",
+        headers: [
+          { key: "Referrer-Policy", value: "no-referrer" },
+          { key: "Cache-Control", value: "no-store" },
+        ],
+      },
     ];
   },
 };

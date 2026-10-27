@@ -4,6 +4,7 @@ import BotaoAcao from "@/app/BotaoAcao";
 import BotaoEnviar from "@/app/BotaoEnviar";
 import CampoSenha from "@/app/CampoSenha";
 import { Janela, RodapeJanela } from "@/app/Finalizar";
+import { SENHA_MAX, SENHA_MIN } from "@/lib/politica-senha";
 
 // Botão "Redefinir senha": abre uma janela para o admin definir uma senha nova para o
 // usuário que esqueceu a dela. Trocar a senha invalida automaticamente a sessão atual dele
@@ -40,7 +41,8 @@ export default function RedefinirSenha({
                 <CampoSenha
                   name="senha"
                   required
-                  minLength={10}
+                  minLength={SENHA_MIN}
+                  maxLength={SENHA_MAX}
                   autoFocus
                   autoComplete="new-password"
                 />
