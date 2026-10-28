@@ -11,7 +11,7 @@ import { ITENS_FINALIZACAO, type MarcasFinalizacao } from "@/lib/finalizacao";
 import { motivoDataIndisponivel } from "@/lib/diasUteis";
 import { horarioValido, motivoHorarioPassado } from "@/lib/horarios";
 import { pode } from "@/lib/permissoes";
-import { idsPermitidos, podeAgendarCliente, podeAlterarCliente } from "@/lib/responsavel";
+import { idsPermitidos, podeAgendarCliente, podeAlterarCliente, responsavelAoAgendar } from "@/lib/responsavel";
 
 // Server Actions da lista principal (src/app/page.tsx). Extraídas para cá para poder ser
 // importadas/testadas fora do componente de página, que já é grande só com a tabela e os
@@ -131,8 +131,8 @@ export async function salvarMotivoPendencia(
 // consegue defini-lo de novo; para os demais ele fica). A janela já mostra os erros; aqui o servidor
 // garante as regras mesmo para uma chamada direta, e nesse caso não grava nada: campo faltando,
 // datas e horários passados, sábados, domingos e feriados, cliente finalizado ou inativo. Qualquer usuário
-// agenda qualquer cliente, mas só o admin e o responsável do cliente removem o agendamento. Só quem tem a permissão "trocarResp" (o admin tem) troca o responsável; o usuário comum que
-// agenda um cliente sem responsável passa a ser o responsável dele (assume ao agendar).
+// agenda qualquer cliente, mas só o admin e o responsável do cliente removem o agendamento. Só quem tem a permissão "trocarResp" (o admin tem) escolhe o responsável; o usuário comum
+// que agenda ou reagenda um cliente passa a ser o responsável dele (assume ao agendar), mesmo que o cliente fosse de outra pessoa.
 export async function agendarCliente(formData: FormData) {
   const sessao = await exigirAcessoCompleto();
   const id = Number(formData.get("id"));
@@ -189,19 +189,18 @@ export async function agendarCliente(formData: FormData) {
   const formato = textoDe(formData, "formato");
   if (!formatoValido(formato)) voltarPara(formData, 0, "agendados");
 
-  // Sem responsável, o usuário comum assume o cliente ao agendar (o nome ligado à conta dele).
-  const semResponsavel = !registro?.responsavel?.trim();
-  const escolheResponsavel = pode(sessao, "trocarResp");
-  const responsavel = escolheResponsavel
+  // Quem agenda ou reagenda assume o cliente (o nome ligado à conta dele), mesmo que fosse de outra
+  // pessoa; só quem tem "trocarResp" escolhe o responsável na janela.
+  const responsavel = pode(sessao, "trocarResp")
     ? textoDe(formData, "responsavel")
-    : (registro?.responsavel?.trim() || sessao.nomeResponsavel || null);
+    : responsavelAoAgendar(sessao, registro.responsavel);
 
   if (!responsavel || !dia || !horario) voltarPara(formData, 0, "agendados");
 
   await prisma.preSafra.update({
     where: { id },
     data: {
-      ...(escolheResponsavel || semResponsavel ? { responsavel } : {}),
+      responsavel,
       dataPrevista: dia,
       horario,
       formato,

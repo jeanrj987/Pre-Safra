@@ -52,6 +52,7 @@ export default function Agendar({
   podeTrocarResponsavel,
   podeRemover,
   assumeAoAgendar = false,
+  responsavelAtual = "",
 }: {
   acao: (formData: FormData) => Promise<void>;
   id: number;
@@ -71,8 +72,10 @@ export default function Agendar({
   podeTrocarResponsavel: boolean;
   /** Só o admin e o responsável do cliente removem o agendamento; para os demais o botão some. */
   podeRemover: boolean;
-  /** Cliente sem responsável e usuário comum: o responsável mostrado é ele, que assume o cliente ao salvar. */
+  /** Usuário comum: o responsável mostrado é ele, que assume o cliente ao salvar (sem responsável ou de outra pessoa). */
   assumeAoAgendar?: boolean;
+  /** Responsável do cliente antes de agendar, para avisar de quem ele está assumindo. */
+  responsavelAtual?: string;
 }) {
   const statusInicial: Status = previsao;
   const temAgendamento = !!(previsao || data || horario);
@@ -184,7 +187,9 @@ export default function Agendar({
                 )}
                 {assumeAoAgendar && (
                   <span className="mt-1 block text-xs text-muted">
-                    Este cliente não tem responsável: ao agendar, você passa a ser o responsável por ele.
+                    {responsavelAtual
+                      ? `Este cliente é de ${responsavelAtual}: ao salvar, você passa a ser o responsável por ele.`
+                      : "Este cliente não tem responsável: ao agendar, você passa a ser o responsável por ele."}
                   </span>
                 )}
                 {mostrar("resp") && <Erro id="erro-resp">{erros.resp!}</Erro>}

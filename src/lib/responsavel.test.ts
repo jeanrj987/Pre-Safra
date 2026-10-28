@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { TODAS_PERMISSOES } from "./permissoes";
-import { podeAgendarCliente, podeAlterarCliente, podeAssumirCliente } from "./responsavel";
+import {
+  assumeAoAgendar,
+  podeAgendarCliente,
+  podeAlterarCliente,
+  podeAssumirCliente,
+  responsavelAoAgendar,
+} from "./responsavel";
 
 const todas = [...TODAS_PERMISSOES];
 
@@ -65,6 +71,43 @@ describe("podeAgendarCliente", () => {
   });
   it("o admin agenda qualquer um", () => {
     expect(podeAgendarCliente({ permissoes: todas, nomeResponsavel: null }, null)).toBe(true);
+  });
+});
+
+describe("responsavelAoAgendar", () => {
+  const maria = { permissoes: [], nomeResponsavel: "Maria" };
+  const semLigacao = { permissoes: [], nomeResponsavel: null };
+
+  it("quem agenda assume o cliente sem responsável", () => {
+    expect(responsavelAoAgendar(maria, null)).toBe("Maria");
+    expect(responsavelAoAgendar(maria, "  ")).toBe("Maria");
+  });
+  it("quem agenda ou reagenda assume o cliente que era de outra pessoa", () => {
+    expect(responsavelAoAgendar(maria, "Samuel")).toBe("Maria");
+  });
+  it("sem nome ligado à conta, o responsável atual continua", () => {
+    expect(responsavelAoAgendar(semLigacao, "Samuel")).toBe("Samuel");
+    expect(responsavelAoAgendar(semLigacao, null)).toBeNull();
+  });
+  it("quem escolhe o responsável define o nome na janela: nada é assumido", () => {
+    expect(responsavelAoAgendar({ permissoes: todas, nomeResponsavel: "Maria" }, "Samuel")).toBeNull();
+  });
+});
+
+describe("assumeAoAgendar", () => {
+  const maria = { permissoes: [], nomeResponsavel: "Maria" };
+
+  it("avisa quando o cliente é de outra pessoa ou está sem responsável", () => {
+    expect(assumeAoAgendar(maria, "Samuel")).toBe(true);
+    expect(assumeAoAgendar(maria, null)).toBe(true);
+  });
+  it("não avisa quando o cliente já é do próprio usuário", () => {
+    expect(assumeAoAgendar(maria, "Maria")).toBe(false);
+    expect(assumeAoAgendar(maria, " maria ")).toBe(false);
+  });
+  it("não avisa para quem escolhe o responsável nem para quem não tem nome ligado", () => {
+    expect(assumeAoAgendar({ permissoes: todas, nomeResponsavel: "Maria" }, "Samuel")).toBe(false);
+    expect(assumeAoAgendar({ permissoes: [], nomeResponsavel: null }, "Samuel")).toBe(false);
   });
 });
 

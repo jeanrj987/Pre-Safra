@@ -1,5 +1,6 @@
 // Todos os usuários veem todos os clientes. O que cada um faz:
-// - agendar: qualquer cliente (ver podeAgendarCliente);
+// - agendar ou reagendar: qualquer cliente (ver podeAgendarCliente). Quem agenda passa a ser o responsável
+//   (ver responsavelAoAgendar), mesmo que o cliente fosse de outra pessoa;
 // - assumir um cliente que ainda não tem responsável: usuário com "nomeResponsavel" (podeAssumirCliente);
 // - remover o agendamento, finalizar, reabrir e editar o registro: quem tem a permissão "todosClientes" (o admin tem) e o
 //   usuário cujo "nomeResponsavel" é o responsável do cliente (podeAlterarCliente), porque isso mexe nos números do
@@ -39,6 +40,22 @@ export function podeAssumirCliente(usuario: UsuarioParaPermissao, responsavel: s
  */
 export function podeAgendarCliente(usuario: UsuarioParaPermissao, responsavel: string | null): boolean {
   return pode(usuario, "trocarResp") || !!responsavel?.trim() || !!usuario.nomeResponsavel;
+}
+
+/**
+ * Quem fica como responsável depois de o usuário agendar ou reagendar o cliente. Quem escolhe o
+ * responsável (permissão "trocarResp") define o nome na janela, então aqui devolve null. Os demais assumem
+ * o cliente ao agendar, mesmo que ele fosse de outra pessoa; sem nome ligado à conta, o responsável atual continua.
+ */
+export function responsavelAoAgendar(usuario: UsuarioParaPermissao, atual: string | null): string | null {
+  if (pode(usuario, "trocarResp")) return null;
+  return usuario.nomeResponsavel?.trim() || atual?.trim() || null;
+}
+
+/** Agendar vai trocar o responsável do cliente por este usuário? Usado pela janela para avisar antes de salvar. */
+export function assumeAoAgendar(usuario: UsuarioParaPermissao, atual: string | null): boolean {
+  const novo = responsavelAoAgendar(usuario, atual);
+  return !!novo && !(atual?.trim() && mesmoNome(novo, atual));
 }
 
 /**

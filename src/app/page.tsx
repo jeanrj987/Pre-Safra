@@ -13,7 +13,7 @@ import Agendar from "./Agendar";
 import LimparAgendamento from "./LimparAgendamento";
 import { exigirAcessoCompleto } from "@/lib/auth";
 import { pode } from "@/lib/permissoes";
-import { podeAgendarCliente, podeAlterarCliente, podeAssumirCliente } from "@/lib/responsavel";
+import { assumeAoAgendar, podeAgendarCliente, podeAlterarCliente } from "@/lib/responsavel";
 import Shell from "./Shell";
 import Selo from "./Selo";
 import Icone from "./Icone";
@@ -124,10 +124,10 @@ export default async function Home({ searchParams }: PageProps<"/">) {
   ].sort((a, b) => a.localeCompare(b, "pt-BR"));
   const minhasRegioes = regioesDoAtendente(usuario.nomeResponsavel, todas);
   // Todos veem e agendam qualquer cliente; finalizar e reabrir são do admin e do responsável do
-  // cliente, e quem não tem responsável pode ser assumido por quem tem conta ligada a um nome.
+  // cliente, e quem agenda ou reagenda (conta ligada a um nome) passa a ser o responsável.
   const podeAlterar = (l: { responsavel: string | null }) => podeAlterarCliente(usuario, l.responsavel);
   const podeAgendar = (l: { responsavel: string | null }) => podeAgendarCliente(usuario, l.responsavel);
-  const podeAssumir = (l: { responsavel: string | null }) => podeAssumirCliente(usuario, l.responsavel);
+  const assume = (l: { responsavel: string | null }) => assumeAoAgendar(usuario, l.responsavel);
 
   // Inativos não aparecem aqui: são inativados e reativados em Admin → Clientes.
   const bateStatus = (s: string) =>
@@ -668,8 +668,9 @@ export default async function Home({ searchParams }: PageProps<"/">) {
                               id={l.id}
                               nome={l.nome}
                               voltar={atual.toString()}
-                              responsavel={l.responsavel ?? (podeAssumir(l) ? (usuario.nomeResponsavel ?? "") : "")}
-                              assumeAoAgendar={podeAssumir(l)}
+                              responsavel={assume(l) ? (usuario.nomeResponsavel ?? "") : (l.responsavel ?? "")}
+                              assumeAoAgendar={assume(l)}
+                              responsavelAtual={l.responsavel ?? ""}
                               data={dataParaCampo(l.dataPrevista)}
                               horario={l.horario ?? ""}
                               previsao={
