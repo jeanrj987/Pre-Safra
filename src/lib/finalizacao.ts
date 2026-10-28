@@ -3,9 +3,6 @@
 // e o prefixo do campo do formulário (`<chave>_<id>`), então acrescentar um item novo é
 // acrescentar a coluna no schema e uma linha aqui.
 
-/** Versão do sistema do cliente que conta como "atualizado". Muda a cada release. */
-export const VERSAO_ATUAL_SISTEMA = "26.4.1.7";
-
 export const ITENS_FINALIZACAO = [
   {
     chave: "melhoriasApresentadas",
@@ -15,7 +12,7 @@ export const ITENS_FINALIZACAO = [
   {
     chave: "sistemaAtualizado",
     rotulo: "Sistema atualizado",
-    ajuda: `Marque se o cliente está na versão ${VERSAO_ATUAL_SISTEMA}.`,
+    ajuda: "Marque se o cliente está na versão safra.",
   },
   {
     chave: "safraFechada",
