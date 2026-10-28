@@ -7,7 +7,6 @@ import {
   escalaAgradavel,
   listarRegioes,
   metricas,
-  montarFila,
   nomeCurtoRegiao,
   pessoasDaDupla,
   situacao,
@@ -102,21 +101,6 @@ describe("metricas", () => {
     expect(m.metaPct).toBeGreaterThan(0);
     expect(m.metaPct).toBeLessThan(1);
     expect(PERIODO.prazo).toBeGreaterThan(HOJE);
-  });
-});
-
-describe("montarFila", () => {
-  it("ordena atrasados (maior atraso), depois vencem em 7 dias, depois sem data com responsável", () => {
-    const a = cliente({ nome: "A", data: dia(-2) });
-    const b = cliente({ nome: "B", data: dia(-9) });
-    const c = cliente({ nome: "C", data: dia(3) });
-    const d = cliente({ nome: "D" });
-    const e = cliente({ nome: "E", responsavel: "Marcos" });
-    const longe = cliente({ nome: "Longe", data: dia(30) });
-    const feito = cliente({ nome: "Feito", fin: dia(-1) });
-    const fila = montarFila([d, longe, c, feito, a, e, b], HOJE);
-    expect(fila.map((i) => i.c.nome)).toEqual(["B", "A", "C", "E", "D"]);
-    expect(fila.map((i) => i.motivo)).toEqual(["T", "T", "V", "S", "S"]);
   });
 });
 

@@ -128,36 +128,6 @@ export function metricas(set: ClientePainel[], hoje: number, periodo: PeriodoSaf
 export const projetar = (m: Metricas, hoje: number, dia: number) =>
   Math.min(m.n, m.feitos + (m.ritmo * (dia - hoje)) / SEMANA);
 
-// ---------- Fila de prioridade ----------
-export type Motivo = "T" | "V" | "S";
-
-export interface ItemFila {
-  c: ClientePainel;
-  motivo: Motivo;
-}
-
-/**
- * Atrasados (maior atraso primeiro), depois quem vence em até 7 dias (prazo mais
- * próximo primeiro) e, por fim, quem ainda não tem data (com responsável antes).
- */
-export function montarFila(set: ClientePainel[], hoje: number): ItemFila[] {
-  const itens: (ItemFila & { ord: number })[] = [];
-  for (const c of set) {
-    const s = situacao(c, hoje);
-    if (s === "T") itens.push({ c, motivo: "T", ord: (c.data as number) - hoje });
-    else if (s === "A" && (c.data as number) - hoje <= 6 * DIA)
-      itens.push({ c, motivo: "V", ord: (c.data as number) - hoje });
-    else if (s === "S") itens.push({ c, motivo: "S", ord: c.responsavel ? 0 : 1 });
-  }
-  const peso: Record<Motivo, number> = { T: 0, V: 1, S: 2 };
-  return itens.sort(
-    (a, b) =>
-      peso[a.motivo] - peso[b.motivo] ||
-      a.ord - b.ord ||
-      a.c.nome.localeCompare(b.c.nome, "pt-BR"),
-  );
-}
-
 // ---------- Agrupamentos ----------
 export type Dimensao = "responsavel" | "formato";
 

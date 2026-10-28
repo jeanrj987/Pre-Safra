@@ -59,8 +59,6 @@ export async function registrarTentativas(tentativas: Tentativa[]): Promise<void
   }
 }
 
-export const registrarTentativa = (tipo: string, chave: string) => registrarTentativas([{ tipo, chave }]);
-
 /** Quantas tentativas desse tipo/chave aconteceram nos últimos `janelaMs` milissegundos. */
 export async function contarTentativas(tipo: string, chave: string, janelaMs: number): Promise<number> {
   return prisma.tentativaAcesso.count({

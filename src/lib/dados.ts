@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { FUSO_NEGOCIO } from "./fuso";
 import { COMERCIAL_POR_REGIAO, REGIOES_DE_PARCEIROS, equipesPorRegiao, type GrupoEquipe } from "./equipe";
 import { prisma } from "@/lib/db";
@@ -149,6 +150,38 @@ function coletarNomes(
   return semRepetir(nomes).sort((a, b) => a.localeCompare(b, "pt-BR"));
 }
 
+type ValoresCliente = {
+  cidade: string | null;
+  regiao: string | null;
+  atendente: string | null;
+  consultor: string | null;
+  comercial: string | null;
+};
+
+// As listas de sugestão (cidades, regiões, duplas, consultores, comerciais, responsáveis e equipes)
+// saem todas dos mesmos campos de Cliente. cache() faz uma única leitura por request, em vez de uma
+// consulta por lista a cada abertura de página.
+const carregarValoresClientes = cache(
+  (): Promise<ValoresCliente[]> =>
+    prisma.cliente.findMany({
+      select: { cidade: true, regiao: true, atendente: true, consultor: true, comercial: true },
+    }),
+);
+
+/** Valores preenchidos de um campo, mais os fixos, sem repetição e em ordem alfabética. */
+function distintosOrdenados(
+  clientes: ValoresCliente[],
+  campo: keyof ValoresCliente,
+  fixos: readonly string[] = [],
+): string[] {
+  const valores = new Set<string>(fixos);
+  for (const c of clientes) {
+    const v = c[campo];
+    if (v !== null) valores.add(v);
+  }
+  return [...valores].sort((a, b) => a.localeCompare(b, "pt-BR"));
+}
+
 /** Todos os nomes que podem ser responsáveis: atendentes das regiões e quem já foi escolhido. */
 export function nomesPossiveis(linhas: Linha[]): string[] {
   return coletarNomes(
@@ -162,34 +195,20 @@ export function nomesPossiveis(linhas: Linha[]): string[] {
  * já foi escolhido.
  */
 export async function listarNomesResponsaveis(): Promise<string[]> {
-  const [duplas, escolhidos, consultores, comerciais] = await Promise.all([
-    prisma.cliente.findMany({
-      where: { atendente: { not: null } },
-      distinct: ["atendente"],
-      select: { atendente: true },
-    }),
+  const [clientes, escolhidos] = await Promise.all([
+    carregarValoresClientes(),
     prisma.preSafra.findMany({
       where: { responsavel: { not: null } },
       distinct: ["responsavel"],
       select: { responsavel: true },
     }),
-    prisma.cliente.findMany({
-      where: { consultor: { not: null } },
-      distinct: ["consultor"],
-      select: { consultor: true },
-    }),
-    prisma.cliente.findMany({
-      where: { comercial: { not: null } },
-      distinct: ["comercial"],
-      select: { comercial: true },
-    }),
   ]);
   return coletarNomes(
-    duplas.map((d) => d.atendente),
+    clientes.map((c) => c.atendente),
     escolhidos.map((e) => e.responsavel),
     [
-      ...consultores.map((c) => c.consultor),
-      ...comerciais.map((c) => c.comercial),
+      ...clientes.map((c) => c.consultor),
+      ...clientes.map((c) => c.comercial),
       ...Object.values(COMERCIAL_POR_REGIAO),
     ],
   );
@@ -197,12 +216,11 @@ export async function listarNomesResponsaveis(): Promise<string[]> {
 
 /** A equipe de cada região (atendentes, consultor, comercial), para escolher o responsável. */
 export async function listarEquipesPorRegiao(): Promise<GrupoEquipe[]> {
-  const clientes = await prisma.cliente.findMany({
-    where: { regiao: { not: null } },
-    select: { regiao: true, atendente: true, consultor: true, comercial: true },
-  });
+  const clientes = await carregarValoresClientes();
   return equipesPorRegiao(
-    clientes.map((c) => ({ regiao: c.regiao, atendentes: c.atendente, consultor: c.consultor, comercial: c.comercial })),
+    clientes
+      .filter((c) => c.regiao !== null)
+      .map((c) => ({ regiao: c.regiao, atendentes: c.atendente, consultor: c.consultor, comercial: c.comercial })),
   );
 }
 
@@ -211,13 +229,7 @@ const CIDADES_FIXAS = ["Cujubim", "Maracaju"];
 
 /** Cidades já usadas em algum cliente, mais as fixas, para sugerir no cadastro em vez de digitar do zero. */
 export async function listarCidadesConhecidas(): Promise<string[]> {
-  const linhas = await prisma.cliente.findMany({
-    where: { cidade: { not: null } },
-    distinct: ["cidade"],
-    select: { cidade: true },
-  });
-  return [...new Set([...linhas.map((l) => l.cidade as string), ...CIDADES_FIXAS])]
-    .sort((a, b) => a.localeCompare(b, "pt-BR"));
+  return distintosOrdenados(await carregarValoresClientes(), "cidade", CIDADES_FIXAS);
 }
 
 /** As 27 UFs do Brasil, para o campo ser um select fechado em vez de sugestão por uso. */
@@ -228,49 +240,22 @@ export const UFS_BRASIL = [
 
 /** Regiões já usadas em algum cliente, mais as dos parceiros, para sugerir no cadastro em vez de exigir digitar do zero. */
 export async function listarRegioesConhecidas(): Promise<string[]> {
-  const linhas = await prisma.cliente.findMany({
-    where: { regiao: { not: null } },
-    distinct: ["regiao"],
-    select: { regiao: true },
-  });
-  return [...new Set([...linhas.map((l) => l.regiao as string), ...REGIOES_DE_PARCEIROS])].sort((a, b) =>
-    a.localeCompare(b, "pt-BR"),
-  );
+  return distintosOrdenados(await carregarValoresClientes(), "regiao", REGIOES_DE_PARCEIROS);
 }
 
 /** Duplas de atendentes já cadastradas (ex.: "Maria e Jean"), para sugerir no cadastro. */
 export async function listarDuplasConhecidas(): Promise<string[]> {
-  const linhas = await prisma.cliente.findMany({
-    where: { atendente: { not: null } },
-    distinct: ["atendente"],
-    select: { atendente: true },
-  });
-  return linhas
-    .map((l) => l.atendente as string)
-    .sort((a, b) => a.localeCompare(b, "pt-BR"));
+  return distintosOrdenados(await carregarValoresClientes(), "atendente");
 }
 
 /** Consultores já cadastrados, para sugerir também no campo de Atendimento. */
 export async function listarConsultoresConhecidos(): Promise<string[]> {
-  const linhas = await prisma.cliente.findMany({
-    where: { consultor: { not: null } },
-    distinct: ["consultor"],
-    select: { consultor: true },
-  });
-  return linhas
-    .map((l) => l.consultor as string)
-    .sort((a, b) => a.localeCompare(b, "pt-BR"));
+  return distintosOrdenados(await carregarValoresClientes(), "consultor");
 }
 
 /** Comerciais já usados em algum cliente, mais os fixos das regiões, para escolher no cadastro. */
 export async function listarComerciaisConhecidos(): Promise<string[]> {
-  const linhas = await prisma.cliente.findMany({
-    where: { comercial: { not: null } },
-    distinct: ["comercial"],
-    select: { comercial: true },
-  });
-  const nomes = new Set([...linhas.map((l) => l.comercial as string), ...Object.values(COMERCIAL_POR_REGIAO)]);
-  return [...nomes].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  return distintosOrdenados(await carregarValoresClientes(), "comercial", Object.values(COMERCIAL_POR_REGIAO));
 }
 
 export function contar(linhas: Linha[]) {

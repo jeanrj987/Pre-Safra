@@ -11,7 +11,6 @@ import {
   limparTentativasAntigas,
   limparTentativasLogin,
   registrarSeDentroDoLimite,
-  registrarTentativa,
   registrarTentativaLogin,
   registrarTentativas,
   RETENCAO_MS,
@@ -63,7 +62,7 @@ describe("chave guardada como HMAC-SHA256 com AUTH_SECRET", () => {
   it("sem AUTH_SECRET falha de forma clara e não toca o banco", async () => {
     vi.stubEnv("AUTH_SECRET", "");
     await expect(contarTentativas("login", "a@b.com", 1000)).rejects.toThrow("AUTH_SECRET não configurado");
-    await expect(registrarTentativa("login", "a@b.com")).rejects.toThrow("AUTH_SECRET não configurado");
+    await expect(registrarTentativas([{ tipo: "login", chave: "a@b.com" }])).rejects.toThrow("AUTH_SECRET não configurado");
     await expect(limparTentativas("login", "a@b.com")).rejects.toThrow("AUTH_SECRET não configurado");
     expect(banco.count).not.toHaveBeenCalled();
     expect(banco.createMany).not.toHaveBeenCalled();
@@ -80,7 +79,7 @@ describe("registrarTentativas", () => {
   it("às vezes limpa só as linhas vencidas (mais velhas que a retenção)", async () => {
     vi.spyOn(Math, "random").mockReturnValue(0);
     const antes = Date.now();
-    await registrarTentativa("login", "a@b.com");
+    await registrarTentativas([{ tipo: "login", chave: "a@b.com" }]);
     const { where } = banco.deleteMany.mock.calls[0][0];
     const corte = where.criadoEm.lt.getTime();
     expect(corte).toBeLessThanOrEqual(antes - RETENCAO_MS + 1000);
@@ -91,7 +90,7 @@ describe("registrarTentativas", () => {
     vi.spyOn(Math, "random").mockReturnValue(0);
     vi.spyOn(console, "error").mockImplementation(() => {});
     banco.deleteMany.mockRejectedValue(new Error("x"));
-    await expect(registrarTentativa("login", "a@b.com")).resolves.toBeUndefined();
+    await expect(registrarTentativas([{ tipo: "login", chave: "a@b.com" }])).resolves.toBeUndefined();
   });
 });
 

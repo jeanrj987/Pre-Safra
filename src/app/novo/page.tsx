@@ -14,7 +14,6 @@ import { pode } from "@/lib/permissoes";
 import { prisma } from "@/lib/db";
 import { nomeMaiusculo } from "@/lib/texto";
 import { obterSafraSelecionada } from "@/lib/safra";
-import { ErroPlanilhaInvalida, importarClientesDaPlanilha } from "@/lib/importarPlanilha";
 import {
   listarCidadesConhecidas,
   listarComerciaisConhecidos,
@@ -129,6 +128,8 @@ export default async function Novo({
     if (!(arquivo instanceof File) || arquivo.size === 0 || !safra) {
       redirect("/novo?erroImportacao=1");
     }
+    // Carregado só aqui: o exceljs é pesado e a página não precisa dele para abrir.
+    const { ErroPlanilhaInvalida, importarClientesDaPlanilha } = await import("@/lib/importarPlanilha");
     let resultado;
     try {
       resultado = await importarClientesDaPlanilha(await arquivo.arrayBuffer(), safra.id);
