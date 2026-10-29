@@ -17,10 +17,8 @@ import { formatarWhatsapp, linkWhatsapp } from "@/lib/whatsapp";
 import {
   ehTipoSugestao,
   META_FAQ,
-  rankingPorPessoa,
   rotuloDoTipo,
   SEGUNDOS_PAGINA_TELAO,
-  type PosicaoRanking,
   VAGAS_NO_TELAO,
 } from "@/lib/sugestoes";
 import { plural } from "@/lib/texto";
@@ -64,7 +62,7 @@ export default async function AdminSugestoes({
     exigirPermissao("sugestoes"),
     searchParams,
     prisma.sugestao.findMany({
-      select: { id: true, tipo: true, nome: true, whatsapp: true },
+      select: { id: true, tipo: true },
       orderBy: { id: "desc" },
     }),
     lerSegundosPaginaTelao(),
@@ -215,14 +213,6 @@ export default async function AdminSugestoes({
           );
         })}
       </nav>
-
-      <div className="grid gap-4 border-b border-line px-4 py-4 sm:px-5 md:grid-cols-2">
-        <Ranking titulo="Ranking do FAQ" posicoes={rankingPorPessoa(existentes, "faq")} />
-        <Ranking
-          titulo="Ranking de melhorias da ferramenta"
-          posicoes={rankingPorPessoa(existentes, "melhoria")}
-        />
-      </div>
 
       <div className="border-b border-line px-4 py-3 sm:px-5">
         <form action={alternarTelao} className="mb-4 flex flex-wrap items-center gap-3">
@@ -429,32 +419,6 @@ export default async function AdminSugestoes({
         mostrar={alterarOcultaLote.bind(null, false)}
         excluir={excluirLote}
       />
-    </section>
-  );
-}
-
-function Ranking({ titulo, posicoes }: { titulo: string; posicoes: PosicaoRanking[] }) {
-  return (
-    <section aria-label={titulo} className="rounded-xl border border-line">
-      <h3 className="border-b border-line px-3.5 py-2.5 text-sm font-semibold">{titulo}</h3>
-      {posicoes.length === 0 ? (
-        <p className="px-3.5 py-3 text-sm text-muted">Ninguém enviou ainda.</p>
-      ) : (
-        <ol className="divide-y divide-line">
-          {posicoes.map((p, i) => (
-            <li key={p.whatsapp} className="flex items-center gap-3 px-3.5 py-2 text-sm">
-              <span className="num w-6 shrink-0 text-right font-semibold text-muted">{i + 1}º</span>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate font-medium text-ink">{p.nome}</span>
-                <span className="num block text-xs text-muted">{formatarWhatsapp(p.whatsapp)}</span>
-              </span>
-              <span className="num shrink-0 font-semibold text-ink">
-                {plural(p.quantas, "sugestão", "sugestões")}
-              </span>
-            </li>
-          ))}
-        </ol>
-      )}
     </section>
   );
 }
