@@ -31,6 +31,7 @@ export default function SecaoLista({
   const [erroRemocao, setErroRemocao] = useState<string | null>(null);
   const idCampo = `nova-${tipo}`;
   const idAjuda = `ajuda-${tipo}`;
+  const idTitulo = `titulo-${tipo}`;
 
   const fecharRemocao = () => {
     setARemover(null);
@@ -38,9 +39,16 @@ export default function SecaoLista({
   };
 
   return (
-    <section className="card">
-      <div className="border-b border-line px-4 py-3.5 sm:px-5">
-        <h2 className="text-base font-semibold">{titulo}</h2>
+    <section className="card flex flex-col" aria-labelledby={idTitulo}>
+      <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-3.5 sm:px-5">
+        <h2 id={idTitulo} className="text-base font-semibold">
+          {titulo}
+        </h2>
+        {/* Contador de opções cadastradas; o texto para leitores de tela diz o que o número significa */}
+        <span className="rounded-full bg-subtle px-2.5 py-0.5 text-xs font-semibold text-muted">
+          {opcoes.length}
+          <span className="sr-only">{opcoes.length === 1 ? " opção cadastrada" : " opções cadastradas"}</span>
+        </span>
       </div>
 
       <form
@@ -59,7 +67,7 @@ export default function SecaoLista({
         <label htmlFor={idCampo} className="rotulo">
           Nova opção
         </label>
-        <div className="flex gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row">
           <input
             id={idCampo}
             name="nome"
@@ -72,12 +80,12 @@ export default function SecaoLista({
             onChange={() => erro && setErro(null)}
             className="campo min-w-0 flex-1"
           />
-          <BotaoEnviar pendente="Adicionando…" className="btn-primario shrink-0">
+          <BotaoEnviar pendente="Adicionando…" className="btn-primario shrink-0 sm:w-auto">
             <Icone nome="mais" />
             Adicionar
           </BotaoEnviar>
         </div>
-        <p id={idAjuda} className="ajuda">
+        <p id={idAjuda} className="ajuda leading-relaxed">
           {ajuda}
         </p>
         {erro && (
@@ -92,11 +100,12 @@ export default function SecaoLista({
       </form>
 
       {opcoes.length === 0 ? (
-        <p className="px-4 py-5 text-sm text-muted sm:px-5">Nenhuma opção cadastrada aqui ainda.</p>
+        <p className="flex flex-1 items-center px-4 py-6 text-sm text-muted sm:px-5">Nenhuma opção cadastrada ainda.</p>
       ) : (
-        <ul className="divide-y divide-line">
+        // Lista longa rola dentro do cartão, para os cartões da mesma linha não ficarem gigantes
+        <ul className="max-h-80 flex-1 divide-y divide-line overflow-y-auto">
           {opcoes.map((o) => (
-            <li key={o.id} className="flex items-center justify-between gap-3 px-4 py-2.5 sm:px-5">
+            <li key={o.id} className="flex items-center justify-between gap-3 px-4 py-1.5 transition hover:bg-subtle sm:px-5">
               <span className="min-w-0 break-words text-sm font-medium text-ink">{o.nome}</span>
               <BotaoAcao
                 type="button"

@@ -51,8 +51,14 @@ export default function EditarCliente({
 
   return (
     <>
-      <button type="button" onClick={() => setAberto(true)} className="btn-discreto btn-sm">
-        Editar
+      <button
+        type="button"
+        onClick={() => setAberto(true)}
+        title={`Editar ${cliente.nome}`}
+        aria-label={`Editar ${cliente.nome}`}
+        className="inline-flex size-8 cursor-pointer items-center justify-center rounded-lg text-muted transition hover:bg-subtle hover:text-ink"
+      >
+        <Icone nome="lapis" />
       </button>
       {aberto && (
         <Janela

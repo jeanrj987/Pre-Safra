@@ -15,12 +15,12 @@ export default async function AdminListas() {
 
   return (
     <div className="space-y-5">
-      <p className="text-sm text-muted">
+      <p className="max-w-3xl text-sm leading-relaxed text-muted">
         Cadastre aqui as regiões, os consultores, os responsáveis, os atendimentos (um atendente ou uma dupla) e os comerciais
         que ainda não têm nenhum cliente, para eles já aparecerem nas listas de escolha do cadastro de
         clientes e de usuários.
       </p>
-      <div className="grid items-start gap-5 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5">
+      <div className="grid gap-5 md:grid-cols-2 2xl:grid-cols-3">
         {TIPOS_OPCAO.map((tipo) => (
           <SecaoLista
             key={tipo}

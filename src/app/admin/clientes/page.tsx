@@ -135,7 +135,7 @@ export default async function AdminClientes({
 
   // Cabeçalho com o botão de filtro ao lado do rótulo, sem quebrar a linha.
   const cabecalho = (coluna: ColunaFiltro, rotulo: string) => (
-    <div className="-my-1 flex items-center gap-1 whitespace-nowrap">
+    <div className="-my-1 flex flex-wrap items-center gap-x-1">
       {rotulo}
       <FiltroColuna
         coluna={coluna}
@@ -242,33 +242,34 @@ export default async function AdminClientes({
           Nenhum cliente encontrado.{comFiltroDeColuna && " Remova ou ajuste os filtros de coluna acima."}
         </p>
       ) : (
-        <div className="@container overflow-x-auto">
-          <table className="w-full text-left text-sm">
+        <div className="@container">
+          {/* Sem overflow-x: table-fixed + larguras por coluna fazem a tabela caber no cartão; o texto das células quebra de linha. */}
+          <table className="w-full table-fixed text-left text-sm">
             <thead>
               <tr className="border-b border-line bg-subtle/70 text-[11px] font-semibold uppercase tracking-wider text-muted">
                 <th scope="col" className="px-4 py-2.5 sm:px-5">{cabecalho("nome", "Nome")}</th>
-                <th scope="col" className="hidden px-3 py-2.5 @min-[1100px]:table-cell">
+                <th scope="col" className="hidden w-[10%] px-2 py-2.5 @min-[1100px]:table-cell">
                   {cabecalho("cidade", "Cidade")}
                 </th>
-                <th scope="col" className="hidden px-3 py-2.5 @min-[1100px]:table-cell">
+                <th scope="col" className="hidden w-[4.5rem] px-2 py-2.5 @min-[1100px]:table-cell">
                   {cabecalho("uf", "UF")}
                 </th>
-                <th scope="col" className="hidden px-3 py-2.5 @min-[1100px]:table-cell">
+                <th scope="col" className="hidden w-[10%] px-2 py-2.5 @min-[1100px]:table-cell">
                   {cabecalho("regiao", "Região")}
                 </th>
-                <th scope="col" className="hidden px-3 py-2.5 @min-[1100px]:table-cell">
+                <th scope="col" className="hidden w-[12%] px-2 py-2.5 @min-[1100px]:table-cell">
                   {cabecalho("atendimento", "Atendimento")}
                 </th>
-                <th scope="col" className="hidden px-3 py-2.5 @min-[1100px]:table-cell">
+                <th scope="col" className="hidden w-[11%] px-2 py-2.5 @min-[1100px]:table-cell">
                   {cabecalho("consultor", "Consultor")}
                 </th>
-                <th scope="col" className="hidden px-3 py-2.5 @min-[1100px]:table-cell">
+                <th scope="col" className="hidden w-[11%] px-2 py-2.5 @min-[1100px]:table-cell">
                   {cabecalho("comercial", "Comercial")}
                 </th>
-                <th scope="col" className="hidden px-3 py-2.5 @2xl:table-cell">
+                <th scope="col" className="hidden px-2 py-2.5 @min-[1100px]:w-[11%] @2xl:table-cell">
                   {cabecalho("situacao", `Situação${safra ? ` · ${safra.nome}` : ""}`)}
                 </th>
-                <th scope="col" className="py-2.5 pl-3 pr-4 text-right sm:pr-5">
+                <th scope="col" className="w-[8.5rem] py-2.5 pl-2 pr-3 text-right sm:pr-4">
                   <span className="sr-only">Ações</span>
                 </th>
               </tr>
@@ -282,7 +283,7 @@ export default async function AdminClientes({
                   <div title={ps.motivoInativacao ?? undefined}>
                     <Selo status="Inativo" />
                     {ps.motivoInativacao && (
-                      <div className="mt-1 line-clamp-1 max-w-48 text-xs text-muted">
+                      <div className="mt-1 line-clamp-2 break-words text-xs text-muted">
                         {ps.motivoInativacao}
                       </div>
                     )}
@@ -292,7 +293,7 @@ export default async function AdminClientes({
                 );
                 return (
                 <tr key={c.id}>
-                  <td className="px-4 py-3 align-top font-medium text-ink sm:px-5">
+                  <td className="break-words px-4 py-3 align-top font-medium text-ink sm:px-5">
                     {c.nome}
                     {/* Sem espaço para as colunas, os dados do cadastro viram linhas sob o nome */}
                     <div className="mt-1 space-y-0.5 text-xs font-normal text-muted @min-[1100px]:hidden">
@@ -313,20 +314,20 @@ export default async function AdminClientes({
                     </div>
                     <div className="mt-1.5 text-sm font-normal @2xl:hidden">{situacao}</div>
                   </td>
-                  <td className="hidden px-3 py-3 text-muted @min-[1100px]:table-cell">{c.cidade || "—"}</td>
-                  <td className="hidden px-3 py-3 text-muted @min-[1100px]:table-cell">{c.uf || "—"}</td>
-                  <td className="hidden px-3 py-3 @min-[1100px]:table-cell">
+                  <td className="hidden break-words px-2 py-3 align-top text-muted @min-[1100px]:table-cell">{c.cidade || "—"}</td>
+                  <td className="hidden break-words px-2 py-3 align-top text-muted @min-[1100px]:table-cell">{c.uf || "—"}</td>
+                  <td className="hidden break-words px-2 py-3 align-top @min-[1100px]:table-cell">
                     {c.regiao ? (
                       c.regiao
                     ) : (
                       <span className="font-medium text-atrasado-fg">Sem região</span>
                     )}
                   </td>
-                  <td className="hidden px-3 py-3 text-muted @min-[1100px]:table-cell">{c.atendente || "—"}</td>
-                  <td className="hidden px-3 py-3 text-muted @min-[1100px]:table-cell">{c.consultor || "—"}</td>
-                  <td className="hidden px-3 py-3 text-muted @min-[1100px]:table-cell">{c.comercial || "—"}</td>
-                  <td className="hidden px-3 py-3 @2xl:table-cell">{situacao}</td>
-                  <td className="py-2.5 pl-3 pr-4 text-right align-top sm:pr-5">
+                  <td className="hidden break-words px-2 py-3 align-top text-muted @min-[1100px]:table-cell">{c.atendente || "—"}</td>
+                  <td className="hidden break-words px-2 py-3 align-top text-muted @min-[1100px]:table-cell">{c.consultor || "—"}</td>
+                  <td className="hidden break-words px-2 py-3 align-top text-muted @min-[1100px]:table-cell">{c.comercial || "—"}</td>
+                  <td className="hidden break-words px-2 py-3 align-top @2xl:table-cell">{situacao}</td>
+                  <td className="py-2.5 pl-2 pr-3 text-right align-top sm:pr-4">
                     <div className="flex items-center justify-end gap-1.5">
                       {ps ? (
                         <InativarCliente

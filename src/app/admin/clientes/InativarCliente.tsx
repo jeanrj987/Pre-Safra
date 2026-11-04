@@ -26,6 +26,7 @@ export default function InativarCliente({
           icone="reabrir"
           tom="neutro"
           rotulo="Reativar"
+          soIcone
           title={`Reativar ${nome}`}
         />
       </form>
@@ -39,6 +40,7 @@ export default function InativarCliente({
         icone="bloquear"
         tom="perigo"
         rotulo="Inativar"
+        soIcone
         title={`Inativar ${nome}`}
         onClick={() => setAberto(true)}
       />
