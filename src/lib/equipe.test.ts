@@ -33,6 +33,17 @@ describe("equipe da região", () => {
     ]);
     expect(equipeDoCliente({ atendentes: null, consultor: null, regiao: null })).toEqual([]);
   });
+  it("funciona com um atendente só, sem dupla", () => {
+    const solo = { atendentes: "Maria", consultor: "André", regiao: "Oeste MT a RO/AC" };
+    expect(equipeDoCliente(solo)).toEqual([
+      { nome: "Maria", papel: "Atendente", safra: true },
+      { nome: "André", papel: "Consultor" },
+      { nome: "Pablo", papel: "Comercial" },
+    ]);
+    expect([...regioesDoAtendente("maria", [solo])]).toEqual(["Oeste MT a RO/AC"]);
+    expect(bateFiltroResponsavel({ atendentes: "Maria", responsavel: null }, ["Maria"])).toBe(true);
+    expect(bateFiltroResponsavel({ atendentes: "Maria", responsavel: null }, ["Jean"])).toBe(false);
+  });
   it("marca o responsável da Pré-Safra de cada dupla, só entre os atendentes", () => {
     const safra = (c: Parameters<typeof equipeDoCliente>[0]) =>
       equipeDoCliente(c).filter((p) => p.safra).map((p) => p.nome);

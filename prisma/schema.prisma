@@ -215,7 +215,7 @@ enum Formato {
 }
 
 // Opções cadastradas pela administração (tela Administração > Listas) para as listas de escolha:
-// tipo é "regiao", "consultor" ou "responsavel" (ver src/lib/opcoesLista.ts). Somam-se às que já
+// tipo é "regiao", "consultor", "responsavel", "atendimento" ou "comercial" (ver src/lib/opcoesLista.ts). Somam-se às que já
 // saem dos clientes; remover uma opção daqui não altera nenhum cliente.
 model OpcaoLista {
   id       Int      @id @default(autoincrement())

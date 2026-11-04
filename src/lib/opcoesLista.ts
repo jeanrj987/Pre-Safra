@@ -1,9 +1,10 @@
+import { pessoasDaDupla } from "./painel";
 import { contemNome, normalizar, semRepetir } from "./texto";
 
 // Opções das listas de escolha que a administração cadastra sozinha (tela Administração > Listas),
 // sem depender de já existir um cliente com aquele valor.
 
-export const TIPOS_OPCAO = ["regiao", "consultor", "responsavel"] as const;
+export const TIPOS_OPCAO = ["regiao", "consultor", "responsavel", "atendimento", "comercial"] as const;
 export type TipoOpcao = (typeof TIPOS_OPCAO)[number];
 
 export const ehTipoOpcao = (valor: unknown): valor is TipoOpcao =>
@@ -38,6 +39,22 @@ export const TEXTOS_OPCAO: Record<
     exemplo: "Ex.: Maria",
     ajuda: "Escreva o nome como ele deve aparecer nas listas e na ligação com o usuário.",
   },
+  atendimento: {
+    titulo: "Atendimento",
+    singular: "atendente ou dupla de atendimento",
+    semNome: "Digite o nome do atendente ou os nomes da dupla de atendimento.",
+    repetida: "Já existe um atendimento com esse nome ou com esses nomes.",
+    exemplo: "Ex.: Maria ou Maria e Jean",
+    ajuda: "Escreva o nome de um atendente ou de uma dupla, com os dois nomes separados por \"e\". Ex.: Maria ou Maria e Jean.",
+  },
+  comercial: {
+    titulo: "Comercial",
+    singular: "comercial",
+    semNome: "Digite o nome do comercial.",
+    repetida: "Já existe um comercial com esse nome.",
+    exemplo: "Ex.: Sidinei",
+    ajuda: "Escreva o nome da pessoa do comercial como ele deve aparecer nas listas.",
+  },
 };
 
 /** Tamanho máximo do nome de uma opção (as regiões mais longas passam pouco de 30 caracteres). */
@@ -64,6 +81,16 @@ export function validarNomeOpcao(
   }
   // Quebras de linha e tabulações já viraram espaço acima; sobram só os demais caracteres de controle.
   if (/\p{Cc}/u.test(nome)) return { erro: "O nome tem caracteres que não podem ser usados." };
+  // Atendimento: um atendente ou uma dupla (duas pessoas separadas por " e ", a mesma regra de
+  // pessoasDaDupla). Partes vazias ("Maria e", "e Jean") e três ou mais pessoas não servem.
+  if (tipo === "atendimento") {
+    const pessoas = pessoasDaDupla(nome);
+    // Um "e" sobrando na ponta de um nome ("Maria e", "e Jean") é uma parte vazia.
+    const parteVazia = pessoas.some((p) => /^e(\s|$)|(^|\s)e$/i.test(p));
+    if (pessoas.length < 1 || pessoas.length > 2 || parteVazia) {
+      return { erro: 'Escreva um nome ou dois nomes separados por "e". Ex.: Maria ou Maria e Jean.' };
+    }
+  }
   if (contemNome([...cadastradas], nome)) return { erro: textos.repetida };
   return { nome };
 }

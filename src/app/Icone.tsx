@@ -153,6 +153,7 @@ const CAMINHOS = {
       <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
     </>
   ),
+  funil: <path d="M22 3H2l8 9.46V19l4 2v-8.54z" />,
   linkExterno: <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14 21 3" />,
 } as const;
 

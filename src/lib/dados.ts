@@ -204,10 +204,11 @@ export function nomesPossiveis(linhas: Linha[]): string[] {
 
 /**
  * Nomes para escolher como responsável: atendentes das regiões, consultores, comerciais, quem
- * já foi escolhido e os responsáveis cadastrados em Administração > Listas.
+ * já foi escolhido e o que foi cadastrado em Administração > Listas (responsáveis, comerciais e as
+ * pessoas das duplas de atendimento).
  */
 export async function listarNomesResponsaveis(): Promise<string[]> {
-  const [clientes, escolhidos, cadastrados] = await Promise.all([
+  const [clientes, escolhidos, cadastrados, duplasCadastradas, comerciaisCadastrados] = await Promise.all([
     carregarValoresClientes(),
     prisma.preSafra.findMany({
       where: { responsavel: { not: null } },
@@ -215,15 +216,18 @@ export async function listarNomesResponsaveis(): Promise<string[]> {
       select: { responsavel: true },
     }),
     opcoesCadastradas("responsavel"),
+    opcoesCadastradas("atendimento"),
+    opcoesCadastradas("comercial"),
   ]);
   return coletarNomes(
-    clientes.map((c) => c.atendente),
+    [...clientes.map((c) => c.atendente), ...duplasCadastradas],
     escolhidos.map((e) => e.responsavel),
     [
       ...clientes.map((c) => c.consultor),
       ...clientes.map((c) => c.comercial),
       ...Object.values(COMERCIAL_POR_REGIAO),
       ...cadastrados,
+      ...comerciaisCadastrados,
     ],
   );
 }
@@ -258,9 +262,10 @@ export async function listarRegioesConhecidas(): Promise<string[]> {
   return distintosOrdenados(clientes, "regiao", [...REGIOES_DE_PARCEIROS, ...cadastradas]);
 }
 
-/** Duplas de atendentes já cadastradas (ex.: "Maria e Jean"), para sugerir no cadastro. */
+/** Duplas de atendentes já usadas em algum cliente (ex.: "Maria e Jean"), mais as cadastradas em Administração > Listas. */
 export async function listarDuplasConhecidas(): Promise<string[]> {
-  return distintosOrdenados(await carregarValoresClientes(), "atendente");
+  const [clientes, cadastradas] = await Promise.all([carregarValoresClientes(), opcoesCadastradas("atendimento")]);
+  return distintosOrdenados(clientes, "atendente", cadastradas);
 }
 
 /** Consultores já usados em algum cliente, mais os cadastrados em Administração > Listas. */
@@ -269,9 +274,10 @@ export async function listarConsultoresConhecidos(): Promise<string[]> {
   return distintosOrdenados(clientes, "consultor", cadastrados);
 }
 
-/** Comerciais já usados em algum cliente, mais os fixos das regiões, para escolher no cadastro. */
+/** Comerciais já usados em algum cliente, mais os fixos das regiões e os cadastrados em Administração > Listas. */
 export async function listarComerciaisConhecidos(): Promise<string[]> {
-  return distintosOrdenados(await carregarValoresClientes(), "comercial", Object.values(COMERCIAL_POR_REGIAO));
+  const [clientes, cadastrados] = await Promise.all([carregarValoresClientes(), opcoesCadastradas("comercial")]);
+  return distintosOrdenados(clientes, "comercial", [...Object.values(COMERCIAL_POR_REGIAO), ...cadastrados]);
 }
 
 export function contar(linhas: Linha[]) {

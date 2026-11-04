@@ -19,6 +19,22 @@ import InativarCliente from "./InativarCliente";
 import BotaoExcluir from "@/app/BotaoExcluir";
 import { excluirClienteDaSafra, inativarCliente, reativarCliente, salvarCadastro } from "./acoes";
 import { obterSafraSelecionada } from "@/lib/safra";
+import {
+  aplicarFiltros,
+  colunasFiltradas,
+  COLUNAS_FILTRO,
+  lerFiltros,
+  opcoesDaColuna,
+  paresDosFiltros,
+  resumoDoFiltro,
+  ROTULO_COLUNA,
+  situacaoDoCliente,
+  temFiltroDeColuna,
+  type ColunaFiltro,
+  type FiltrosColuna,
+  type OpcaoFiltro,
+} from "@/lib/filtroClientes";
+import FiltroColuna from "./FiltroColuna";
 
 export const metadata = { title: "Clientes" };
 
@@ -27,7 +43,9 @@ const TAMANHO_PAGINA = 50;
 export default async function AdminClientes({
   searchParams,
 }: {
-  searchParams: Promise<{ semRegiao?: string; inativos?: string; q?: string; pagina?: string }>;
+  // Além de q, semRegiao, inativos e pagina, vêm os filtros de coluna (um parâmetro repetido por
+  // valor; ver src/lib/filtroClientes.ts), por isso o tipo aberto.
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   // Login (já checado também no layout do admin) e dados em paralelo, para não somar
   // round-trips ao banco a cada troca de aba.
@@ -62,7 +80,8 @@ export default async function AdminClientes({
   const preSafraDe = new Map(preSafras.map((p) => [p.clienteId, p]));
   const soSemRegiao = sp.semRegiao === "1";
   const soInativos = sp.inativos === "1";
-  const q = (sp.q ?? "").trim();
+  const q = (typeof sp.q === "string" ? sp.q : "").trim();
+  const filtros = lerFiltros(sp);
   const listas = {
     cidades: cidadesConhecidas,
     ufs: UFS_BRASIL,
@@ -74,12 +93,21 @@ export default async function AdminClientes({
 
   const semRegiaoTotal = clientes.filter((c) => !c.regiao).length;
   const inativosTotal = preSafras.filter((p) => p.inativo).length;
-  const filtrados = clientes.filter(
-    (c) =>
-      (!soSemRegiao || !c.regiao) &&
-      (!soInativos || preSafraDe.get(c.id)?.inativo) &&
-      (!q || normalizar(c.nome).includes(normalizar(q))),
-  );
+  // Clientes depois da busca por nome, de "Somente sem região" e de "Somente inativos". É a base
+  // das listas de valores dos filtros de coluna, que ainda descontam os filtros das OUTRAS colunas.
+  const base = clientes
+    .filter(
+      (c) =>
+        (!soSemRegiao || !c.regiao) &&
+        (!soInativos || preSafraDe.get(c.id)?.inativo) &&
+        (!q || normalizar(c.nome).includes(normalizar(q))),
+    )
+    .map((c) => ({ ...c, situacao: situacaoDoCliente(preSafraDe.get(c.id)) }));
+  const filtrados = aplicarFiltros(base, filtros);
+  const comFiltroDeColuna = temFiltroDeColuna(filtros);
+  const opcoesPorColuna = Object.fromEntries(
+    COLUNAS_FILTRO.map((coluna) => [coluna, opcoesDaColuna(base, filtros, coluna)]),
+  ) as Record<ColunaFiltro, OpcaoFiltro[]>;
 
   const totalPaginas = Math.max(1, Math.ceil(filtrados.length / TAMANHO_PAGINA));
   const paginaAtual = Math.min(Math.max(Number(sp.pagina) || 1, 1), totalPaginas);
@@ -88,24 +116,35 @@ export default async function AdminClientes({
     paginaAtual * TAMANHO_PAGINA,
   );
 
-  const hrefFiltro = (novoSemRegiao: boolean, novoInativos = soInativos) => {
+  // Monta o endereço da tela mantendo busca, botões e filtros de coluna; o que muda vem em `mudar`.
+  const montarHref = (
+    mudar: { semRegiao?: boolean; inativos?: boolean; busca?: boolean; filtros?: FiltrosColuna; pagina?: number } = {},
+  ) => {
     const p = new URLSearchParams();
-    if (q) p.set("q", q);
-    if (novoSemRegiao) p.set("semRegiao", "1");
-    if (novoInativos) p.set("inativos", "1");
+    if (q && mudar.busca !== false) p.set("q", q);
+    if (mudar.semRegiao ?? soSemRegiao) p.set("semRegiao", "1");
+    if (mudar.inativos ?? soInativos) p.set("inativos", "1");
+    for (const [coluna, valor] of paresDosFiltros(mudar.filtros ?? filtros)) p.append(coluna, valor);
+    if ((mudar.pagina ?? 1) > 1) p.set("pagina", String(mudar.pagina));
     const s = p.toString();
     return s ? `/admin/clientes?${s}` : "/admin/clientes";
   };
+  const hrefFiltro = (novoSemRegiao: boolean, novoInativos = soInativos) =>
+    montarHref({ semRegiao: novoSemRegiao, inativos: novoInativos });
+  const hrefPagina = (n: number) => montarHref({ pagina: n });
 
-  const hrefPagina = (n: number) => {
-    const p = new URLSearchParams();
-    if (q) p.set("q", q);
-    if (soSemRegiao) p.set("semRegiao", "1");
-    if (soInativos) p.set("inativos", "1");
-    if (n > 1) p.set("pagina", String(n));
-    const s = p.toString();
-    return s ? `/admin/clientes?${s}` : "/admin/clientes";
-  };
+  // Cabeçalho com o botão de filtro ao lado do rótulo, sem quebrar a linha.
+  const cabecalho = (coluna: ColunaFiltro, rotulo: string) => (
+    <div className="-my-1 flex items-center gap-1 whitespace-nowrap">
+      {rotulo}
+      <FiltroColuna
+        coluna={coluna}
+        rotulo={ROTULO_COLUNA[coluna]}
+        opcoes={opcoesPorColuna[coluna]}
+        ativo={(filtros[coluna]?.length ?? 0) > 0}
+      />
+    </div>
+  );
 
   return (
     <section className="card">
@@ -149,6 +188,9 @@ export default async function AdminClientes({
       >
         <input type="hidden" name="semRegiao" value={soSemRegiao ? "1" : ""} />
         <input type="hidden" name="inativos" value={soInativos ? "1" : ""} />
+        {paresDosFiltros(filtros).map(([coluna, valor]) => (
+          <input key={`${coluna}:${valor}`} type="hidden" name={coluna} value={valor} />
+        ))}
         <div className="relative min-w-56 flex-1">
           <Icone
             nome="busca"
@@ -165,29 +207,66 @@ export default async function AdminClientes({
           />
         </div>
         {q && (
-          <Link href={hrefFiltro(soSemRegiao)} className="btn-discreto">
+          <Link href={montarHref({ busca: false })} className="btn-discreto">
             <Icone nome="x" />
             Limpar busca
           </Link>
         )}
       </Form>
 
+      {comFiltroDeColuna && (
+        <div className="flex flex-wrap items-center gap-2 border-b border-line px-4 py-2.5 sm:px-5">
+          <span className="text-sm text-muted">Filtros de coluna:</span>
+          {colunasFiltradas(filtros).map((coluna) => (
+            <Link
+              key={coluna}
+              href={montarHref({ filtros: { ...filtros, [coluna]: undefined } })}
+              aria-label={`Remover o filtro de ${ROTULO_COLUNA[coluna]}`}
+              title="Remover este filtro"
+              className="btn-contorno btn-sm max-w-full !border-primary/40 !bg-primary-faint !text-primary"
+            >
+              <span className="truncate">
+                {ROTULO_COLUNA[coluna]}: {resumoDoFiltro(filtros[coluna] ?? [], coluna)}
+              </span>
+              <Icone nome="x" className="size-3.5" />
+            </Link>
+          ))}
+          <Link href={montarHref({ filtros: {} })} className="btn-discreto btn-sm">
+            Limpar todos os filtros
+          </Link>
+        </div>
+      )}
+
       {listados.length === 0 ? (
-        <p className="p-5 text-sm text-muted">Nenhum cliente encontrado.</p>
+        <p className="p-5 text-sm text-muted">
+          Nenhum cliente encontrado.{comFiltroDeColuna && " Remova ou ajuste os filtros de coluna acima."}
+        </p>
       ) : (
         <div className="@container overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b border-line bg-subtle/70 text-[11px] font-semibold uppercase tracking-wider text-muted">
-                <th scope="col" className="px-4 py-2.5 sm:px-5">Nome</th>
-                <th scope="col" className="hidden px-3 py-2.5 @min-[1100px]:table-cell">Cidade</th>
-                <th scope="col" className="hidden px-3 py-2.5 @min-[1100px]:table-cell">UF</th>
-                <th scope="col" className="hidden px-3 py-2.5 @min-[1100px]:table-cell">Região</th>
-                <th scope="col" className="hidden px-3 py-2.5 @min-[1100px]:table-cell">Atendimento</th>
-                <th scope="col" className="hidden px-3 py-2.5 @min-[1100px]:table-cell">Consultor</th>
-                <th scope="col" className="hidden px-3 py-2.5 @min-[1100px]:table-cell">Comercial</th>
+                <th scope="col" className="px-4 py-2.5 sm:px-5">{cabecalho("nome", "Nome")}</th>
+                <th scope="col" className="hidden px-3 py-2.5 @min-[1100px]:table-cell">
+                  {cabecalho("cidade", "Cidade")}
+                </th>
+                <th scope="col" className="hidden px-3 py-2.5 @min-[1100px]:table-cell">
+                  {cabecalho("uf", "UF")}
+                </th>
+                <th scope="col" className="hidden px-3 py-2.5 @min-[1100px]:table-cell">
+                  {cabecalho("regiao", "Região")}
+                </th>
+                <th scope="col" className="hidden px-3 py-2.5 @min-[1100px]:table-cell">
+                  {cabecalho("atendimento", "Atendimento")}
+                </th>
+                <th scope="col" className="hidden px-3 py-2.5 @min-[1100px]:table-cell">
+                  {cabecalho("consultor", "Consultor")}
+                </th>
+                <th scope="col" className="hidden px-3 py-2.5 @min-[1100px]:table-cell">
+                  {cabecalho("comercial", "Comercial")}
+                </th>
                 <th scope="col" className="hidden px-3 py-2.5 @2xl:table-cell">
-                  Situação{safra ? ` · ${safra.nome}` : ""}
+                  {cabecalho("situacao", `Situação${safra ? ` · ${safra.nome}` : ""}`)}
                 </th>
                 <th scope="col" className="py-2.5 pl-3 pr-4 text-right sm:pr-5">
                   <span className="sr-only">Ações</span>

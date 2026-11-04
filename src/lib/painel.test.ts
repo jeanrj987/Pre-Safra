@@ -141,6 +141,9 @@ describe("regiões", () => {
   it("divide a dupla de atendentes", () => {
     expect(pessoasDaDupla("Amanda Albano e Cauê")).toEqual(["Amanda Albano", "Cauê"]);
     expect(pessoasDaDupla(null)).toEqual([]);
+    // Atendente único (nem sempre são dois): vira uma lista de um nome.
+    expect(pessoasDaDupla("Maria")).toEqual(["Maria"]);
+    expect(pessoasDaDupla("Maria Eduarda")).toEqual(["Maria Eduarda"]);
   });
   it("lista as regiões da maior para a menor e ignora clientes sem região", () => {
     const set = [

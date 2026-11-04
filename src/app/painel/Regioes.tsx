@@ -2,8 +2,11 @@
 import { comercialDaRegiao } from "@/lib/equipe";
 import { COR, nf } from "./cores";
 import { SEM_REGIAO } from "./filtros";
-import { SITUACOES, situacao, type ClientePainel, type Regiao, type Situacao } from "@/lib/painel";
+import { SITUACOES, pessoasDaDupla, situacao, type ClientePainel, type Regiao, type Situacao } from "@/lib/painel";
 import { plural } from "@/lib/texto";
+
+// O atendimento da região pode ter uma pessoa só (nem sempre são duas): então "Atendente", no singular.
+const rotuloAtendentes = (atendentes: string) => (pessoasDaDupla(atendentes).length === 1 ? "Atendente" : "Atendentes");
 
 interface Grupo {
   nome: string;
@@ -78,7 +81,7 @@ export default function Regioes({
                 type="button"
                 aria-pressed={sel}
                 onClick={() => onSelecionar(sel ? "" : g.nome)}
-                aria-label={`${g.nome}: ${Math.round(pct * 100)}% finalizado, ${plural(n, "cliente", "clientes")}, ${por.T} atrasados${g.atendentes ? `. Atendentes: ${g.atendentes}` : ""}${g.consultor ? `. Consultor: ${g.consultor}` : ""}${comercialDaRegiao(g.nome) ? `. Comercial: ${comercialDaRegiao(g.nome)}` : ""}`}
+                aria-label={`${g.nome}: ${Math.round(pct * 100)}% finalizado, ${plural(n, "cliente", "clientes")}, ${por.T} atrasados${g.atendentes ? `. ${rotuloAtendentes(g.atendentes)}: ${g.atendentes}` : ""}${g.consultor ? `. Consultor: ${g.consultor}` : ""}${comercialDaRegiao(g.nome) ? `. Comercial: ${comercialDaRegiao(g.nome)}` : ""}`}
                 className={`card flex min-w-0 cursor-pointer flex-col gap-1.5 px-3.5 py-2.5 text-left hover:border-line-strong ${
                   g.semRegiao ? "border-dashed bg-subtle shadow-none" : ""
                 } ${sel ? "!border-primary ring-1 ring-primary" : ""}`}
@@ -116,7 +119,7 @@ export default function Regioes({
                   ) : (
                     <>
                       <span className="block">
-                        Atendentes <span className="text-ink">{g.atendentes}</span>
+                        {rotuloAtendentes(g.atendentes)} <span className="text-ink">{g.atendentes}</span>
                       </span>
                       {g.consultor && (
                         <span className="block">

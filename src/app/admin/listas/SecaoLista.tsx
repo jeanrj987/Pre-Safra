@@ -11,7 +11,7 @@ interface Opcao {
   nome: string;
 }
 
-// Uma das três listas da aba Listas: campo para cadastrar e as opções já cadastradas, cada uma
+// Uma das listas da aba Listas: campo para cadastrar e as opções já cadastradas, cada uma
 // com a lixeira (que pede confirmação). O servidor valida de novo e devolve o texto do erro.
 export default function SecaoLista({
   tipo,
