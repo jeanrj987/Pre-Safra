@@ -12,6 +12,7 @@ import { normalizar } from "../src/lib/texto";
 import { TIPOS_SUGESTAO, normalizarTopico, rotuloDoTipo } from "../src/lib/sugestoes";
 import { MOTIVOS_PENDENCIA } from "../src/lib/pendencia";
 import { filtrarPermissoes } from "../src/lib/permissoes";
+import { TEXTOS_OPCAO, TIPOS_OPCAO } from "../src/lib/opcoesLista";
 
 const SENHA_LOCAL = "senhalocal123";
 // O backup grava a hora de parede de Mato Grosso (UTC-4, sem horário de verão) como se fosse UTC.
@@ -100,7 +101,7 @@ async function main() {
   }
   if (flags.includes("--limpar")) {
     await prisma.$executeRawUnsafe(
-      `TRUNCATE "AnexoSugestao","Sugestao","Notificacao","Conclusao","PreSafra","Atividade","Cliente","Safra","Usuario","Configuracao" RESTART IDENTITY CASCADE`,
+      `TRUNCATE "AnexoSugestao","Sugestao","Notificacao","Conclusao","PreSafra","Atividade","Cliente","Safra","Usuario","Configuracao","OpcaoLista" RESTART IDENTITY CASCADE`,
     );
   }
 
@@ -255,8 +256,21 @@ async function main() {
   await prisma.configuracao.createMany({ data: configuracoes });
   contagens.push(["Configuracao", configuracoes.length]);
 
+  // Aba "Listas" (opções cadastradas em Administração > Listas); backups antigos não a têm.
+  const tipoPorRotuloLista = (v: unknown) => TIPOS_OPCAO.find((t) => TEXTOS_OPCAO[t].titulo === texto(v));
+  const opcoesLista = planilha.getWorksheet("Listas")
+    ? lerAba(planilha, "Listas").map((l) => ({
+        id: numero(l["ID"])!,
+        tipo: tipoPorRotuloLista(l["Lista"]) ?? obrigatorio(l["Lista"], "Listas/Lista (tipo desconhecido)"),
+        nome: obrigatorio(l["Nome"], "Listas/Nome"),
+        criadoEm: dataHoraObrigatoria(l["Criado em"], "Listas/Criado em"),
+      }))
+    : [];
+  await prisma.opcaoLista.createMany({ data: opcoesLista });
+  contagens.push(["OpcaoLista", opcoesLista.length]);
+
   // Os IDs entraram explícitos: a sequência precisa continuar depois do maior deles
-  for (const tabela of ["Usuario", "Safra", "Cliente", "PreSafra", "Conclusao", "Notificacao", "Atividade", "Sugestao"]) {
+  for (const tabela of ["Usuario", "Safra", "Cliente", "PreSafra", "Conclusao", "Notificacao", "Atividade", "Sugestao", "OpcaoLista"]) {
     await prisma.$executeRawUnsafe(
       `SELECT setval(pg_get_serial_sequence('"${tabela}"', 'id'), COALESCE((SELECT MAX(id) FROM "${tabela}"), 1), (SELECT COUNT(*) > 0 FROM "${tabela}"))`,
     );

@@ -68,6 +68,10 @@ Não há recuperação por e-mail: quem esqueceu a senha pede ao administrador. 
 
 **Antes de publicar esta versão, rode `npm run db:push` contra o banco de produção.** O login passou a gravar as tentativas na tabela `TentativaAcesso` (e a redefinição de senha usa a `TokenRecuperacao`). Se o código novo subir antes das tabelas existirem, ninguém consegue entrar: o login falha de propósito (não libera o acesso quando não consegue contar as tentativas). Ordem: `db:push` primeiro, publicação depois. O `db:push` só cria tabelas e índices novos, então o código antigo continua funcionando enquanto isso.
 
+### Listas de região, consultor e responsável
+
+Em **Administração > Listas** (mesma permissão da aba Clientes) o administrador cadastra e remove regiões, consultores e responsáveis sem depender de um cliente ou do desenvolvedor. Ficam na tabela `OpcaoLista` e se somam às opções que já saem dos clientes e das constantes de `src/lib/equipe.ts`; remover uma opção não altera nenhum cliente. **Rode `npm run db:push` no banco de produção antes de publicar** (cria a tabela `OpcaoLista`): sem ela, as telas de cadastro de clientes e de usuários, que leem essas listas, falham. As opções entram no Backup em Excel (aba "Listas").
+
 ## Documentação
 
 Fica fora do git (pastas locais): `Vault/` (notas técnicas em Obsidian; comece por `Vault/000_Index.md`) e `docs/` (manuais em PDF, capturas de tela e o script que os gera).

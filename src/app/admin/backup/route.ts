@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { FUSO_NEGOCIO } from "@/lib/fuso";
 import { rotuloMotivoPendencia } from "@/lib/pendencia";
 import { rotuloDoTipo } from "@/lib/sugestoes";
+import { TEXTOS_OPCAO, type TipoOpcao } from "@/lib/opcoesLista";
 
 // Backup em planilha: uma aba por tabela do banco, para consultar ou montar gráficos no Excel.
 // Fica de fora, de propósito: senhaHash dos usuários e o WhatsApp de quem enviou sugestão.
@@ -40,6 +41,10 @@ function horaLocal(data: Date): Date {
   return new Date(Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute));
 }
 
+const ROTULO_LISTA = Object.fromEntries(
+  Object.entries(TEXTOS_OPCAO).map(([tipo, t]) => [tipo, t.titulo]),
+) as Record<TipoOpcao, string>;
+
 const sim = (v: boolean) => (v ? "Sim" : "Não");
 
 function adicionarAba<T>(planilha: ExcelJS.Workbook, nome: string, colunas: Coluna<T>[], linhas: T[]) {
@@ -68,7 +73,7 @@ export async function GET() {
   const usuario = await usuarioAtual();
   if (!usuario || !pode(usuario, "backup")) return new Response(null, { status: 401 });
 
-  const [clientes, safras, preSafras, conclusoes, notificacoes, atividades, sugestoes, usuarios, configuracoes] =
+  const [clientes, safras, preSafras, conclusoes, notificacoes, atividades, sugestoes, usuarios, configuracoes, opcoesLista] =
     await Promise.all([
       prisma.cliente.findMany({ orderBy: { id: "asc" } }),
       prisma.safra.findMany({ orderBy: { id: "asc" } }),
@@ -88,6 +93,7 @@ export async function GET() {
       prisma.sugestao.findMany({ orderBy: { id: "asc" } }),
       prisma.usuario.findMany({ orderBy: { id: "asc" } }),
       prisma.configuracao.findMany({ orderBy: { chave: "asc" } }),
+      prisma.opcaoLista.findMany({ orderBy: { id: "asc" } }),
     ]);
 
   const planilha = new ExcelJS.Workbook();
@@ -298,6 +304,21 @@ export async function GET() {
         { cabecalho: "Valor", valor: (c) => c.valor, largura: 30 },
       ],
       configuracoes,
+    ),
+  );
+
+  registrar(
+    "Listas",
+    adicionarAba(
+      planilha,
+      "Listas",
+      [
+        { cabecalho: "ID", valor: (o) => o.id, formato: "numero", largura: 8 },
+        { cabecalho: "Lista", valor: (o) => ROTULO_LISTA[o.tipo as TipoOpcao] ?? o.tipo, largura: 16 },
+        { cabecalho: "Nome", valor: (o) => o.nome, largura: 36 },
+        { cabecalho: "Criado em", valor: (o) => o.criadoEm, formato: "dataHora" },
+      ],
+      opcoesLista,
     ),
   );
 

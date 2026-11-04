@@ -4,6 +4,7 @@ import { COMERCIAL_POR_REGIAO, REGIOES_DE_PARCEIROS, equipesPorRegiao, type Grup
 import { prisma } from "@/lib/db";
 import { pessoasDaDupla } from "@/lib/painel";
 import { semRepetir } from "@/lib/texto";
+import { mesclarOpcoes, type TipoOpcao } from "@/lib/opcoesLista";
 import { motivoPendenciaValido, STATUS_COM_PENDENCIA } from "@/lib/pendencia";
 import {
   calcularStatus,
@@ -168,18 +169,29 @@ const carregarValoresClientes = cache(
     }),
 );
 
-/** Valores preenchidos de um campo, mais os fixos, sem repetição e em ordem alfabética. */
+// Opções cadastradas pela administração (tela Administração > Listas). Também uma leitura por request.
+const carregarOpcoesCadastradas = cache(() =>
+  prisma.opcaoLista.findMany({ select: { tipo: true, nome: true } }),
+);
+
+/** Nomes cadastrados em Administração > Listas para um tipo de lista. */
+async function opcoesCadastradas(tipo: TipoOpcao): Promise<string[]> {
+  return (await carregarOpcoesCadastradas()).filter((o) => o.tipo === tipo).map((o) => o.nome);
+}
+
+/**
+ * Valores preenchidos de um campo, mais os fixos, sem repetição (ignorando caixa e acento) e em
+ * ordem alfabética. Os fixos vêm primeiro, então a grafia deles vale se o cliente usar outra.
+ */
 function distintosOrdenados(
   clientes: ValoresCliente[],
   campo: keyof ValoresCliente,
   fixos: readonly string[] = [],
 ): string[] {
-  const valores = new Set<string>(fixos);
-  for (const c of clientes) {
-    const v = c[campo];
-    if (v !== null) valores.add(v);
-  }
-  return [...valores].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  return mesclarOpcoes(
+    fixos,
+    clientes.map((c) => c[campo]),
+  );
 }
 
 /** Todos os nomes que podem ser responsáveis: atendentes das regiões e quem já foi escolhido. */
@@ -191,17 +203,18 @@ export function nomesPossiveis(linhas: Linha[]): string[] {
 }
 
 /**
- * Nomes para escolher como responsável: atendentes das regiões, consultores, comerciais e quem
- * já foi escolhido.
+ * Nomes para escolher como responsável: atendentes das regiões, consultores, comerciais, quem
+ * já foi escolhido e os responsáveis cadastrados em Administração > Listas.
  */
 export async function listarNomesResponsaveis(): Promise<string[]> {
-  const [clientes, escolhidos] = await Promise.all([
+  const [clientes, escolhidos, cadastrados] = await Promise.all([
     carregarValoresClientes(),
     prisma.preSafra.findMany({
       where: { responsavel: { not: null } },
       distinct: ["responsavel"],
       select: { responsavel: true },
     }),
+    opcoesCadastradas("responsavel"),
   ]);
   return coletarNomes(
     clientes.map((c) => c.atendente),
@@ -210,6 +223,7 @@ export async function listarNomesResponsaveis(): Promise<string[]> {
       ...clientes.map((c) => c.consultor),
       ...clientes.map((c) => c.comercial),
       ...Object.values(COMERCIAL_POR_REGIAO),
+      ...cadastrados,
     ],
   );
 }
@@ -238,9 +252,10 @@ export const UFS_BRASIL = [
   "PA", "PB", "PE", "PI", "PR", "RJ", "RN", "RO", "RR", "RS", "SC", "SE", "SP", "TO",
 ];
 
-/** Regiões já usadas em algum cliente, mais as dos parceiros, para sugerir no cadastro em vez de exigir digitar do zero. */
+/** Regiões já usadas em algum cliente, mais as dos parceiros e as cadastradas em Administração > Listas. */
 export async function listarRegioesConhecidas(): Promise<string[]> {
-  return distintosOrdenados(await carregarValoresClientes(), "regiao", REGIOES_DE_PARCEIROS);
+  const [clientes, cadastradas] = await Promise.all([carregarValoresClientes(), opcoesCadastradas("regiao")]);
+  return distintosOrdenados(clientes, "regiao", [...REGIOES_DE_PARCEIROS, ...cadastradas]);
 }
 
 /** Duplas de atendentes já cadastradas (ex.: "Maria e Jean"), para sugerir no cadastro. */
@@ -248,9 +263,10 @@ export async function listarDuplasConhecidas(): Promise<string[]> {
   return distintosOrdenados(await carregarValoresClientes(), "atendente");
 }
 
-/** Consultores já cadastrados, para sugerir também no campo de Atendimento. */
+/** Consultores já usados em algum cliente, mais os cadastrados em Administração > Listas. */
 export async function listarConsultoresConhecidos(): Promise<string[]> {
-  return distintosOrdenados(await carregarValoresClientes(), "consultor");
+  const [clientes, cadastrados] = await Promise.all([carregarValoresClientes(), opcoesCadastradas("consultor")]);
+  return distintosOrdenados(clientes, "consultor", cadastrados);
 }
 
 /** Comerciais já usados em algum cliente, mais os fixos das regiões, para escolher no cadastro. */

@@ -3,6 +3,7 @@ import { pode } from "@/lib/permissoes";
 // Abas da Administração e a permissão de cada uma. "Usuários" é só do administrador total.
 const ABAS = [
   { href: "/admin/clientes", rotulo: "Clientes", libera: (u: Quem) => pode(u, "clientes") },
+  { href: "/admin/listas", rotulo: "Listas", libera: (u: Quem) => pode(u, "clientes") },
   { href: "/admin/safras", rotulo: "Safras", libera: (u: Quem) => pode(u, "safras") },
   { href: "/admin/usuarios", rotulo: "Usuários", libera: (u: Quem) => u.admin },
   { href: "/admin/sugestoes", rotulo: "Sugestões", libera: (u: Quem) => pode(u, "sugestoes") },

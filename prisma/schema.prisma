@@ -213,3 +213,15 @@ enum Formato {
   Online
   Presencial
 }
+
+// Opções cadastradas pela administração (tela Administração > Listas) para as listas de escolha:
+// tipo é "regiao", "consultor" ou "responsavel" (ver src/lib/opcoesLista.ts). Somam-se às que já
+// saem dos clientes; remover uma opção daqui não altera nenhum cliente.
+model OpcaoLista {
+  id       Int      @id @default(autoincrement())
+  tipo     String
+  nome     String
+  criadoEm DateTime @default(now())
+
+  @@unique([tipo, nome])
+}
