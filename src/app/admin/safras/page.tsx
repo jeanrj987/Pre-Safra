@@ -216,6 +216,15 @@ export default async function AdminSafras({
                           }}
                           salvar={editarSafra.bind(null, s.id)}
                         />
+                        {/* BotaoAcao é <button>; baixar arquivo é navegação, então um <a> com o mesmo visual */}
+                        <a
+                          href={`/admin/safras/exportar?safra=${s.id}`}
+                          title="Baixar finalizados"
+                          aria-label={`Baixar finalizados da safra ${s.nome}`}
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-line-strong bg-surface text-[13px] font-medium whitespace-nowrap text-ink transition hover:bg-subtle"
+                        >
+                          <Icone nome="upload" className="rotate-180" />
+                        </a>
                         <form action={alternarAtiva.bind(null, s.id, !s.ativa)}>
                           <BotaoAcao
                             type="submit"
