@@ -4,10 +4,11 @@ import BotaoEnviar from "./BotaoEnviar";
 import Icone from "./Icone";
 import { Janela, RodapeJanela } from "./Finalizar";
 import Seletor, { type OpcaoSeletor } from "./Seletor";
-import { Bolinha, opcoesDeLista, opcoesDePessoas } from "./seletorOpcoes";
+import { Avatar, Bolinha, opcoesDeLista, opcoesDePessoas } from "./seletorOpcoes";
 import type { GrupoEquipe } from "@/lib/equipe";
 import { dataMaximaIso, hojeIso, motivoDataIndisponivel } from "@/lib/diasUteis";
 import { HORARIOS, motivoHorarioPassado } from "@/lib/horarios";
+import { normalizar } from "@/lib/texto";
 
 type Status = "" | "Online" | "Presencial";
 
@@ -25,6 +26,8 @@ const opcoesStatus: OpcaoSeletor[] = STATUS.map((s) => ({
 }));
 const opcoesHorario = opcoesDeLista(HORARIOS);
 
+const mesmoNome = (a: string, b: string) => normalizar(a.trim()) === normalizar(b.trim());
+
 function Erro({ id, children }: { id: string; children: string }) {
   return (
     <span id={id} role="alert" className="mt-1 block text-xs font-medium text-atrasado-fg">
@@ -33,6 +36,10 @@ function Erro({ id, children }: { id: string; children: string }) {
   );
 }
 
+// Responsável: quem tem a permissão de trocá-lo vê a lista completa por região; os demais escolhem entre os atendentes
+// da dupla do cliente (`opcoesDaDupla`, mais o próprio usuário se ele não está na dupla), porque um pode agendar para o
+// outro. Sem dupla cadastrada, o responsável é fixo: quem agenda assume o cliente (`assumeAoAgendar`).
+//
 // Botão "Agendar" (ou "Reagendar", se o cliente já tem agendamento) na coluna de ações de cada cliente: abre uma janela para definir responsável, data,
 // horário e status (Agendado Online / Agendado Presencial) e grava tudo de uma vez: o cliente
 // vai para a guia Agendados. Os quatro campos são obrigatórios: ao salvar com algo faltando, a
@@ -53,6 +60,8 @@ export default function Agendar({
   podeRemover,
   assumeAoAgendar = false,
   responsavelAtual = "",
+  opcoesDaDupla = [],
+  nomeUsuario = "",
 }: {
   acao: (formData: FormData) => Promise<void>;
   id: number;
@@ -76,6 +85,10 @@ export default function Agendar({
   assumeAoAgendar?: boolean;
   /** Responsável do cliente antes de agendar, para avisar de quem ele está assumindo. */
   responsavelAtual?: string;
+  /** Usuário comum, cliente com dupla: quem pode ser o responsável (atendentes da dupla e, se for o caso, o próprio usuário). Vazio = sem escolha. */
+  opcoesDaDupla?: string[];
+  /** Nome ligado à conta do usuário, para destacá-lo na lista e avisar quando ele assume o cliente. */
+  nomeUsuario?: string;
 }) {
   const statusInicial: Status = previsao;
   const temAgendamento = !!(previsao || data || horario);
@@ -90,7 +103,29 @@ export default function Agendar({
   const [status, setStatus] = useState<Status>(statusInicial);
   const [tentou, setTentou] = useState(false);
   const [dataTocada, setDataTocada] = useState(false);
-  const opcoesResponsavel = opcoesDePessoas(grupos, outros);
+  const escolheNaDupla = !podeTrocarResponsavel && opcoesDaDupla.length > 0;
+  const opcoesResponsavel = escolheNaDupla
+    ? opcoesDaDupla.map((n) => {
+        const euMesmo = !!nomeUsuario && mesmoNome(n, nomeUsuario);
+        return { valor: n, rotulo: n, marca: <Avatar nome={n} tom="destaque" />, detalhe: euMesmo ? "Você" : undefined };
+      })
+    : opcoesDePessoas(grupos, outros);
+  const podeEscolher = podeTrocarResponsavel || escolheNaDupla;
+  // Aviso abaixo do campo: só quando o responsável vai mudar.
+  const mudaResponsavel = !!resp && !(responsavelAtual.trim() && mesmoNome(resp, responsavelAtual));
+  const aviso = !mudaResponsavel
+    ? null
+    : escolheNaDupla
+      ? nomeUsuario && mesmoNome(resp, nomeUsuario)
+        ? responsavelAtual
+          ? `Este cliente é de ${responsavelAtual}: ao salvar, você passa a ser o responsável por ele.`
+          : "Este cliente não tem responsável: ao agendar, você passa a ser o responsável por ele."
+        : `Ao salvar, ${resp} passa a ser o responsável por este cliente.`
+      : assumeAoAgendar
+        ? responsavelAtual
+          ? `Este cliente é de ${responsavelAtual}: ao salvar, você passa a ser o responsável por ele.`
+          : "Este cliente não tem responsável: ao agendar, você passa a ser o responsável por ele."
+        : null;
 
   function abrir() {
     setResp(responsavel);
@@ -108,7 +143,7 @@ export default function Agendar({
   const horaPassada = motivoHorarioPassado(dia, hora);
   const erros = {
     resp: !resp
-      ? podeTrocarResponsavel
+      ? podeEscolher
         ? "Selecione o responsável."
         : "Este cliente está sem responsável. Peça a um administrador para definir."
       : null,
@@ -158,10 +193,10 @@ export default function Agendar({
             <input type="hidden" name="voltar" value={voltar} />
             {/* O menu de responsável (busca + uma seção por região) abre sobre a própria janela: a altura
                 mínima dá espaço para ele aparecer inteiro, sem rolar a janela. Quem não escolhe
-                responsável não precisa dela. */}
+                responsável, ou só escolhe entre dois nomes, não precisa dela. */}
             <div className={`space-y-4 px-4 py-5 sm:px-6 ${podeTrocarResponsavel ? "min-h-[24.5rem]" : ""}`}>
               <div>
-                {podeTrocarResponsavel ? (
+                {podeEscolher ? (
                   <Seletor
                     nome="responsavel"
                     rotulo="Responsável"
@@ -185,13 +220,7 @@ export default function Agendar({
                     </p>
                   </>
                 )}
-                {assumeAoAgendar && (
-                  <span className="mt-1 block text-xs text-muted">
-                    {responsavelAtual
-                      ? `Este cliente é de ${responsavelAtual}: ao salvar, você passa a ser o responsável por ele.`
-                      : "Este cliente não tem responsável: ao agendar, você passa a ser o responsável por ele."}
-                  </span>
-                )}
+                {aviso && <span className="mt-1 block text-xs text-muted">{aviso}</span>}
                 {mostrar("resp") && <Erro id="erro-resp">{erros.resp!}</Erro>}
               </div>
               <div className="grid gap-4 min-[420px]:grid-cols-2">

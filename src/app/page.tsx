@@ -13,7 +13,13 @@ import Agendar from "./Agendar";
 import LimparAgendamento from "./LimparAgendamento";
 import { exigirAcessoCompleto } from "@/lib/auth";
 import { pode } from "@/lib/permissoes";
-import { assumeAoAgendar, podeAgendarCliente, podeAlterarCliente } from "@/lib/responsavel";
+import {
+  assumeAoAgendar,
+  opcoesDeResponsavelAoAgendar,
+  podeAgendarCliente,
+  podeAlterarCliente,
+  responsavelInicialAoAgendar,
+} from "@/lib/responsavel";
 import Shell from "./Shell";
 import Selo from "./Selo";
 import Icone from "./Icone";
@@ -129,6 +135,16 @@ export default async function Home({ searchParams }: PageProps<"/">) {
   const podeAlterar = (l: { responsavel: string | null }) => podeAlterarCliente(usuario, l.responsavel);
   const podeAgendar = (l: { responsavel: string | null }) => podeAgendarCliente(usuario, l.responsavel);
   const assume = (l: { responsavel: string | null }) => assumeAoAgendar(usuario, l.responsavel);
+  // Quem não troca o responsável escolhe, ao agendar, um dos atendentes da dupla do cliente (um agenda para o
+  // outro); sem dupla cadastrada não há escolha e quem agenda assume o cliente.
+  const escolhasAgendar = (l: { atendentes: string | null; responsavel: string | null }) =>
+    opcoesDeResponsavelAoAgendar(usuario, l);
+  const responsavelAgendar = (l: { atendentes: string | null; responsavel: string | null }) =>
+    escolhasAgendar(l).length > 0
+      ? responsavelInicialAoAgendar(usuario, l)
+      : assume(l)
+        ? (usuario.nomeResponsavel ?? "")
+        : (l.responsavel ?? "");
 
   // Inativos não aparecem aqui: são inativados e reativados em Admin → Clientes.
   const bateStatus = (s: string) =>
@@ -675,9 +691,11 @@ export default async function Home({ searchParams }: PageProps<"/">) {
                               id={l.id}
                               nome={l.nome}
                               voltar={atual.toString()}
-                              responsavel={assume(l) ? (usuario.nomeResponsavel ?? "") : (l.responsavel ?? "")}
+                              responsavel={responsavelAgendar(l)}
                               assumeAoAgendar={assume(l)}
                               responsavelAtual={l.responsavel ?? ""}
+                              opcoesDaDupla={escolhasAgendar(l)}
+                              nomeUsuario={usuario.nomeResponsavel ?? ""}
                               data={dataParaCampo(l.dataPrevista)}
                               horario={l.horario ?? ""}
                               previsao={

@@ -4,8 +4,11 @@ import {
   assumeAoAgendar,
   podeAgendarCliente,
   podeAlterarCliente,
+  opcoesDeResponsavelAoAgendar,
   podeAssumirCliente,
   responsavelAoAgendar,
+  responsavelEscolhidoAoAgendar,
+  responsavelInicialAoAgendar,
 } from "./responsavel";
 
 const todas = [...TODAS_PERMISSOES];
@@ -91,6 +94,85 @@ describe("responsavelAoAgendar", () => {
   });
   it("quem escolhe o responsável define o nome na janela: nada é assumido", () => {
     expect(responsavelAoAgendar({ permissoes: todas, nomeResponsavel: "Maria" }, "Samuel")).toBeNull();
+  });
+});
+
+describe("responsável ao agendar, escolhido na dupla do cliente", () => {
+  const jean = { permissoes: [], nomeResponsavel: "Jean" };
+  const admin = { permissoes: todas, nomeResponsavel: null };
+  const daDupla = { atendentes: "Maria e Jean", responsavel: "Samuel" };
+  const semDupla = { atendentes: null, responsavel: "Samuel" };
+
+  it("lista os dois atendentes da dupla", () => {
+    expect(opcoesDeResponsavelAoAgendar(jean, daDupla)).toEqual(["Maria", "Jean"]);
+  });
+  it("quem está fora da dupla também aparece, para poder assumir o cliente", () => {
+    const consultor = { permissoes: [], nomeResponsavel: "André" };
+    expect(opcoesDeResponsavelAoAgendar(consultor, daDupla)).toEqual(["Maria", "Jean", "André"]);
+  });
+  it("sem nome ligado à conta, o responsável atual continua na lista", () => {
+    const semLigacao = { permissoes: [], nomeResponsavel: null };
+    expect(opcoesDeResponsavelAoAgendar(semLigacao, daDupla)).toEqual(["Maria", "Jean", "Samuel"]);
+    expect(opcoesDeResponsavelAoAgendar(semLigacao, { atendentes: "Maria e Jean", responsavel: null })).toEqual([
+      "Maria",
+      "Jean",
+    ]);
+  });
+  it("cliente sem dupla e admin não têm escolha na dupla", () => {
+    expect(opcoesDeResponsavelAoAgendar(jean, semDupla)).toEqual([]);
+    expect(opcoesDeResponsavelAoAgendar(admin, daDupla)).toEqual([]);
+  });
+
+  it("o valor inicial é o responsável atual, se ele está nas opções (grafia da lista)", () => {
+    expect(responsavelInicialAoAgendar(jean, { atendentes: "Maria e Jean", responsavel: "Maria" })).toBe("Maria");
+    expect(responsavelInicialAoAgendar(jean, { atendentes: "Maria e Jean", responsavel: " maria " })).toBe("Maria");
+    expect(responsavelInicialAoAgendar(jean, { atendentes: "Maria e Jean", responsavel: "Jean" })).toBe("Jean");
+  });
+  it("cliente sem responsável, ou com responsável fora das opções: o valor inicial é o usuário, se está na dupla", () => {
+    expect(responsavelInicialAoAgendar(jean, { atendentes: "Maria e Jean", responsavel: null })).toBe("Jean");
+    expect(responsavelInicialAoAgendar(jean, daDupla)).toBe("Jean");
+    expect(responsavelInicialAoAgendar({ permissoes: [], nomeResponsavel: " jean " }, daDupla)).toBe("Jean");
+  });
+  it("fora da dupla, o valor inicial é o responsável atual se ele está na dupla; senão, vazio", () => {
+    const consultor = { permissoes: [], nomeResponsavel: "André" };
+    expect(responsavelInicialAoAgendar(consultor, { atendentes: "Maria e Jean", responsavel: "Maria" })).toBe("Maria");
+    expect(responsavelInicialAoAgendar(consultor, daDupla)).toBe("");
+    expect(responsavelInicialAoAgendar(consultor, semDupla)).toBe("");
+  });
+
+  it("escolhe o colega da dupla", () => {
+    expect(responsavelEscolhidoAoAgendar(jean, daDupla, "Maria")).toBe("Maria");
+    expect(responsavelEscolhidoAoAgendar(jean, daDupla, " maria ")).toBe("Maria");
+  });
+  it("escolhe a si mesmo", () => {
+    expect(responsavelEscolhidoAoAgendar(jean, daDupla, "Jean")).toBe("Jean");
+  });
+  it("rejeita um nome fora da dupla", () => {
+    expect(responsavelEscolhidoAoAgendar(jean, daDupla, "Samuel")).toBeNull();
+    expect(responsavelEscolhidoAoAgendar(jean, daDupla, "Maria Silva")).toBeNull();
+    expect(responsavelEscolhidoAoAgendar(jean, semDupla, "Maria")).toBeNull();
+  });
+  it("usuário fora da dupla escolhe um atendente ou ele mesmo, e nada além", () => {
+    const consultor = { permissoes: [], nomeResponsavel: "André" };
+    expect(responsavelEscolhidoAoAgendar(consultor, daDupla, "Maria")).toBe("Maria");
+    expect(responsavelEscolhidoAoAgendar(consultor, daDupla, "André")).toBe("André");
+    expect(responsavelEscolhidoAoAgendar(consultor, daDupla, "Samuel")).toBeNull();
+  });
+  it("cliente sem dupla: sem escolha, quem agenda assume (comportamento antigo)", () => {
+    expect(responsavelEscolhidoAoAgendar(jean, semDupla, null)).toBe("Jean");
+    expect(responsavelEscolhidoAoAgendar(jean, semDupla, "Jean")).toBe("Jean");
+    expect(responsavelEscolhidoAoAgendar({ permissoes: [], nomeResponsavel: null }, semDupla, null)).toBe("Samuel");
+  });
+  it("campo vazio cai no comportamento antigo (assume quem agenda)", () => {
+    expect(responsavelEscolhidoAoAgendar(jean, daDupla, "")).toBe("Jean");
+  });
+  it("o admin continua escolhendo qualquer nome, ou nenhum", () => {
+    expect(responsavelEscolhidoAoAgendar(admin, daDupla, "Samuel")).toBe("Samuel");
+    expect(responsavelEscolhidoAoAgendar(admin, daDupla, null)).toBeNull();
+  });
+  it("agendar para a colega tira do usuário o direito de alterar o cliente", () => {
+    const novo = responsavelEscolhidoAoAgendar(jean, daDupla, "Maria");
+    expect(podeAlterarCliente(jean, novo)).toBe(false);
   });
 });
 

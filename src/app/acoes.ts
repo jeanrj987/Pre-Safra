@@ -11,7 +11,7 @@ import { ITENS_FINALIZACAO, type MarcasFinalizacao } from "@/lib/finalizacao";
 import { motivoDataIndisponivel } from "@/lib/diasUteis";
 import { horarioValido, motivoHorarioPassado } from "@/lib/horarios";
 import { pode } from "@/lib/permissoes";
-import { idsPermitidos, podeAgendarCliente, podeAlterarCliente, responsavelAoAgendar } from "@/lib/responsavel";
+import { idsPermitidos, podeAgendarCliente, podeAlterarCliente, responsavelEscolhidoAoAgendar } from "@/lib/responsavel";
 
 // Server Actions da lista principal (src/app/page.tsx). Extraídas para cá para poder ser
 // importadas/testadas fora do componente de página, que já é grande só com a tabela e os
@@ -131,8 +131,8 @@ export async function salvarMotivoPendencia(
 // consegue defini-lo de novo; para os demais ele fica). A janela já mostra os erros; aqui o servidor
 // garante as regras mesmo para uma chamada direta, e nesse caso não grava nada: campo faltando,
 // datas e horários passados, sábados, domingos e feriados, cliente finalizado ou inativo. Qualquer usuário
-// agenda qualquer cliente, mas só o admin e o responsável do cliente removem o agendamento. Só quem tem a permissão "trocarResp" (o admin tem) escolhe o responsável; o usuário comum
-// que agenda ou reagenda um cliente passa a ser o responsável dele (assume ao agendar), mesmo que o cliente fosse de outra pessoa.
+// agenda qualquer cliente, mas só o admin e o responsável do cliente removem o agendamento. Só quem tem a permissão "trocarResp" (o admin tem) escolhe qualquer responsável; o usuário comum
+// que agenda ou reagenda um cliente escolhe um dos atendentes da dupla dele ou a si mesmo (sem dupla cadastrada, assume ao agendar).
 export async function agendarCliente(formData: FormData) {
   const sessao = await exigirAcessoCompleto();
   const id = Number(formData.get("id"));
@@ -147,6 +147,7 @@ export async function agendarCliente(formData: FormData) {
       dataPrevista: true,
       horario: true,
       formato: true,
+      cliente: { select: { atendente: true } },
     },
   });
   if (!registro || registro.configuradoSistema || registro.inativo) {
@@ -189,11 +190,14 @@ export async function agendarCliente(formData: FormData) {
   const formato = textoDe(formData, "formato");
   if (!formatoValido(formato)) voltarPara(formData, 0, "agendados");
 
-  // Quem agenda ou reagenda assume o cliente (o nome ligado à conta dele), mesmo que fosse de outra
-  // pessoa; só quem tem "trocarResp" escolhe o responsável na janela.
-  const responsavel = pode(sessao, "trocarResp")
-    ? textoDe(formData, "responsavel")
-    : responsavelAoAgendar(sessao, registro.responsavel);
+  // Quem tem "trocarResp" escolhe qualquer responsável. Os demais escolhem um dos atendentes da dupla
+  // do cliente (um pode agendar para o outro) ou a si mesmos; sem dupla cadastrada, assumem o cliente (o
+  // nome ligado à conta). Um nome fora disso, vindo de formulário forjado, não grava nada.
+  const responsavel = responsavelEscolhidoAoAgendar(
+    sessao,
+    { atendentes: registro.cliente?.atendente ?? null, responsavel: registro.responsavel },
+    textoDe(formData, "responsavel"),
+  );
 
   if (!responsavel || !dia || !horario) voltarPara(formData, 0, "agendados");
 
