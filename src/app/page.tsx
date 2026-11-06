@@ -32,6 +32,7 @@ import {
   nomesPossiveis,
 } from "@/lib/dados";
 import { STATUS_AGENDADOS } from "@/lib/status";
+import { horarioParaLista } from "@/lib/horarios";
 import {
   bateFiltroMotivo,
   FILTRO_SEM_MOTIVO,
@@ -599,7 +600,10 @@ export default async function Home({ searchParams }: PageProps<"/">) {
                         <div className="mt-1.5 @2xl:hidden">
                           {statusDaLinha(l)}
                           {l.dataPrevista && (
-                            <div className="mt-1 text-xs text-muted">Data: {formatarData(l.dataPrevista)}</div>
+                            <div className="mt-1 text-xs text-muted">
+                              Data: {formatarData(l.dataPrevista)}
+                              {horarioParaLista(l.status, l.horario) && ` às ${horarioParaLista(l.status, l.horario)}`}
+                            </div>
                           )}
                         </div>
                         {/* Sem espaço para as colunas de localização, elas viram uma linha sob o nome */}
@@ -637,6 +641,9 @@ export default async function Home({ searchParams }: PageProps<"/">) {
                       </td>
                       <td className="hidden whitespace-nowrap px-3 py-3 align-top tabular-nums text-muted @2xl:table-cell">
                         {formatarData(l.dataPrevista)}
+                        {horarioParaLista(l.status, l.horario) && (
+                          <div className="mt-0.5 text-xs">às {horarioParaLista(l.status, l.horario)}</div>
+                        )}
                       </td>
                       <td className="py-2.5 pl-3 pr-4 align-top sm:pr-5">
                         <div className="flex items-center justify-end gap-1.5">

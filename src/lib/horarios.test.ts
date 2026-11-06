@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { HORARIOS, horaAgora, horarioValido, motivoHorarioPassado } from "./horarios";
+import { HORARIOS, horaAgora, horarioParaLista, horarioValido, motivoHorarioPassado } from "./horarios";
 
 describe("horários de agendamento", () => {
   it("vai das 07:00 às 17:00, de 1 em 1 hora", () => {
@@ -14,6 +14,21 @@ describe("horários de agendamento", () => {
     expect(horarioValido("18:00")).toBe(false);
     expect(horarioValido("")).toBe(false);
     expect(horarioValido(null)).toBe(false);
+  });
+});
+
+describe("horário na lista de clientes", () => {
+  it("aparece só para quem está agendado, com horário válido", () => {
+    expect(horarioParaLista("Agendado Online", "14:00")).toBe("14:00");
+    expect(horarioParaLista("Agendado Presencial", "07:00")).toBe("07:00");
+  });
+  it("não aparece sem horário (registros antigos) nem em outros status", () => {
+    expect(horarioParaLista("Agendado Online", null)).toBeNull();
+    expect(horarioParaLista("Agendado Online", "")).toBeNull();
+    expect(horarioParaLista("Agendado Online", "texto")).toBeNull();
+    expect(horarioParaLista("A Fazer", "14:00")).toBeNull();
+    expect(horarioParaLista("Finalizado", "14:00")).toBeNull();
+    expect(horarioParaLista("Atrasado", "14:00")).toBeNull();
   });
 });
 

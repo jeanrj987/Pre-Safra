@@ -1,5 +1,6 @@
 import { hojeIso } from "./diasUteis";
 import { FUSO_NEGOCIO } from "./fuso";
+import { STATUS_AGENDADOS, type StatusPreSafra } from "./status";
 
 // Horários fixos para agendar o Pré-Safra dos clientes: de 1 em 1 hora, das 07:00 às 17:00
 // (o último atendimento termina às 17:40). Para mudar a grade, basta alterar as constantes.
@@ -13,6 +14,17 @@ export const HORARIOS: readonly string[] = Array.from(
 
 export function horarioValido(v: string | null | undefined): v is string {
   return !!v && HORARIOS.includes(v);
+}
+
+/**
+ * Horário a mostrar na lista de clientes ("hh:mm"), ou null. Só aparece para quem está agendado
+ * (Agendado Online/Presencial) e tem horário gravado em formato válido; registros antigos sem
+ * horário, ou de outros status, ficam só com a data. O horário é gravado como texto, já na hora de
+ * Mato Grosso, então não precisa de conversão de fuso.
+ */
+export function horarioParaLista(status: StatusPreSafra, horario: string | null | undefined): string | null {
+  if (!STATUS_AGENDADOS.includes(status) || !horario) return null;
+  return /^([01]\d|2[0-3]):[0-5]\d$/.test(horario) ? horario : null;
 }
 
 /** Hora de agora em Mato Grosso, como "hh:mm" (o servidor roda em UTC). */
