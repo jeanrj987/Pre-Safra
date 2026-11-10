@@ -11,6 +11,7 @@ import {
   motivoDataAtividade,
   motivoHorarioAtividade,
 } from "@/lib/calendario";
+import { dicaAutorNoCalendario } from "@/lib/autorAgendamento";
 import { dataMaximaIso, hojeIso, motivoDataForaDoPrazo } from "@/lib/diasUteis";
 import { alternarConclusao, criarAtividade, editarAtividade, excluirAtividade } from "./acoes";
 
@@ -337,7 +338,8 @@ function ChipCliente({ cliente: c }: { cliente: AgendamentoNaTela }) {
   // O registro recebe de onde veio (o mesmo mês do Calendário) para voltar para cá ao salvar.
   const mes = useSearchParams().get("mes");
   const voltar = mes && /^\d{4}-\d{2}$/.test(mes) ? `/calendario?mes=${mes}` : "/calendario";
-  const detalhe = `${c.nome} — ${c.status}${c.responsavel ? ` · ${c.responsavel}` : ""}`;
+  const autor = dicaAutorNoCalendario(c);
+  const detalhe = `${c.nome} — ${c.status}${c.responsavel ? ` · ${c.responsavel}` : ""}${autor ? ` · ${autor}` : ""}`;
   return (
     <Link
       href={`/registro/${c.id}?voltar=${encodeURIComponent(voltar)}`}

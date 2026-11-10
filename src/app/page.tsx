@@ -10,6 +10,8 @@ import MotivoPendencia from "./MotivoPendencia";
 import { montarDadosAviso } from "@/lib/notificacoes/modelos";
 import { criarNotificationService } from "@/lib/notificacoes/servico";
 import Agendar from "./Agendar";
+import AutorAgendamento from "./AutorAgendamento";
+import { autorNaLista } from "@/lib/autorAgendamento";
 import LimparAgendamento from "./LimparAgendamento";
 import { exigirAcessoCompleto } from "@/lib/auth";
 import { pode } from "@/lib/permissoes";
@@ -37,7 +39,7 @@ import {
   listarLinhas,
   nomesPossiveis,
 } from "@/lib/dados";
-import { STATUS_AGENDADOS } from "@/lib/status";
+import { podeFinalizarPeloStatus, STATUS_AGENDADOS } from "@/lib/status";
 import { horarioParaLista } from "@/lib/horarios";
 import {
   bateFiltroMotivo,
@@ -577,6 +579,8 @@ export default async function Home({ searchParams }: PageProps<"/">) {
               </thead>
               <tbody className="divide-y divide-line">
                 {linhas.map((l) => {
+                  // Quem agendou: só com agendamento em vigor e fora de Finalizado/Inativo.
+                  const autor = autorNaLista(l);
                   return (
                     <tr
                       key={l.id}
@@ -621,6 +625,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
                               {horarioParaLista(l.status, l.horario) && ` às ${horarioParaLista(l.status, l.horario)}`}
                             </div>
                           )}
+                          {autor && <AutorAgendamento autor={autor} className="mt-0.5" />}
                         </div>
                         {/* Sem espaço para as colunas de localização, elas viram uma linha sob o nome */}
                         {[[l.cidade, l.uf].filter(Boolean).join("/"), l.regiao, l.consultor].some(Boolean) && (
@@ -660,6 +665,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
                         {horarioParaLista(l.status, l.horario) && (
                           <div className="mt-0.5 text-xs">às {horarioParaLista(l.status, l.horario)}</div>
                         )}
+                        {autor && <AutorAgendamento autor={autor} className="mt-0.5" />}
                       </td>
                       <td className="py-2.5 pl-3 pr-4 align-top sm:pr-5">
                         <div className="flex items-center justify-end gap-1.5">
@@ -723,8 +729,10 @@ export default async function Home({ searchParams }: PageProps<"/">) {
                               nome={l.nome}
                               autor={usuario.nome}
                             />
-                          ) : STATUS_AGENDADOS.some((a) => a === l.status) ? (
-                            // Só quem já está agendado pode ser finalizado.
+                          ) : podeFinalizarPeloStatus(l.status, l.formato) ? (
+                            // Só quem já está agendado pode ser finalizado, inclusive o agendamento atrasado
+                            // (data vencida): abre a janela de conclusão e, ao confirmar, a lista é recarregada
+                            // pela própria Server Action, com a mensagem de confirmação e sem o botão.
                             <Finalizar
                               acao={finalizarComNota}
                               id={l.id}

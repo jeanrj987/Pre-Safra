@@ -49,6 +49,10 @@ export interface Linha {
   /** Horário agendado ("HH:MM") dentro da data prevista. */
   horario: string | null;
   formato: string | null;
+  /** Nome da conta que fez o último agendamento; nulo em clientes criados em /novo, importados ou antigos. */
+  agendadoPor: string | null;
+  /** Quando esse agendamento foi feito. */
+  agendadoEm: Date | null;
   observacao: string | null;
   /** Por que o cliente "A Fazer" ainda não foi agendado; só existe nesse status (ver lib/pendencia.ts). */
   motivoPendencia: string | null;
@@ -108,6 +112,8 @@ export async function listarLinhas(safraId: number): Promise<Linha[]> {
         dataPrevista: r.dataPrevista,
         horario: r.horario,
         formato: r.formato,
+        agendadoPor: r.agendadoPor,
+        agendadoEm: r.agendadoEm,
         // Inativo mostra o motivo; senão, a observação da finalização em vigor; senão, a geral.
         observacao:
           (r.inativo && r.motivoInativacao?.trim()) ||

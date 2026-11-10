@@ -19,6 +19,17 @@ export interface DadosStatus {
 /** Os dois status que o card "Agendados" soma. */
 export const STATUS_AGENDADOS: readonly StatusPreSafra[] = ["Agendado Online", "Agendado Presencial"];
 
+/**
+ * Quem pode receber o botão "Finalizar" na lista: os agendados e também os atrasados (agendamento
+ * com data já vencida), desde que tenham o formato previsto (Online/Presencial). É a mesma regra que
+ * a Server Action `finalizarComNota` aplica no servidor (só finaliza quem tem formato), então
+ * um atrasado sem formato (só uma data solta) precisa ser agendado antes de ser finalizado.
+ */
+export function podeFinalizarPeloStatus(status: StatusPreSafra, formato: string | null | undefined): boolean {
+  const temFormato = formato === "Online" || formato === "Presencial";
+  return temFormato && (status === "Atrasado" || STATUS_AGENDADOS.includes(status));
+}
+
 const MS_DIA = 24 * 60 * 60 * 1000;
 
 // Datas de negócio são só dia/mês/ano. Compara sempre em UTC, sem hora.

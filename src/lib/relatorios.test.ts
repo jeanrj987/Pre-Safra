@@ -33,6 +33,8 @@ const linha = (extra: Partial<Linha> = {}): Linha => ({
   dataPrevista: null,
   horario: null,
   formato: null,
+  agendadoPor: null,
+  agendadoEm: null,
   observacao: null,
   motivoPendencia: null,
   observacaoPendencia: null,

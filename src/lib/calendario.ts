@@ -24,6 +24,8 @@ export interface RegistroParaCalendario {
   configuradoSistema: boolean;
   inativo: boolean;
   responsavel: string | null;
+  /** Nome da conta que fez o último agendamento; nulo se não foi registrado. */
+  agendadoPor: string | null;
 }
 
 export interface AgendamentoCalendario {
@@ -34,6 +36,10 @@ export interface AgendamentoCalendario {
   /** "hh:mm"; nulo se o cliente tem data mas não tem horário */
   horario: string | null;
   responsavel: string | null;
+  /** "Online" ou "Presencial"; sem formato não há agendamento em vigor, então o autor não se mostra. */
+  formato: string | null;
+  /** Quem fez o último agendamento (nome da conta); nulo se não foi registrado. */
+  agendadoPor: string | null;
   status: StatusPreSafra;
 }
 
@@ -53,6 +59,8 @@ export function agendamentosDoCalendario(
       data: r.dataPrevista.toISOString().slice(0, 10),
       horario: r.horario,
       responsavel: r.responsavel,
+      formato: r.formato,
+      agendadoPor: r.agendadoPor,
       status,
     });
   }

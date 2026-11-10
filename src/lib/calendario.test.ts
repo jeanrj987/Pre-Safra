@@ -116,6 +116,7 @@ describe("agendamentosDoCalendario", () => {
     configuradoSistema: false,
     inativo: false,
     responsavel: null,
+    agendadoPor: null,
   };
   const dia = (iso: string) => new Date(`${iso}T00:00:00Z`);
 
@@ -171,6 +172,15 @@ describe("agendamentosDoCalendario", () => {
       agora,
     );
     expect(lista.map((a) => a.id)).toEqual([4, 3, 2, 1]);
+  });
+
+  it("leva o autor do agendamento e o formato para o chip", () => {
+    const [a] = agendamentosDoCalendario(
+      [{ ...base, id: 1, dataPrevista: dia("2026-10-08"), formato: "Online", agendadoPor: "Maria Souza" }],
+      agora,
+    );
+    expect(a.agendadoPor).toBe("Maria Souza");
+    expect(a.formato).toBe("Online");
   });
 });
 

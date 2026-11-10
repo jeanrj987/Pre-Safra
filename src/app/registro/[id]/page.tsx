@@ -15,6 +15,7 @@ import { calcularStatus, diasEmAtraso, mesPrevisto } from "@/lib/status";
 import { dataMaximaIso } from "@/lib/diasUteis";
 import { dataMinimaIso, erroDataPrevista, inicioDoAgendamento, MENSAGEM_ERRO_DATA } from "@/lib/dataPrevista";
 import { motivoHorarioPassado } from "@/lib/horarios";
+import { autorNoDetalhe } from "@/lib/autorAgendamento";
 import {
   dataParaCampo,
   formatarAtraso,
@@ -306,6 +307,7 @@ export default async function Registro({
   const linkAviso = servicoAvisos.linkWhatsapp(dadosAviso, eventoAviso);
   const podeAvisar = !r.configuradoSistema && !r.inativo;
   const atualizado = formatarDataHora(r.atualizadoEm);
+  const autorAgendamento = autorNoDetalhe(r);
 
   return (
     <Shell ativo={voltarAoCalendario ? "calendario" : "clientes"}>
@@ -432,6 +434,41 @@ export default async function Registro({
           Início do agendamento: {formatarData(new Date(`${inicioAgendamento}T00:00:00Z`))}. A data de finalização não
           pode ser anterior a ele. Qualquer usuário pode alterá-la.
         </p>
+        <section aria-labelledby="quem-agendou-titulo" className="mt-4 border-t border-line pt-4">
+          <h2 id="quem-agendou-titulo" className="sr-only">
+            Quem agendou, quem atende e a última alteração
+          </h2>
+          <dl className="grid gap-3 text-sm sm:grid-cols-2">
+            {/* Só com formato vigente: reabrir o cliente zera o formato, e o autor antigo não deve reaparecer. */}
+            {autorAgendamento && (
+              <>
+                <div>
+                  <dt className="text-xs text-muted">Agendado por</dt>
+                  <dd className={`font-medium ${autorAgendamento.semAutor ? "italic text-muted" : ""}`}>
+                    {autorAgendamento.nome}
+                  </dd>
+                </div>
+                {autorAgendamento.quando && (
+                  <div>
+                    <dt className="text-xs text-muted">Agendado em</dt>
+                    <dd className="font-medium tabular-nums">{autorAgendamento.quando}</dd>
+                  </div>
+                )}
+              </>
+            )}
+            <div>
+              <dt className="text-xs text-muted">Responsável</dt>
+              <dd className="font-medium">{r.responsavel || "Sem responsável"}</dd>
+            </div>
+            <div>
+              <dt className="text-xs text-muted">Última alteração</dt>
+              <dd className="font-medium">
+                {atualizado}
+                {r.atualizadoPor && <> · por {r.atualizadoPor}</>}
+              </dd>
+            </div>
+          </dl>
+        </section>
       </section>
 
       {podeAvisar && (
@@ -738,11 +775,6 @@ export default async function Registro({
               </p>
             </section>
           )}
-
-          <p className="px-1 text-xs text-muted">
-            Última alteração em {atualizado}
-            {r.atualizadoPor && <> · por {r.atualizadoPor}</>}
-          </p>
         </aside>
         </fieldset>
       </form>
