@@ -14,6 +14,7 @@ import { COOKIE_TEMA } from "@/lib/tema";
 import { pode, podeAcessarAdmin } from "@/lib/permissoes";
 import Icone, { type NomeIcone } from "./Icone";
 import BotaoSidebar from "./BotaoSidebar";
+import AtualizarSozinho from "./AtualizarSozinho";
 import BotaoTema from "./BotaoTema";
 import IndicadorLink from "./IndicadorLink";
 import SeletorSafra from "./SeletorSafra";
@@ -283,6 +284,10 @@ export default async function Shell({
           </div>
         </nav>
       </header>
+
+      {/* Mantém lista, Painel, Calendário e Relatórios em dia sem F5 (o próprio componente
+          ignora as demais rotas que usam o Shell, como novo, admin e o detalhe do cliente). */}
+      <AtualizarSozinho />
 
       <main
         className={`mx-auto w-full px-4 sm:px-8 ${
