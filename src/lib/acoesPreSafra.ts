@@ -8,6 +8,17 @@ import type { MarcasFinalizacao } from "./finalizacao";
 export type Formato = "Online" | "Presencial";
 export const formatoValido = (v: string | null): v is Formato => v === "Online" || v === "Presencial";
 
+// Quem a Server Action `finalizarComNota` aceita finalizar: os agendados (com formato) e os
+// atrasados (data prevista já vencida), mesmo que sem formato — a janela de finalizar pede o
+// formato do atendimento. Só "A Fazer" (sem data vencida e sem formato) fica de fora, e os
+// inativos também (mesma condição de `salvarMotivoPendencia`).
+export function filtroFinalizavel(hoje: Date = new Date()) {
+  return {
+    inativo: false,
+    OR: [{ formato: { not: null } }, { dataPrevista: { lt: new Date(diaHoje(hoje)) } }],
+  };
+}
+
 export interface ResultadoFinalizar {
   feitos: number;
   faltaFormato: boolean;

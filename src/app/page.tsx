@@ -729,10 +729,10 @@ export default async function Home({ searchParams }: PageProps<"/">) {
                               nome={l.nome}
                               autor={usuario.nome}
                             />
-                          ) : podeFinalizarPeloStatus(l.status, l.formato) ? (
-                            // Só quem já está agendado pode ser finalizado, inclusive o agendamento atrasado
-                            // (data vencida): abre a janela de conclusão e, ao confirmar, a lista é recarregada
-                            // pela própria Server Action, com a mensagem de confirmação e sem o botão.
+                          ) : podeFinalizarPeloStatus(l.status) ? (
+                            // Só agendados e atrasados (data vencida, com ou sem formato) podem ser finalizados:
+                            // abre a janela de conclusão e, ao confirmar, a lista é recarregada pela
+                            // própria Server Action, com a mensagem de confirmação e sem o botão.
                             <Finalizar
                               acao={finalizarComNota}
                               id={l.id}

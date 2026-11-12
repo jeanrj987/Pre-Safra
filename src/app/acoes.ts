@@ -6,7 +6,7 @@ import { prisma } from "@/lib/db";
 import { avisarMudancaDeData } from "@/lib/notificacoes/avisos";
 import { limparObservacaoPendencia, motivoPendenciaValido } from "@/lib/pendencia";
 import { diaHoje } from "@/lib/status";
-import { finalizarPendentes, formatoValido, reabrirIds, type Formato } from "@/lib/acoesPreSafra";
+import { filtroFinalizavel, finalizarPendentes, formatoValido, reabrirIds, type Formato } from "@/lib/acoesPreSafra";
 import { ITENS_FINALIZACAO, type MarcasFinalizacao } from "@/lib/finalizacao";
 import { motivoDataIndisponivel } from "@/lib/diasUteis";
 import { horarioValido, motivoHorarioPassado } from "@/lib/horarios";
@@ -49,12 +49,12 @@ function voltarPara(formData: FormData, feitos: number, acao: string): never {
 // sessão/FormData. Aqui só cuidamos de autenticação, parsing do formulário e navegação.
 export async function finalizarComNota(formData: FormData) {
   const sessao = await exigirAcessoCompleto();
-  // Só se finaliza quem já foi agendado (tem formato previsto): a tela já esconde o botão dos
-  // demais, e aqui o servidor ignora qualquer id que não esteja nessa condição.
+  // Só se finaliza quem foi agendado (tem formato previsto) ou está atrasado (data vencida): a
+  // tela já esconde o botão dos demais, e aqui o servidor ignora qualquer id fora dessa condição.
   const idsPedidos = await idsPermitidos(sessao, idsDe(formData, "ids"));
   const ids = (
     await prisma.preSafra.findMany({
-      where: { id: { in: idsPedidos }, formato: { not: null } },
+      where: { id: { in: idsPedidos }, ...filtroFinalizavel() },
       select: { id: true },
     })
   ).map((p) => p.id);

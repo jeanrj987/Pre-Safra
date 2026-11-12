@@ -3,7 +3,7 @@
 // real — mesmo se o teste for interrompido no meio, o próximo run limpa o que sobrou.
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "./db";
-import { finalizarPendentes, reabrirIds } from "./acoesPreSafra";
+import { filtroFinalizavel, finalizarPendentes, reabrirIds } from "./acoesPreSafra";
 import { marcasVazias } from "./finalizacao";
 
 const MARCA = "TESTE_AUTOMATIZADO_ACOES_PRESAFRA";
@@ -152,5 +152,73 @@ describe("reabrirIds", () => {
     expect(registro?.conclusoes[1].observacao).toBe("reagendado");
     // A entrada antiga guarda o registro da reabertura; não é sobrescrita.
     expect(registro?.conclusoes[0].motivoReabertura).toBe("motivo do teste");
+  });
+});
+
+describe("filtroFinalizavel", () => {
+  const idsFinalizaveis = async (ids: number[], hoje?: Date) =>
+    (await prisma.preSafra.findMany({ where: { id: { in: ids }, ...filtroFinalizavel(hoje) }, select: { id: true } }))
+      .map((p) => p.id)
+      .sort((a, b) => a - b);
+
+  // Fixtures na safra MARCA: são apagadas por limparFixtures (afterAll e início do próximo run).
+  const criar = async (
+    sufixo: string,
+    data: { dataPrevista?: Date; formato?: "Online" | "Presencial"; inativo?: boolean },
+  ) => {
+    const safraId = (await prisma.safra.findFirstOrThrow({ where: { nome: MARCA } })).id;
+    return prisma.preSafra.create({ data: { safraId, clienteNomeManual: `${MARCA}_${sufixo}`, ...data } });
+  };
+
+  it("limite de data: hoje sem formato é recusado (ainda não venceu); ontem sem formato é aceito", async () => {
+    // 15:00 UTC = 12:00 em São Paulo: o dia de negócio é 25/09/2026.
+    const hojeFixo = new Date("2026-09-25T15:00:00Z");
+    const venceHoje = await criar("LIMITE_HOJE", { dataPrevista: new Date("2026-09-25") });
+    const venceuOntem = await criar("LIMITE_ONTEM", { dataPrevista: new Date("2026-09-24") });
+
+    expect(await idsFinalizaveis([venceHoje.id, venceuOntem.id], hojeFixo)).toEqual([venceuOntem.id]);
+  });
+
+  it("recusa cliente inativo, com formato ou atrasado sem formato", async () => {
+    const inativoComFormato = await criar("INATIVO_COM_FORMATO", {
+      dataPrevista: new Date("2099-01-01"),
+      formato: "Online",
+      inativo: true,
+    });
+    const inativoAtrasado = await criar("INATIVO_ATRASADO", { dataPrevista: new Date("2020-06-01"), inativo: true });
+
+    expect(await idsFinalizaveis([inativoComFormato.id, inativoAtrasado.id])).toEqual([]);
+  });
+
+  it("aceita atrasado (data vencida) sem formato, agendado com formato e atrasado com formato; recusa A Fazer", async () => {
+    const atrasadoSemFormato = await criar("ATRASADO_SEM_FORMATO", { dataPrevista: new Date("2020-06-01") });
+    const atrasadoComFormato = await criar("ATRASADO_COM_FORMATO", { dataPrevista: new Date("2020-06-01"), formato: "Online" });
+    const agendado = await criar("AGENDADO", { dataPrevista: new Date("2099-01-01"), formato: "Presencial" });
+    const aFazer = await criar("A_FAZER", {});
+    const soDataFutura = await criar("SO_DATA_FUTURA", { dataPrevista: new Date("2099-01-01") });
+
+    const aceitos = await idsFinalizaveis([
+      atrasadoSemFormato.id,
+      atrasadoComFormato.id,
+      agendado.id,
+      aFazer.id,
+      soDataFutura.id,
+    ]);
+    expect(aceitos).toEqual([atrasadoSemFormato.id, atrasadoComFormato.id, agendado.id].sort((a, b) => a - b));
+
+    // E o atrasado sem formato realmente finaliza quando a janela informa o formato.
+    const r = await finalizarPendentes({
+      ids: [atrasadoSemFormato.id],
+      formatoDe: () => "Online",
+      observacaoDe: () => null,
+      marcasDe: () => marcasVazias(),
+      autor: "Teste",
+    });
+    expect(r).toEqual({ feitos: 1, faltaFormato: false });
+
+    // O formato informado na janela fica gravado e o cliente passa a finalizado.
+    const registro = await prisma.preSafra.findUniqueOrThrow({ where: { id: atrasadoSemFormato.id } });
+    expect(registro.formato).toBe("Online");
+    expect(registro.configuradoSistema).toBe(true);
   });
 });

@@ -20,14 +20,15 @@ export interface DadosStatus {
 export const STATUS_AGENDADOS: readonly StatusPreSafra[] = ["Agendado Online", "Agendado Presencial"];
 
 /**
- * Quem pode receber o botão "Finalizar" na lista: os agendados e também os atrasados (agendamento
- * com data já vencida), desde que tenham o formato previsto (Online/Presencial). É a mesma regra que
- * a Server Action `finalizarComNota` aplica no servidor (só finaliza quem tem formato), então
- * um atrasado sem formato (só uma data solta) precisa ser agendado antes de ser finalizado.
+ * Quem pode receber o botão "Finalizar" na lista: os agendados e todos os atrasados (data prevista
+ * já vencida), com ou sem formato. O atrasado vindo de importação tem só a data solta; a janela de
+ * finalizar sempre pede o formato do atendimento, então ele também pode ser finalizado. A Server
+ * Action `finalizarComNota` aplica a mesma regra de agendado/atrasado (ver `filtroFinalizavel`) e,
+ * além dela, recusa clientes inativos (a tela já os esconde pelo status "Inativo"). "A Fazer" (sem
+ * data nem formato) precisa ser agendado antes.
  */
-export function podeFinalizarPeloStatus(status: StatusPreSafra, formato: string | null | undefined): boolean {
-  const temFormato = formato === "Online" || formato === "Presencial";
-  return temFormato && (status === "Atrasado" || STATUS_AGENDADOS.includes(status));
+export function podeFinalizarPeloStatus(status: StatusPreSafra): boolean {
+  return status === "Atrasado" || STATUS_AGENDADOS.includes(status);
 }
 
 const MS_DIA = 24 * 60 * 60 * 1000;

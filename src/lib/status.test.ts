@@ -108,32 +108,40 @@ describe("diasAtrasoNaConclusao", () => {
 });
 
 describe("podeFinalizarPeloStatus", () => {
-  it("vale para agendados e atrasados que têm formato", () => {
-    expect(podeFinalizarPeloStatus("Agendado Online", "Online")).toBe(true);
-    expect(podeFinalizarPeloStatus("Agendado Presencial", "Presencial")).toBe(true);
-    expect(podeFinalizarPeloStatus("Atrasado", "Online")).toBe(true);
-    expect(podeFinalizarPeloStatus("Atrasado", "Presencial")).toBe(true);
+  it("vale para agendados e para atrasados", () => {
+    expect(podeFinalizarPeloStatus("Agendado Online")).toBe(true);
+    expect(podeFinalizarPeloStatus("Agendado Presencial")).toBe(true);
+    expect(podeFinalizarPeloStatus("Atrasado")).toBe(true);
   });
-  it("não vale para atrasado sem formato, A Fazer, Finalizado e Inativo", () => {
-    expect(podeFinalizarPeloStatus("Atrasado", null)).toBe(false);
-    expect(podeFinalizarPeloStatus("Atrasado", "")).toBe(false);
-    expect(podeFinalizarPeloStatus("A Fazer", "Online")).toBe(false);
-    expect(podeFinalizarPeloStatus("Finalizado", "Online")).toBe(false);
-    expect(podeFinalizarPeloStatus("Inativo", "Online")).toBe(false);
+  it("não vale para A Fazer, Finalizado e Inativo", () => {
+    expect(podeFinalizarPeloStatus("A Fazer")).toBe(false);
+    expect(podeFinalizarPeloStatus("Finalizado")).toBe(false);
+    expect(podeFinalizarPeloStatus("Inativo")).toBe(false);
   });
-  it("combina com calcularStatus: data de ontem com formato aparece como atrasado finalizável", () => {
+  it("atrasado só com a data vencida (sem formato, como na importação) também pode ser finalizado", () => {
+    const status = calcularStatus(
+      { configuradoSistema: false, dataPrevista: d("2026-09-24"), formato: null },
+      hoje,
+    );
+    expect(status).toBe("Atrasado");
+    expect(podeFinalizarPeloStatus(status)).toBe(true);
+  });
+  it("combina com calcularStatus: data de ontem com formato é atrasado finalizável; hoje ainda é agendado", () => {
     const status = calcularStatus(
       { configuradoSistema: false, dataPrevista: d("2026-09-24"), formato: "Online" },
       hoje,
     );
-    expect(podeFinalizarPeloStatus(status, "Online")).toBe(true);
-    // Hoje ainda é agendado (vira atrasado só no dia seguinte), e continua finalizável.
+    expect(podeFinalizarPeloStatus(status)).toBe(true);
     const hojeStatus = calcularStatus(
       { configuradoSistema: false, dataPrevista: d("2026-09-25"), formato: "Online" },
       hoje,
     );
     expect(hojeStatus).toBe("Agendado Online");
-    expect(podeFinalizarPeloStatus(hojeStatus, "Online")).toBe(true);
+    expect(podeFinalizarPeloStatus(hojeStatus)).toBe(true);
+  });
+  it("sem data e sem formato continua A Fazer, que não é finalizável", () => {
+    const status = calcularStatus({ configuradoSistema: false, dataPrevista: null, formato: null }, hoje);
+    expect(podeFinalizarPeloStatus(status)).toBe(false);
   });
 });
 
