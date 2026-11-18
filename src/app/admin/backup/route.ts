@@ -286,6 +286,7 @@ export async function GET() {
         { cabecalho: "Somente Painel", valor: (u) => sim(u.somentePainel), largura: 15 },
         { cabecalho: "Permissões", valor: (u) => u.permissoes.join(", "), largura: 30 },
         { cabecalho: "Nome de responsável", valor: (u) => u.nomeResponsavel, largura: 21 },
+        { cabecalho: "Regiões (Admin da região)", valor: (u) => u.regioesAdmin.join(", "), largura: 30 },
         { cabecalho: "Ativo", valor: (u) => sim(u.ativo), largura: 8 },
         { cabecalho: "Criado em", valor: (u) => u.criadoEm, formato: "dataHora" },
         { cabecalho: "Atualizado em", valor: (u) => u.atualizadoEm, formato: "dataHora" },

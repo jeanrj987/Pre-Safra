@@ -117,6 +117,8 @@ async function main() {
     somentePainel: sim(l["Somente Painel"]),
     permissoes: filtrarPermissoes((texto(l["Permissões"]) ?? "").split(",").map((p) => p.trim()).filter(Boolean)),
     nomeResponsavel: texto(l["Nome de responsável"]),
+    // Backups antigos não têm esta coluna: texto() devolve nulo e a lista fica vazia.
+    regioesAdmin: (texto(l["Regiões (Admin da região)"]) ?? "").split(",").map((r) => r.trim()).filter(Boolean),
     ativo: sim(l["Ativo"]),
     criadoEm: dataHoraObrigatoria(l["Criado em"], "Usuários/Criado em"),
     atualizadoEm: dataHoraObrigatoria(l["Atualizado em"], "Usuários/Atualizado em"),

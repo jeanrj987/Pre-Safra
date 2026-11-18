@@ -22,6 +22,11 @@ export interface UsuarioSessao {
   somentePainel: boolean;
   /** Nome ligado à conta na lista de responsáveis; só quem tem pode alterar clientes (além do admin). */
   nomeResponsavel: string | null;
+  /**
+   * Regiões de que a conta é admin regional (nomes como em Cliente.regiao): poder sobre os clientes delas e
+   * responsável padrão (ver src/lib/responsavel.ts). Vazio para o admin total e para "somente Painel".
+   */
+  regioesAdmin: string[];
 }
 
 // A assinatura inclui o senhaHash atual: trocar a senha ou desativar o usuário invalida
@@ -96,6 +101,11 @@ export async function encerrarSessao() {
   (await cookies()).delete(COOKIE);
 }
 
+// Do banco, só regiões com texto, sem espaços nas pontas e sem repetição.
+function regioesLimpas(regioes: readonly string[] | null | undefined): string[] {
+  return [...new Set((regioes ?? []).map((r) => r.trim()).filter(Boolean))];
+}
+
 // cache() evita bater no banco várias vezes no mesmo request (a página chama exigirLogin(),
 // o Shell chama usuarioAtual() de novo para montar a navegação).
 const carregarSessao = cache(async (): Promise<UsuarioSessao | null> => {
@@ -115,9 +125,10 @@ const carregarSessao = cache(async (): Promise<UsuarioSessao | null> => {
     nome: usuario.nome,
     email: usuario.email,
     admin: usuario.admin,
-    permissoes: permissoesEfetivas(usuario),
+    permissoes: permissoesEfetivas({ ...usuario, regioesAdmin: regioesLimpas(usuario.regioesAdmin) }),
     somentePainel: usuario.somentePainel,
     nomeResponsavel: usuario.nomeResponsavel?.trim() || null,
+    regioesAdmin: usuario.admin || usuario.somentePainel ? [] : regioesLimpas(usuario.regioesAdmin),
   };
 });
 

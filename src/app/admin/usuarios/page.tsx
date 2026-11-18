@@ -7,7 +7,7 @@ import { limparTentativasLogin } from "@/lib/limitador";
 import { mensagemErroSenha, MENSAGEM_ERRO_SENHA, validarSenha } from "@/lib/politica-senha";
 import { avisarSenhaAlterada, invalidarTokensDoUsuario } from "@/lib/recuperacao";
 import { prisma } from "@/lib/db";
-import { listarNomesResponsaveis } from "@/lib/dados";
+import { listarNomesResponsaveis, listarRegioesConhecidas } from "@/lib/dados";
 import { contemNome } from "@/lib/texto";
 import BotaoAcao from "@/app/BotaoAcao";
 import BotaoExcluir from "@/app/BotaoExcluir";
@@ -23,31 +23,65 @@ import EditarUsuario from "./EditarUsuario";
 import GerarLinkRedefinicao from "./GerarLinkRedefinicao"; // link do admin
 import NovoUsuario from "./NovoUsuario";
 import RedefinirSenha from "./RedefinirSenha";
+import {
+  conflitosDeRegioes,
+  descreverConflitos,
+  regioesOcupadas,
+  validarAcessoRegional,
+  type ContaComRegioes,
+} from "./regioes-admin";
 
 export const metadata = { title: "Usuários" };
 
+const PAPEIS: readonly Papel[] = ["comum", "personalizado", "regional", "admin", "painel"];
+
 // Lê o papel escolhido e, no Personalizado, as permissões marcadas (nos demais papéis elas não valem).
+// `regional` indica o Admin da região, que precisa de regiões e do nome de responsável (conferidos à parte).
 function lerAcesso(formData: FormData) {
-  const papel = String(formData.get("papel") ?? "comum") as Papel;
+  const bruto = String(formData.get("papel") ?? "comum");
+  const papel = PAPEIS.find((p) => p === bruto) ?? "comum";
   return {
     admin: papel === "admin",
     somentePainel: papel === "painel",
+    regional: papel === "regional",
     permissoes: papel === "personalizado" ? filtrarPermissoes(formData.getAll("permissoes").map(String)) : [],
+    regioesEscolhidas: papel === "regional" ? formData.getAll("regioesAdmin").map(String) : [],
   };
 }
+
+// Contas ativas com as regiões que cuidam, para saber quais regiões já têm Admin da região.
+const contasComRegioes = (): Promise<ContaComRegioes[]> =>
+  prisma.usuario.findMany({
+    where: { ativo: true, NOT: { regioesAdmin: { isEmpty: true } } },
+    select: { id: true, nome: true, ativo: true, regioesAdmin: true },
+  });
 
 export default async function AdminUsuarios({
   searchParams,
 }: {
-  searchParams: Promise<{ erro?: string }>;
+  searchParams: Promise<{ erro?: string; reativar?: string }>;
 }) {
   const eu = await exigirAdmin();
-  const { erro } = await searchParams;
-  const mensagemErro = mensagemErroSenha(erro);
-  const [usuarios, nomesResponsaveis] = await Promise.all([
+  const { erro, reativar } = await searchParams;
+  const [usuarios, nomesResponsaveis, regioesConhecidas] = await Promise.all([
     prisma.usuario.findMany({ orderBy: { nome: "asc" } }),
     listarNomesResponsaveis(),
+    listarRegioesConhecidas(),
   ]);
+  // O aviso de reativação é montado aqui com o que está no banco (a URL só leva o id da conta).
+  const contaNaoReativada = usuarios.find((u) => String(u.id) === reativar && !u.ativo);
+  const conflitosReativacao = contaNaoReativada
+    ? conflitosDeRegioes(contaNaoReativada.regioesAdmin, usuarios, contaNaoReativada.id)
+    : [];
+  const mensagemErro =
+    mensagemErroSenha(erro) ??
+    (contaNaoReativada && conflitosReativacao.length > 0
+      ? `Não foi possível reativar a conta de ${contaNaoReativada.nome}: ${descreverConflitos(conflitosReativacao)} já ${
+          conflitosReativacao.length > 1 ? "têm" : "tem"
+        } Admin da região ativo. Cada região só pode ter um; retire a região de uma das contas antes.`
+      : null);
+  // Regiões já ocupadas por Admin da região ativo (para a janela de novo usuário).
+  const ocupadasGeral = regioesOcupadas(usuarios, regioesConhecidas);
 
   // Devolve o erro (em vez de redirecionar) para a janela de novo usuário mostrá-lo no lugar;
   // se deu certo, a janela fecha.
@@ -59,7 +93,7 @@ export default async function AdminUsuarios({
       .trim()
       .toLowerCase();
     const senha = String(formData.get("senha") ?? "");
-    const { admin, somentePainel, permissoes } = lerAcesso(formData);
+    const { admin, somentePainel, regional, permissoes, regioesEscolhidas } = lerAcesso(formData);
     const nomeResponsavel = String(formData.get("nomeResponsavel") ?? "").trim() || null;
     if (!nome || !email) return { erro: "Preencha o nome e o e-mail." };
     const problemaSenha = validarSenha(senha);
@@ -71,8 +105,29 @@ export default async function AdminUsuarios({
     if (nomeResponsavel && !contemNome(await listarNomesResponsaveis(), nomeResponsavel)) {
       return { erro: "Escolha um nome da lista de responsáveis." };
     }
+    // Admin da região: ao menos uma região (da lista), nome ligado e nenhuma região já ocupada.
+    let regioesAdmin: string[] = [];
+    if (regional) {
+      const conferido = validarAcessoRegional({
+        regioesEscolhidas,
+        regioesValidas: await listarRegioesConhecidas(),
+        nomeResponsavel,
+        outrasContas: await contasComRegioes(),
+      });
+      if ("erro" in conferido) return conferido;
+      regioesAdmin = conferido.regioes;
+    }
     await prisma.usuario.create({
-      data: { nome, email, senhaHash: await hashSenha(senha), admin, somentePainel, permissoes, nomeResponsavel },
+      data: {
+        nome,
+        email,
+        senhaHash: await hashSenha(senha),
+        admin,
+        somentePainel,
+        permissoes,
+        nomeResponsavel,
+        regioesAdmin,
+      },
     });
     revalidatePath("/admin/usuarios");
     return {};
@@ -88,7 +143,7 @@ export default async function AdminUsuarios({
     const email = String(formData.get("email") ?? "")
       .trim()
       .toLowerCase();
-    const { admin, somentePainel, permissoes } = lerAcesso(formData);
+    const { admin, somentePainel, regional, permissoes, regioesEscolhidas } = lerAcesso(formData);
     const nomeResponsavel = String(formData.get("nomeResponsavel") ?? "").trim() || null;
     if (!nome || !email) return { erro: "Preencha o nome e o e-mail." };
 
@@ -116,7 +171,26 @@ export default async function AdminUsuarios({
       }
     }
 
-    await prisma.usuario.update({ where: { id }, data: { nome, email, admin, somentePainel, permissoes, nomeResponsavel } });
+    // Admin da região: ao menos uma região (da lista ou já salva na conta), nome ligado e nenhuma região
+    // ocupada por outra conta ativa. Conta inativa não ocupa região: o conflito é conferido ao reativá-la.
+    let regioesAdmin: string[] = [];
+    if (regional) {
+      const conferido = validarAcessoRegional({
+        regioesEscolhidas,
+        regioesValidas: [...(await listarRegioesConhecidas()), ...alvo.regioesAdmin],
+        nomeResponsavel,
+        outrasContas: await contasComRegioes(),
+        ignorarId: id,
+        conferirOcupacao: alvo.ativo,
+      });
+      if ("erro" in conferido) return conferido;
+      regioesAdmin = conferido.regioes;
+    }
+
+    await prisma.usuario.update({
+      where: { id },
+      data: { nome, email, admin, somentePainel, permissoes, nomeResponsavel, regioesAdmin },
+    });
     // Links de redefinição já gerados foram pensados para o e-mail antigo: deixam de valer.
     if (email !== alvo.email) await invalidarTokensDoUsuario(id);
     revalidatePath("/admin/usuarios");
@@ -129,6 +203,13 @@ export default async function AdminUsuarios({
     "use server";
     const sessao = await exigirAdmin();
     if (id === sessao.id) return;
+    if (novoAtivo) {
+      // Reativar um Admin da região não pode ficar com região que outra conta ativa passou a ter.
+      const alvo = await prisma.usuario.findUnique({ where: { id } });
+      if (alvo && !alvo.ativo && conflitosDeRegioes(alvo.regioesAdmin, await contasComRegioes(), id).length > 0) {
+        redirect(`/admin/usuarios?reativar=${id}`);
+      }
+    }
     if (!novoAtivo) {
       const alvo = await prisma.usuario.findUnique({ where: { id } });
       if (alvo?.admin) {
@@ -185,7 +266,12 @@ export default async function AdminUsuarios({
     <section className="card">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-4 py-3.5 sm:px-5">
         <h2 className="text-base font-semibold">Usuários</h2>
-        <NovoUsuario acao={criarUsuario} nomes={nomesResponsaveis} />
+        <NovoUsuario
+          acao={criarUsuario}
+          nomes={nomesResponsaveis}
+          regioes={regioesConhecidas}
+          regioesOcupadas={ocupadasGeral}
+        />
       </div>
 
       {mensagemErro && (
@@ -225,6 +311,7 @@ export default async function AdminUsuarios({
                   <div className="mt-0.5 text-xs font-normal text-muted @2xl:hidden">
                     {ROTULO_PAPEL[papelDe(u)]} · {u.ativo ? "Ativo" : "Inativo"}
                   </div>
+                  <RegioesDoAdmin regioes={u.regioesAdmin} className="mt-1 @2xl:hidden" />
                   <div className="mt-0.5 text-xs font-normal text-muted @2xl:hidden">
                     <LigacaoResponsavel usuario={u} nomes={nomesResponsaveis} />
                   </div>
@@ -264,8 +351,11 @@ export default async function AdminUsuarios({
                         papel: papelDe(u),
                         permissoes: filtrarPermissoes(u.permissoes),
                         nomeResponsavel: u.nomeResponsavel ?? "",
+                        regioesAdmin: u.regioesAdmin,
                       }}
                       nomes={nomesResponsaveis}
+                      regioes={regioesConhecidas}
+                      regioesOcupadas={regioesOcupadas(usuarios, [...regioesConhecidas, ...u.regioesAdmin], u.id)}
                       salvar={editarUsuario.bind(null, u.id)}
                     />
                     {u.id !== eu.id && (
@@ -287,8 +377,20 @@ export default async function AdminUsuarios({
 }
 
 // O papel da conta e, no Personalizado, quantas permissões ela tem (a lista completa aparece ao passar o mouse).
-function PapelEAcesso({ usuario }: { usuario: { admin: boolean; somentePainel: boolean; permissoes: string[] } }) {
+function PapelEAcesso({
+  usuario,
+}: {
+  usuario: { admin: boolean; somentePainel: boolean; permissoes: string[]; regioesAdmin: string[] };
+}) {
   const papel = papelDe(usuario);
+  if (papel === "regional") {
+    return (
+      <>
+        {ROTULO_PAPEL[papel]}
+        <RegioesDoAdmin regioes={usuario.regioesAdmin} className="mt-1" />
+      </>
+    );
+  }
   if (papel !== "personalizado") return <>{ROTULO_PAPEL[papel]}</>;
   const lista = filtrarPermissoes(usuario.permissoes);
   return (
@@ -308,11 +410,15 @@ function LigacaoResponsavel({
   usuario,
   nomes,
 }: {
-  usuario: { admin: boolean; somentePainel: boolean; nomeResponsavel: string | null };
+  usuario: { admin: boolean; somentePainel: boolean; nomeResponsavel: string | null; regioesAdmin: string[] };
   nomes: string[];
 }) {
   if (usuario.somentePainel) return <span className="text-muted">—</span>;
   if (!usuario.nomeResponsavel) {
+    // Admin da região sem nome ligado não é responsável por nenhum cliente, mesmo com as regiões.
+    if (usuario.regioesAdmin.length > 0 && !usuario.admin) {
+      return <span className="text-atrasado-fg">Sem nome ligado: não é responsável pelos clientes</span>;
+    }
     return usuario.admin ? (
       <span className="text-muted">Não precisa</span>
     ) : (
@@ -325,5 +431,19 @@ function LigacaoResponsavel({
       {usuario.nomeResponsavel}
       {!naLista && " (não está mais na lista de responsáveis)"}
     </span>
+  );
+}
+
+// As regiões de um Admin da região, em etiquetas (nada aparece nos demais papéis).
+function RegioesDoAdmin({ regioes, className = "" }: { regioes: string[]; className?: string }) {
+  if (regioes.length === 0) return null;
+  return (
+    <ul aria-label="Regiões" className={`flex flex-wrap gap-1 ${className}`}>
+      {regioes.map((r) => (
+        <li key={r} className="rounded-full bg-primary-soft px-2 py-0.5 text-[11px] font-semibold text-primary">
+          {r}
+        </li>
+      ))}
+    </ul>
   );
 }

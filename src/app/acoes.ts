@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { exigirAcessoCompleto } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { adminDaRegiao, carregarAdminsPorRegiao } from "@/lib/adminRegional";
 import { avisarMudancaDeData } from "@/lib/notificacoes/avisos";
 import { limparObservacaoPendencia, motivoPendenciaValido } from "@/lib/pendencia";
 import { diaHoje } from "@/lib/status";
@@ -17,8 +18,8 @@ import { idsPermitidos, podeAgendarCliente, podeAlterarCliente, responsavelEscol
 // importadas/testadas fora do componente de página, que já é grande só com a tabela e os
 // filtros.
 //
-// Todos os usuários veem e agendam qualquer cliente; finalizar e reabrir ficam com o admin e o
-// responsável do cliente (ver src/lib/responsavel.ts). O servidor confere isso em cada ação:
+// Todos os usuários veem e agendam qualquer cliente; finalizar e reabrir ficam com o admin, o admin da
+// região do cliente e o responsável do cliente (ver src/lib/responsavel.ts). O servidor confere isso em cada ação:
 // esconder o botão na tela não basta, a Server Action pode ser chamada direto. Contas "somente
 // Painel" não têm acesso a nenhuma delas (exigirAcessoCompleto).
 
@@ -147,7 +148,7 @@ export async function agendarCliente(formData: FormData) {
       dataPrevista: true,
       horario: true,
       formato: true,
-      cliente: { select: { atendente: true } },
+      cliente: { select: { atendente: true, regiao: true } },
     },
   });
   if (!registro || registro.configuradoSistema || registro.inativo) {
@@ -156,7 +157,7 @@ export async function agendarCliente(formData: FormData) {
 
   if (formData.get("remover")) {
     // Só o admin e o responsável do cliente removem o agendamento (o servidor garante mesmo sem o botão).
-    if (!podeAlterarCliente(sessao, registro.responsavel)) voltarPara(formData, 0, "desagendados");
+    if (!podeAlterarCliente(sessao, registro.responsavel, registro.cliente?.regiao)) voltarPara(formData, 0, "desagendados");
     await prisma.preSafra.update({
       where: { id },
       data: {
@@ -173,7 +174,7 @@ export async function agendarCliente(formData: FormData) {
   }
 
   // Agendar exige poder ter um responsável.
-  if (!podeAgendarCliente(sessao, registro.responsavel)) voltarPara(formData, 0, "agendados");
+  if (!podeAgendarCliente(sessao, registro.responsavel, registro.cliente?.regiao)) voltarPara(formData, 0, "agendados");
 
   const dataTexto = textoDe(formData, "data") ?? "";
   const dataValida = /^\d{4}-\d{2}-\d{2}$/.test(dataTexto);
@@ -192,10 +193,15 @@ export async function agendarCliente(formData: FormData) {
 
   // Quem tem "trocarResp" escolhe qualquer responsável. Os demais escolhem um dos atendentes da dupla
   // do cliente (um pode agendar para o outro) ou a si mesmos; sem dupla cadastrada, assumem o cliente (o
-  // nome ligado à conta). Um nome fora disso, vindo de formulário forjado, não grava nada.
+  // nome ligado à conta). O admin da região do cliente também é opção (e o padrão de cliente sem responsável).
+  // Um nome fora disso, vindo de formulário forjado, não grava nada.
   const responsavel = responsavelEscolhidoAoAgendar(
     sessao,
-    { atendentes: registro.cliente?.atendente ?? null, responsavel: registro.responsavel },
+    {
+      atendentes: registro.cliente?.atendente ?? null,
+      responsavel: registro.responsavel,
+      adminRegional: adminDaRegiao(await carregarAdminsPorRegiao(), registro.cliente?.regiao),
+    },
     textoDe(formData, "responsavel"),
   );
 

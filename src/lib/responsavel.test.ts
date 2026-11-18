@@ -1,7 +1,15 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const banco = vi.hoisted(() => ({ preSafra: { findMany: vi.fn(), updateMany: vi.fn() } }));
+vi.mock("./db", () => ({ prisma: banco }));
+
 import { TODAS_PERMISSOES } from "./permissoes";
 import {
   assumeAoAgendar,
+  assumirCliente,
+  ehAdminDaRegiao,
+  idsPermitidos,
+  responsavelPadraoDaRegiao,
   podeAgendarCliente,
   podeAlterarCliente,
   opcoesDeResponsavelAoAgendar,
@@ -207,5 +215,191 @@ describe("permissões soltas", () => {
     const u = { permissoes: ["trocarResp"], nomeResponsavel: null };
     expect(podeAgendarCliente(u, null)).toBe(true);
     expect(podeAssumirCliente({ permissoes: ["trocarResp"], nomeResponsavel: "Maria" }, null)).toBe(false);
+  });
+});
+
+describe("admin da região", () => {
+  const ana = { permissoes: [], nomeResponsavel: "Ana", regioesAdmin: ["Sorriso", "Lucas do Rio Verde"] };
+  const maria = { permissoes: [], nomeResponsavel: "Maria" };
+
+  describe("podeAlterarCliente", () => {
+    it("altera cliente da região dele, de qualquer responsável ou sem responsável", () => {
+      expect(podeAlterarCliente(ana, "Maria", "Sorriso")).toBe(true);
+      expect(podeAlterarCliente(ana, null, "Sorriso")).toBe(true);
+      expect(podeAlterarCliente(ana, "Maria", "Lucas do Rio Verde")).toBe(true);
+    });
+    it("não altera cliente de outra região, nem sem região, se o responsável é outro", () => {
+      expect(podeAlterarCliente(ana, "Maria", "Sinop")).toBe(false);
+      expect(podeAlterarCliente(ana, null, "Sinop")).toBe(false);
+      expect(podeAlterarCliente(ana, "Maria", null)).toBe(false);
+      expect(podeAlterarCliente(ana, "Maria")).toBe(false);
+      expect(podeAlterarCliente(ana, "Maria", "  ")).toBe(false);
+    });
+    it("em outra região continua alterando o cliente em que ele mesmo é o responsável", () => {
+      expect(podeAlterarCliente(ana, "ana", "Sinop")).toBe(true);
+    });
+    it("compara a região ignorando maiúsculas, acentos e espaços nas pontas", () => {
+      const u = { permissoes: [], nomeResponsavel: "Ana", regioesAdmin: ["Cuiabá"] };
+      expect(podeAlterarCliente(u, "Maria", " cuiaba ")).toBe(true);
+      expect(podeAlterarCliente(u, "Maria", "Cuiabá Norte")).toBe(false);
+    });
+    it("funciona mesmo sem nome ligado à conta", () => {
+      const semNome = { permissoes: [], nomeResponsavel: null, regioesAdmin: ["Sorriso"] };
+      expect(podeAlterarCliente(semNome, "Maria", "Sorriso")).toBe(true);
+    });
+    it("quem não é admin regional não ganha nada com a região do cliente", () => {
+      expect(podeAlterarCliente(maria, "Jean", "Sorriso")).toBe(false);
+      expect(podeAlterarCliente({ ...maria, regioesAdmin: [] }, "Jean", "Sorriso")).toBe(false);
+    });
+    it("o admin total continua alterando tudo", () => {
+      expect(podeAlterarCliente({ permissoes: todas, nomeResponsavel: null }, "Maria", "Sinop")).toBe(true);
+    });
+  });
+
+  it("ehAdminDaRegiao exige região e conta ligada a ela", () => {
+    expect(ehAdminDaRegiao(ana, "Sorriso")).toBe(true);
+    expect(ehAdminDaRegiao(ana, "Sinop")).toBe(false);
+    expect(ehAdminDaRegiao(ana, null)).toBe(false);
+    expect(ehAdminDaRegiao(maria, "Sorriso")).toBe(false);
+  });
+
+  describe("podeAgendarCliente e assumir", () => {
+    it("agenda cliente sem responsável da região dele, mesmo sem nome ligado à conta", () => {
+      const semNome = { permissoes: [], nomeResponsavel: null, regioesAdmin: ["Sorriso"] };
+      expect(podeAgendarCliente(semNome, null, "Sorriso")).toBe(true);
+      expect(podeAgendarCliente(semNome, null, "Sinop")).toBe(false);
+    });
+    it("agenda qualquer cliente que já tem responsável, como todos", () => {
+      expect(podeAgendarCliente(ana, "Jean", "Sinop")).toBe(true);
+    });
+    it("assume, com o nome dele, o cliente sem responsável; não toma o de outra pessoa", () => {
+      expect(podeAssumirCliente(ana, null)).toBe(true);
+      expect(podeAssumirCliente(ana, "Maria")).toBe(false);
+    });
+  });
+
+  describe("responsável padrão ao agendar", () => {
+    const jean = { permissoes: [], nomeResponsavel: "Jean" };
+    const daRegiao = { atendentes: "Maria e Jean", responsavel: null, adminRegional: "Ana" };
+
+    it("o admin da região entra nas opções de quem escolhe na dupla", () => {
+      expect(opcoesDeResponsavelAoAgendar(jean, daRegiao)).toEqual(["Maria", "Jean", "Ana"]);
+    });
+    it("não repete o admin que já está na dupla (nem pela grafia)", () => {
+      expect(opcoesDeResponsavelAoAgendar(jean, { ...daRegiao, adminRegional: " maria " })).toEqual(["Maria", "Jean"]);
+    });
+    it("cliente sem dupla mas com admin da região tem escolha; sem os dois, não", () => {
+      expect(opcoesDeResponsavelAoAgendar(jean, { atendentes: null, responsavel: null, adminRegional: "Ana" })).toEqual([
+        "Ana",
+        "Jean",
+      ]);
+      expect(opcoesDeResponsavelAoAgendar(jean, { atendentes: null, responsavel: null, adminRegional: null })).toEqual([]);
+      expect(opcoesDeResponsavelAoAgendar(jean, { atendentes: null, responsavel: null, adminRegional: "  " })).toEqual([]);
+    });
+    it("quem escolhe o responsável (admin total) segue sem lista de dupla", () => {
+      expect(opcoesDeResponsavelAoAgendar({ permissoes: todas, nomeResponsavel: null }, daRegiao)).toEqual([]);
+    });
+
+    it("qualquer usuário agendando cliente sem responsável da região traz o admin da região marcado", () => {
+      const consultor = { permissoes: [], nomeResponsavel: "André" };
+      const semLigacao = { permissoes: [], nomeResponsavel: null };
+      expect(responsavelInicialAoAgendar(jean, daRegiao)).toBe("Ana");
+      expect(responsavelInicialAoAgendar(consultor, daRegiao)).toBe("Ana");
+      expect(responsavelInicialAoAgendar(semLigacao, daRegiao)).toBe("Ana");
+      expect(responsavelInicialAoAgendar(ana, daRegiao)).toBe("Ana");
+    });
+    it("usa a grafia da lista para o admin", () => {
+      expect(responsavelInicialAoAgendar(jean, { ...daRegiao, adminRegional: " maria " })).toBe("Maria");
+    });
+    it("cliente que já tem responsável nas opções mantém esse responsável (reagendar não troca)", () => {
+      expect(responsavelInicialAoAgendar(jean, { ...daRegiao, responsavel: "Maria" })).toBe("Maria");
+    });
+    it("cliente com responsável fora das opções não vira do admin da região: vale a regra antiga", () => {
+      expect(responsavelInicialAoAgendar(jean, { ...daRegiao, responsavel: "Samuel" })).toBe("Jean");
+    });
+    it("região sem admin: o padrão antigo (o próprio usuário, se está na dupla)", () => {
+      expect(responsavelInicialAoAgendar(jean, { ...daRegiao, adminRegional: null })).toBe("Jean");
+    });
+
+    it("responsavelPadraoDaRegiao só vale para cliente sem responsável e com admin da região", () => {
+      expect(responsavelPadraoDaRegiao(daRegiao)).toBe("Ana");
+      expect(responsavelPadraoDaRegiao({ ...daRegiao, responsavel: "Maria" })).toBe("");
+      expect(responsavelPadraoDaRegiao({ ...daRegiao, adminRegional: null })).toBe("");
+      expect(responsavelPadraoDaRegiao({ atendentes: null, responsavel: "  ", adminRegional: "Ana" })).toBe("Ana");
+    });
+
+    it("quem agenda pode indicar o admin da região, o colega da dupla ou a si mesmo", () => {
+      expect(responsavelEscolhidoAoAgendar(jean, daRegiao, "Ana")).toBe("Ana");
+      expect(responsavelEscolhidoAoAgendar(jean, daRegiao, " ana ")).toBe("Ana");
+      expect(responsavelEscolhidoAoAgendar(jean, daRegiao, "Maria")).toBe("Maria");
+      expect(responsavelEscolhidoAoAgendar(jean, daRegiao, "Jean")).toBe("Jean");
+    });
+    it("o servidor não confia na tela: nome fora das opções é rejeitado", () => {
+      expect(responsavelEscolhidoAoAgendar(jean, daRegiao, "Samuel")).toBeNull();
+      expect(responsavelEscolhidoAoAgendar(jean, daRegiao, "Ana Paula")).toBeNull();
+    });
+    it("cliente de região sem admin: o nome do admin de outra região é rejeitado", () => {
+      expect(responsavelEscolhidoAoAgendar(jean, { ...daRegiao, adminRegional: null }, "Ana")).toBeNull();
+    });
+    it("o admin da região agenda para si mesmo e para a dupla", () => {
+      expect(responsavelEscolhidoAoAgendar(ana, daRegiao, "Ana")).toBe("Ana");
+      expect(responsavelEscolhidoAoAgendar(ana, daRegiao, "Jean")).toBe("Jean");
+      expect(responsavelEscolhidoAoAgendar(ana, daRegiao, "Samuel")).toBeNull();
+    });
+    it("o admin total continua escolhendo qualquer nome", () => {
+      const admin = { permissoes: todas, nomeResponsavel: null };
+      expect(responsavelEscolhidoAoAgendar(admin, daRegiao, "Samuel")).toBe("Samuel");
+    });
+  });
+
+  describe("idsPermitidos", () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+      banco.preSafra.findMany.mockResolvedValue([
+        { id: 1, responsavel: "Maria", cliente: { regiao: "Sorriso" } },
+        { id: 2, responsavel: null, cliente: { regiao: "Sorriso" } },
+        { id: 3, responsavel: "Maria", cliente: { regiao: "Sinop" } },
+        { id: 4, responsavel: "Ana", cliente: { regiao: "Sinop" } },
+        { id: 5, responsavel: "Maria", cliente: null },
+      ]);
+    });
+
+    it("o admin da região mantém os clientes da região dele (e os que são dele), descarta o resto", async () => {
+      expect(await idsPermitidos(ana, [1, 2, 3, 4, 5])).toEqual([1, 2, 4]);
+      expect(banco.preSafra.findMany).toHaveBeenCalledWith({
+        where: { id: { in: [1, 2, 3, 4, 5] } },
+        select: { id: true, responsavel: true, cliente: { select: { regiao: true } } },
+      });
+    });
+    it("admin da região sem nome ligado à conta também vale pela região", async () => {
+      const semNome = { permissoes: [], nomeResponsavel: null, regioesAdmin: ["Sorriso"] };
+      expect(await idsPermitidos(semNome, [1, 2, 3])).toEqual([1, 2]);
+    });
+    it("usuário comum continua só com os clientes dele", async () => {
+      expect(await idsPermitidos(maria, [1, 2, 3, 4, 5])).toEqual([1, 3, 5]);
+    });
+    it("sem ligação nem região, nada (e sem consultar o banco); o admin total passa tudo direto", async () => {
+      expect(await idsPermitidos({ permissoes: [], nomeResponsavel: null }, [1, 2])).toEqual([]);
+      expect(await idsPermitidos({ permissoes: todas, nomeResponsavel: null }, [1, 2])).toEqual([1, 2]);
+      expect(banco.preSafra.findMany).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("assumirCliente", () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+      banco.preSafra.updateMany.mockResolvedValue({ count: 1 });
+    });
+    it("o admin da região assume, com o nome dele, o cliente sem responsável", async () => {
+      expect(await assumirCliente({ ...ana, nome: "Ana Souza" }, 9)).toBe(true);
+      expect(banco.preSafra.updateMany).toHaveBeenCalledWith({
+        where: { id: 9, inativo: false, OR: [{ responsavel: null }, { responsavel: "" }] },
+        data: { responsavel: "Ana", atualizadoPor: "Ana Souza" },
+      });
+    });
+    it("sem nome ligado à conta não assume", async () => {
+      const semNome = { permissoes: [], nomeResponsavel: null, regioesAdmin: ["Sorriso"] };
+      expect(await assumirCliente(semNome, 9)).toBe(false);
+    });
   });
 });

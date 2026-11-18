@@ -21,6 +21,8 @@ export type OpcaoSeletor = {
   detalhe?: string;
   /** `destaque` = indicado (verde); `neutro` = os demais (cinza). Sem valor, aparência normal. */
   tom?: "destaque" | "neutro";
+  /** Aparece apagada e não pode ser escolhida (use `detalhe` para explicar o motivo). */
+  desabilitada?: boolean;
 };
 
 type Tamanho = "normal" | "compacto" | "pilula";
@@ -222,6 +224,8 @@ export default function Seletor({
 
   function escolher(i: number) {
     const o = visiveis[i];
+    // Só bloqueia marcar: uma opção já marcada que ficou indisponível ainda pode ser desmarcada.
+    if (o?.desabilitada && !(multiplo && marcados.includes(o.valor))) return;
     if (multiplo) {
       if (o) setMarcados((m) => (m.includes(o.valor) ? m.filter((v) => v !== o.valor) : [...m, o.valor]));
       return;
@@ -446,6 +450,7 @@ export default function Seletor({
                           id={`${id}-${i}`}
                           role="option"
                           aria-selected={marcado}
+                          aria-disabled={o.desabilitada || undefined}
                           onClick={(e) => {
                             // Dentro de um <label>, o clique repassaria o foco ao botão e reabriria a lista.
                             e.preventDefault();
@@ -459,13 +464,17 @@ export default function Seletor({
                                     ? "bg-primary font-semibold text-white"
                                     : `text-ink ${i === ativo ? "bg-subtle" : ""}`
                                 }`
-                              : `flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition-colors ${
+                              : `flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition-colors ${
+                                  o.desabilitada ? "cursor-not-allowed text-muted opacity-60" : "cursor-pointer"
+                                } ${
                                   marcado
                                   ? "bg-primary-faint font-semibold text-primary"
                                   : o.tom === "neutro"
                                     ? "text-muted"
-                                    : "text-ink"
-                                } ${i === ativo && !marcado ? "bg-subtle" : ""}`
+                                    : o.desabilitada
+                                      ? ""
+                                      : "text-ink"
+                                } ${i === ativo && !marcado && !o.desabilitada ? "bg-subtle" : ""}`
                           }
                         >
                           {grade ? (

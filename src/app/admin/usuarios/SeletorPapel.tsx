@@ -1,5 +1,7 @@
 "use client";
 import { useState } from "react";
+import Seletor from "@/app/Seletor";
+import { opcoesDeLista } from "@/app/seletorOpcoes";
 import {
   GRUPOS_PERMISSOES,
   PERMISSOES_ADMIN,
@@ -11,30 +13,55 @@ import {
 const PAPEIS: { valor: Papel; rotulo: string; descricao: string }[] = [
   { valor: "comum", rotulo: "Comum", descricao: "Vê o que a equipe vê e altera só os próprios clientes." },
   { valor: "personalizado", rotulo: "Personalizado", descricao: "Você escolhe o que liberar, item a item." },
+  {
+    valor: "regional",
+    rotulo: "Admin da região",
+    descricao: "Cuida dos clientes das regiões escolhidas e é o responsável padrão deles.",
+  },
   { valor: "admin", rotulo: "Administrador", descricao: "Acesso total, inclusive a Usuários." },
   { valor: "painel", rotulo: "Somente Painel", descricao: "Só o Painel e o Telão. Ideal para deixar logado numa TV." },
 ];
 
 const AVISO_SEM_EDICAO: Record<Exclude<Papel, "personalizado">, string> = {
   comum: "O papel Comum não recebe permissões extras. Escolha Personalizado para liberar itens.",
+  regional: "O Admin da região não usa permissões avulsas e não acessa a área de Administração.",
   admin: "O administrador já tem tudo liberado.",
   painel: "A conta Somente Painel não usa permissões.",
 };
 
 // Escolha do papel e, no papel Personalizado, das permissões. Compartilhada entre "Novo usuário" e
-// "Editar usuário". Os campos "papel" e "permissoes" vão no formulário; as caixas desabilitadas
-// (papéis que não editam permissões) não são enviadas, e o servidor também as ignora.
+// "Editar usuário". Os campos "papel", "permissoes" e "regioesAdmin" vão no formulário; as caixas
+// desabilitadas (papéis que não editam permissões) não são enviadas, e o servidor também as ignora
+// (assim como as regiões, que só valem no papel Admin da região).
 export default function SeletorPapel({
   padrao = "comum",
   permissoesPadrao = [],
+  regioes = [],
+  regioesPadrao = [],
+  regioesOcupadas = {},
+  onPapelChange,
 }: {
   padrao?: Papel;
   permissoesPadrao?: readonly Permissao[];
+  /** Regiões que podem ser escolhidas no papel Admin da região. */
+  regioes?: readonly string[];
+  /** Regiões já ligadas à conta (edição). */
+  regioesPadrao?: readonly string[];
+  /** Regiões que já têm outro Admin da região ativo, com o nome de quem cuida delas. */
+  regioesOcupadas?: Readonly<Record<string, string>>;
+  /** Avisa o formulário do papel escolhido (o campo de responsável fica obrigatório no Admin da região). */
+  onPapelChange?: (papel: Papel) => void;
 }) {
   const [papel, setPapel] = useState<Papel>(padrao);
   const [marcadas, setMarcadas] = useState<Permissao[]>([...permissoesPadrao]);
 
   const editavel = papel === "personalizado";
+  const opcoesRegioes = [
+    ...opcoesDeLista([...new Set([...regioes, ...regioesPadrao])]).map((o) => {
+      const dono = regioesOcupadas[o.valor];
+      return dono ? { ...o, desabilitada: true, detalhe: `Já é de ${dono}` } : o;
+    }),
+  ];
   const efetivas: readonly Permissao[] = papel === "admin" ? TODAS_PERMISSOES : editavel ? marcadas : [];
 
   const alternar = (chave: Permissao, ligada: boolean) =>
@@ -62,7 +89,10 @@ export default function SeletorPapel({
                 name="papel"
                 value={p.valor}
                 checked={papel === p.valor}
-                onChange={() => setPapel(p.valor)}
+                onChange={() => {
+                  setPapel(p.valor);
+                  onPapelChange?.(p.valor);
+                }}
                 className="mt-0.5 size-4 accent-primary"
               />
               <span>
@@ -73,6 +103,23 @@ export default function SeletorPapel({
           ))}
         </div>
       </fieldset>
+
+      {/* Sempre montado (só escondido fora do papel) para não perder as regiões marcadas ao trocar de papel. */}
+      <div hidden={papel !== "regional"} className="space-y-1">
+        <Seletor
+          nome="regioesAdmin"
+          rotulo="Regiões do Admin da região"
+          multiplo
+          buscavel
+          unidadePlural="regiões"
+          placeholder="Escolha uma ou mais regiões"
+          valoresIniciais={[...regioesPadrao]}
+          opcoes={opcoesRegioes}
+        />
+        <p className="text-xs text-muted">
+          Cada região tem um só Admin da região. As que já têm dono aparecem apagadas, com o nome de quem cuida delas.
+        </p>
+      </div>
 
       <div className="space-y-3">
         {GRUPOS_PERMISSOES.map((grupo) => {

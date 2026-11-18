@@ -71,7 +71,7 @@ export default async function Registro({
   // Quem pode criar e editar o cadastro do cliente (região, UF, equipe); o admin pode.
   const podeCadastrar = pode(usuario, "cadastrar");
   // Todos abrem o registro, mas só quem altera qualquer cliente e o responsável do cliente o editam.
-  const podeEditar = podeAlterarCliente(usuario, r.responsavel);
+  const podeEditar = podeAlterarCliente(usuario, r.responsavel, r.cliente?.regiao);
   const podeAssumir = podeAssumirCliente(usuario, r.responsavel) && !r.inativo;
   const [
     cidadesConhecidas,
@@ -175,8 +175,11 @@ export default async function Registro({
     // Conta "somente Painel" não edita registro, mesmo com nome de responsável ligado.
     const sessao = await exigirAcessoCompleto();
     // Confere no banco: a tela pode estar desatualizada e o formulário pode ser forjado.
-    const atual = await prisma.preSafra.findUnique({ where: { id }, select: { responsavel: true } });
-    if (!atual || !podeAlterarCliente(sessao, atual.responsavel)) redirect(`/registro/${id}?semPermissao=1${sufixoVoltar}`);
+    const atual = await prisma.preSafra.findUnique({
+      where: { id },
+      select: { responsavel: true, cliente: { select: { regiao: true } } },
+    });
+    if (!atual || !podeAlterarCliente(sessao, atual.responsavel, atual.cliente?.regiao)) redirect(`/registro/${id}?semPermissao=1${sufixoVoltar}`);
     // Novo nome do cliente (só admin, só com cadastro): confere antes de gravar qualquer coisa,
     // para um nome vazio ou repetido não salvar o resto pela metade. O nome é único no banco.
     let nomeCliente: string | undefined;

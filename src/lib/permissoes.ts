@@ -78,17 +78,24 @@ export function filtrarPermissoes(valores: readonly string[]): Permissao[] {
   return [...new Set(valores.filter(permissaoValida))];
 }
 
+/** A conta tem ao menos uma região de admin regional (ignorando nomes vazios)? */
+const temRegioesAdmin = (regioesAdmin: readonly string[] | undefined) =>
+  !!regioesAdmin?.some((r) => r.trim() !== "");
+
 /**
- * O que a conta pode de fato: o administrador total tem tudo; a conta "somente Painel" nada; as
- * demais, o que foi liberado para elas.
+ * O que a conta pode de fato: o administrador total tem tudo; a conta "somente Painel" e o admin da região
+ * nada (os poderes do admin da região vêm do escopo por região, ver src/lib/responsavel.ts, e não de
+ * permissões avulsas); as demais, o que foi liberado para elas.
  */
 export function permissoesEfetivas(usuario: {
   admin: boolean;
   somentePainel: boolean;
   permissoes: readonly string[];
+  regioesAdmin?: readonly string[];
 }): Permissao[] {
   if (usuario.admin) return [...TODAS_PERMISSOES];
   if (usuario.somentePainel) return [];
+  if (temRegioesAdmin(usuario.regioesAdmin)) return [];
   return filtrarPermissoes(usuario.permissoes);
 }
 
@@ -101,12 +108,21 @@ export function podeAcessarAdmin(usuario: { admin: boolean; permissoes: readonly
   return usuario.admin || PERMISSOES_ADMIN.some((p) => usuario.permissoes.includes(p));
 }
 
-export type Papel = "comum" | "personalizado" | "admin" | "painel";
+export type Papel = "comum" | "personalizado" | "admin" | "painel" | "regional";
 
-/** O papel que a conta tem, deduzido dos campos salvos (não existe coluna própria para ele). */
-export function papelDe(usuario: { admin: boolean; somentePainel: boolean; permissoes: readonly string[] }): Papel {
+/**
+ * O papel que a conta tem, deduzido dos campos salvos (não existe coluna própria para ele). Quem não é
+ * admin total nem "somente Painel" e tem ao menos uma região é "regional", que vale mais que comum e personalizado.
+ */
+export function papelDe(usuario: {
+  admin: boolean;
+  somentePainel: boolean;
+  permissoes: readonly string[];
+  regioesAdmin?: readonly string[];
+}): Papel {
   if (usuario.admin) return "admin";
   if (usuario.somentePainel) return "painel";
+  if (temRegioesAdmin(usuario.regioesAdmin)) return "regional";
   return filtrarPermissoes(usuario.permissoes).length > 0 ? "personalizado" : "comum";
 }
 
@@ -115,4 +131,5 @@ export const ROTULO_PAPEL: Record<Papel, string> = {
   personalizado: "Personalizado",
   admin: "Administrador",
   painel: "Somente Painel",
+  regional: "Admin da região",
 };

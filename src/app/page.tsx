@@ -4,13 +4,14 @@ import { CampoBusca } from "./Auto";
 import { bateFiltroResponsavel, equipesPorRegiao, gruposDeResponsavel, regioesDoAtendente } from "@/lib/equipe";
 import Seletor from "./Seletor";
 import { Bolinha, opcoesDePessoas } from "./seletorOpcoes";
-import { normalizar, plural } from "@/lib/texto";
+import { normalizar, plural, semRepetir } from "@/lib/texto";
 import { agendarCliente, finalizarComNota, reabrirComMotivo, salvarMotivoPendencia } from "./acoes";
 import MotivoPendencia from "./MotivoPendencia";
 import { montarDadosAviso } from "@/lib/notificacoes/modelos";
 import { criarNotificationService } from "@/lib/notificacoes/servico";
 import Agendar from "./Agendar";
 import AutorAgendamento from "./AutorAgendamento";
+import { adminDaRegiao, carregarAdminsPorRegiao } from "@/lib/adminRegional";
 import { autorNaLista } from "@/lib/autorAgendamento";
 import LimparAgendamento from "./LimparAgendamento";
 import { exigirAcessoCompleto } from "@/lib/auth";
@@ -21,6 +22,7 @@ import {
   podeAgendarCliente,
   podeAlterarCliente,
   responsavelInicialAoAgendar,
+  responsavelPadraoDaRegiao,
 } from "@/lib/responsavel";
 import Shell from "./Shell";
 import Selo from "./Selo";
@@ -112,7 +114,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
     );
   }
 
-  const todas = await listarLinhas(safra.id);
+  const [todas, adminsPorRegiao] = await Promise.all([listarLinhas(safra.id), carregarAdminsPorRegiao()]);
   const cont = contar(todas);
   const nomes = nomesPossiveis(todas);
   // Equipe de cada região, para o responsável do Agendar: a da região do cliente primeiro, depois as outras.
@@ -134,19 +136,31 @@ export default async function Home({ searchParams }: PageProps<"/">) {
   const minhasRegioes = regioesDoAtendente(usuario.nomeResponsavel, todas);
   // Todos veem e agendam qualquer cliente; finalizar e reabrir são do admin e do responsável do
   // cliente, e quem agenda ou reagenda (conta ligada a um nome) passa a ser o responsável.
-  const podeAlterar = (l: { responsavel: string | null }) => podeAlterarCliente(usuario, l.responsavel);
-  const podeAgendar = (l: { responsavel: string | null }) => podeAgendarCliente(usuario, l.responsavel);
+  // O admin da região também altera os clientes da região dele e é o responsável padrão deles.
+  const podeAlterar = (l: { responsavel: string | null; regiao: string | null }) =>
+    podeAlterarCliente(usuario, l.responsavel, l.regiao);
+  const podeAgendar = (l: { responsavel: string | null; regiao: string | null }) =>
+    podeAgendarCliente(usuario, l.responsavel, l.regiao);
+  const adminRegionalDe = (l: { regiao: string | null }) => adminDaRegiao(adminsPorRegiao, l.regiao);
+  // Os admins de região entram na lista de nomes do Agendar de quem escolhe o responsável (quem não está
+  // em nenhuma dupla ainda assim precisa aparecer).
+  const nomesAgendar = semRepetir([...nomes, ...adminsPorRegiao.values()]);
   const assume = (l: { responsavel: string | null }) => assumeAoAgendar(usuario, l.responsavel);
   // Quem não troca o responsável escolhe, ao agendar, um dos atendentes da dupla do cliente (um agenda para o
   // outro); sem dupla cadastrada não há escolha e quem agenda assume o cliente.
-  const escolhasAgendar = (l: { atendentes: string | null; responsavel: string | null }) =>
-    opcoesDeResponsavelAoAgendar(usuario, l);
-  const responsavelAgendar = (l: { atendentes: string | null; responsavel: string | null }) =>
+  const paraAgendar = (l: { atendentes: string | null; responsavel: string | null; regiao: string | null }) => ({
+    atendentes: l.atendentes,
+    responsavel: l.responsavel,
+    adminRegional: adminRegionalDe(l),
+  });
+  const escolhasAgendar = (l: { atendentes: string | null; responsavel: string | null; regiao: string | null }) =>
+    opcoesDeResponsavelAoAgendar(usuario, paraAgendar(l));
+  const responsavelAgendar = (l: { atendentes: string | null; responsavel: string | null; regiao: string | null }) =>
     escolhasAgendar(l).length > 0
-      ? responsavelInicialAoAgendar(usuario, l)
+      ? responsavelInicialAoAgendar(usuario, paraAgendar(l))
       : assume(l)
         ? (usuario.nomeResponsavel ?? "")
-        : (l.responsavel ?? "");
+        : (l.responsavel ?? "") || responsavelPadraoDaRegiao(paraAgendar(l));
 
   // Inativos não aparecem aqui: são inativados e reativados em Admin → Clientes.
   const bateStatus = (s: string) =>
@@ -708,7 +722,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
                                 l.formato === "Online" || l.formato === "Presencial" ? l.formato : ""
                               }
                               grupos={gruposDeResponsavel(l, equipes)}
-                              outros={nomes}
+                              outros={nomesAgendar}
                               podeTrocarResponsavel={pode(usuario, "trocarResp")}
                               podeRemover={podeAlterar(l)}
                             />

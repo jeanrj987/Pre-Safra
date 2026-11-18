@@ -13,7 +13,7 @@ const navegacao = vi.hoisted(() => ({ redirect: vi.fn() }));
 vi.mock("next/headers", () => ({ cookies: async () => cookieStore }));
 vi.mock("next/navigation", () => navegacao);
 
-import { autenticar, exigirAdmin, iniciarSessao } from "./auth";
+import { autenticar, exigirAdmin, iniciarSessao, usuarioAtual } from "./auth";
 
 const usuario = { id: 7, nome: "Maria", email: "maria@empresa.com", senhaHash: "scrypt:hash-da-maria", ativo: true };
 
@@ -152,5 +152,42 @@ describe("exigirAdmin", () => {
     await entrarComo({ ...conta, admin: true });
     banco.usuario.findUnique.mockResolvedValue({ ...conta, admin: true, ativo: false });
     await expect(exigirAdmin()).rejects.toThrow("REDIRECT:/login");
+  });
+});
+
+describe("usuarioAtual: regiões do admin regional", () => {
+  const conta = {
+    ...usuario,
+    admin: false,
+    somentePainel: false,
+    permissoes: ["clientes"] as string[],
+    nomeResponsavel: "Maria",
+    regioesAdmin: [" Sorriso ", "", "Sinop", "Sorriso"] as string[],
+  };
+
+  async function entrarComo(u: typeof conta) {
+    vi.stubEnv("AUTH_SECRET", "segredo-so-dos-testes");
+    banco.usuario.findUnique.mockResolvedValue(u);
+    await iniciarSessao(u);
+    cookieStore.get.mockReturnValue({ value: cookieStore.set.mock.calls[0][1] });
+  }
+
+  it("traz as regiões do banco, aparadas, sem vazias e sem repetição; sem permissões avulsas", async () => {
+    await entrarComo(conta);
+    expect(await usuarioAtual()).toMatchObject({ regioesAdmin: ["Sorriso", "Sinop"], permissoes: [] });
+  });
+
+  it("conta sem regiões (ou de antes da coluna existir): lista vazia e permissões como antes", async () => {
+    await entrarComo({ ...conta, regioesAdmin: [] });
+    expect(await usuarioAtual()).toMatchObject({ regioesAdmin: [], permissoes: ["clientes"] });
+    await entrarComo({ ...conta, regioesAdmin: undefined as unknown as string[] });
+    expect(await usuarioAtual()).toMatchObject({ regioesAdmin: [] });
+  });
+
+  it("admin total e somente Painel não carregam regiões", async () => {
+    await entrarComo({ ...conta, admin: true });
+    expect(await usuarioAtual()).toMatchObject({ admin: true, regioesAdmin: [] });
+    await entrarComo({ ...conta, somentePainel: true });
+    expect(await usuarioAtual()).toMatchObject({ somentePainel: true, regioesAdmin: [], permissoes: [] });
   });
 });

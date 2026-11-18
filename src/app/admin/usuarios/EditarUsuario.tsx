@@ -16,6 +16,8 @@ interface Usuario {
   permissoes: Permissao[];
   /** Nome ligado à conta na lista de responsáveis; vazio se ainda não foi ligada. */
   nomeResponsavel: string;
+  /** Regiões do Admin da região (vazio nos demais papéis). */
+  regioesAdmin: string[];
 }
 
 // Botão "Editar": abre uma janela para o admin corrigir nome, e-mail, papel e a ligação com a lista
@@ -25,19 +27,27 @@ interface Usuario {
 export default function EditarUsuario({
   usuario,
   nomes,
+  regioes,
+  regioesOcupadas,
   salvar,
 }: {
   usuario: Usuario;
   /** Nomes da lista de responsáveis dos clientes, para escolher a quem esta conta corresponde. */
   nomes: string[];
+  /** Regiões que podem ser entregues a um Admin da região. */
+  regioes: string[];
+  /** Regiões que já têm outro Admin da região ativo (sem contar esta conta), com o nome de quem cuida delas. */
+  regioesOcupadas: Record<string, string>;
   salvar: (formData: FormData) => Promise<{ erro?: string }>;
 }) {
   const [aberto, setAberto] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const [papel, setPapel] = useState<Papel>(usuario.papel);
 
   const fechar = () => {
     setAberto(false);
     setErro(null);
+    setPapel(usuario.papel);
   };
 
   return (
@@ -48,7 +58,10 @@ export default function EditarUsuario({
         tom="neutro"
         rotulo="Editar"
         soIcone
-        onClick={() => setAberto(true)}
+        onClick={() => {
+          setPapel(usuario.papel);
+          setAberto(true);
+        }}
       />
       {aberto && (
         <Janela icone="usuario" titulo="Editar usuário" subtitulo={usuario.nome} onFechar={fechar} larga>
@@ -91,9 +104,20 @@ export default function EditarUsuario({
                   className="campo"
                 />
               </label>
-              <SeletorPapel padrao={usuario.papel} permissoesPadrao={usuario.permissoes} />
+              <SeletorPapel
+                padrao={usuario.papel}
+                permissoesPadrao={usuario.permissoes}
+                regioes={regioes}
+                regioesPadrao={usuario.regioesAdmin}
+                regioesOcupadas={regioesOcupadas}
+                onPapelChange={setPapel}
+              />
               {/* Ligação antiga cujo nome saiu da lista continua escolhível, para não ser trocada sem querer ao salvar. */}
-              <SeletorNomeResponsavel nomes={nomes} atual={usuario.nomeResponsavel} />
+              <SeletorNomeResponsavel
+                nomes={nomes}
+                atual={usuario.nomeResponsavel}
+                obrigatorio={papel === "regional"}
+              />
             </div>
             <RodapeJanela onCancelar={fechar}>
               <BotaoEnviar pendente="Salvando…" className="btn-primario">

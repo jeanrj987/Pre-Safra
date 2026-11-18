@@ -19,6 +19,9 @@ model Usuario {
   somentePainel     Boolean            @default(false)
   nomeResponsavel   String?
   permissoes        String[]           @default([])
+  // Admin da região: regiões (nomes como em Cliente.regiao) em que a conta tem poder sobre os clientes e é o
+  // responsável padrão. Cada região tem no máximo um admin regional (garantido pela tela de usuários).
+  regioesAdmin      String[]           @default([])
   tokensRecuperacao TokenRecuperacao[]
 }
 
