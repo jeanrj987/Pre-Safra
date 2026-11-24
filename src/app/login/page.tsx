@@ -63,6 +63,8 @@ export default async function Login({ searchParams }: PageProps<"/login">) {
                 autoFocus
                 required
                 autoComplete="username"
+                // Extensões do navegador (ex.: DuckDuckGo) acrescentam atributos ao campo antes de o React carregar.
+                suppressHydrationWarning
                 aria-invalid={erro ? true : undefined}
                 aria-describedby={erro ? "erro-senha" : undefined}
                 className="campo"

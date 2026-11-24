@@ -8,7 +8,8 @@ export default function CampoSenha(props: Omit<ComponentProps<"input">, "type">)
   const [visivel, setVisivel] = useState(false);
   return (
     <div className="relative">
-      <input {...props} type={visivel ? "text" : "password"} className="campo pr-10" />
+      {/* suppressHydrationWarning: extensões do navegador (ex.: DuckDuckGo) mexem nos atributos do campo antes de o React carregar. */}
+      <input {...props} suppressHydrationWarning type={visivel ? "text" : "password"} className="campo pr-10" />
       <button
         type="button"
         onClick={() => setVisivel((v) => !v)}
