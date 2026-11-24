@@ -11,6 +11,7 @@ import { filtroFinalizavel, finalizarPendentes, formatoValido, reabrirIds, type 
 import { ITENS_FINALIZACAO, type MarcasFinalizacao } from "@/lib/finalizacao";
 import { motivoDataIndisponivel } from "@/lib/diasUteis";
 import { horarioValido, motivoHorarioPassado } from "@/lib/horarios";
+import { contatoParaGravar } from "@/lib/autorAgendamento";
 import { pode } from "@/lib/permissoes";
 import { idsPermitidos, podeAgendarCliente, podeAlterarCliente, responsavelEscolhidoAoAgendar } from "@/lib/responsavel";
 
@@ -125,6 +126,8 @@ export async function salvarMotivoPendencia(
   return null;
 }
 
+// O campo opcional "contato" (nome da pessoa do cliente com quem se falou) é gravado em agendadoContato
+// e some junto com o agendamento (remover) ou ao reagendar sem preenchê-lo.
 // Janela "Agendar" da lista: grava de uma vez responsável, data, horário e formato ("Online" ou
 // "Presencial" deixa o cliente como "Agendado Online"/"Agendado Presencial"). Os quatro campos
 // são obrigatórios. O botão "Remover agendamento" (campo "remover") limpa data, horário, formato
@@ -165,6 +168,7 @@ export async function agendarCliente(formData: FormData) {
         horario: null,
         formato: null,
         agendadoPor: null,
+        agendadoContato: null,
         agendadoEm: null,
         atualizadoPor: sessao.nome,
         ...(pode(sessao, "trocarResp") ? { responsavel: null } : {}),
@@ -215,6 +219,8 @@ export async function agendarCliente(formData: FormData) {
       horario,
       formato,
       agendadoPor: sessao.nome,
+      // Opcional; reagendar sem preencher apaga o contato do agendamento anterior.
+      agendadoContato: contatoParaGravar(String(formData.get("contato") ?? "")),
       agendadoEm: new Date(),
       atualizadoPor: sessao.nome,
       // Agendado, o cliente deixa de estar pendente: o motivo anterior não vale mais.

@@ -102,6 +102,7 @@ describe("opções do filtro de responsável da lista", () => {
     horario: null,
     formato: null,
     agendadoPor: null,
+    agendadoContato: null,
     agendadoEm: null,
     observacao: null,
     motivoPendencia: null,

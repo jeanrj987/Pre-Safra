@@ -175,6 +175,8 @@ async function main() {
       safraFechada: sim(l["Fechamento da safra realizado"]),
       safraNovaConfigurada: sim(l["Safra nova configurada"]),
       agendadoPor: texto(l["Agendado por"]),
+      // Backups antigos não têm esta coluna: l[...] vem vazio e o contato fica nulo.
+      agendadoContato: texto(l["Contato do agendamento"]),
       agendadoEm: dataHora(l["Agendado em"]),
       inativo: sim(l["Inativo"]),
       motivoInativacao: texto(l["Motivo da inativação"]),

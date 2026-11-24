@@ -51,6 +51,8 @@ export interface Linha {
   formato: string | null;
   /** Nome da conta que fez o último agendamento; nulo em clientes criados em /novo, importados ou antigos. */
   agendadoPor: string | null;
+  /** Nome da pessoa do cliente com quem se falou ao agendar; opcional, nulo se não informado. */
+  agendadoContato: string | null;
   /** Quando esse agendamento foi feito. */
   agendadoEm: Date | null;
   observacao: string | null;
@@ -113,6 +115,7 @@ export async function listarLinhas(safraId: number): Promise<Linha[]> {
         horario: r.horario,
         formato: r.formato,
         agendadoPor: r.agendadoPor,
+        agendadoContato: r.agendadoContato,
         agendadoEm: r.agendadoEm,
         // Inativo mostra o motivo; senão, a observação da finalização em vigor; senão, a geral.
         observacao:

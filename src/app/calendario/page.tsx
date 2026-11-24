@@ -85,6 +85,7 @@ export default async function PaginaCalendario({
       inativo: p.inativo,
       responsavel: p.responsavel,
       agendadoPor: p.agendadoPor,
+      agendadoContato: p.agendadoContato,
     })),
   ).map((a) => ({ ...a, ponto: PONTO_STATUS[a.status] }));
 

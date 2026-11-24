@@ -26,6 +26,8 @@ export interface RegistroParaCalendario {
   responsavel: string | null;
   /** Nome da conta que fez o último agendamento; nulo se não foi registrado. */
   agendadoPor: string | null;
+  /** Nome da pessoa do cliente com quem se falou ao agendar; nulo se não foi informado. */
+  agendadoContato: string | null;
 }
 
 export interface AgendamentoCalendario {
@@ -40,6 +42,8 @@ export interface AgendamentoCalendario {
   formato: string | null;
   /** Quem fez o último agendamento (nome da conta); nulo se não foi registrado. */
   agendadoPor: string | null;
+  /** Nome da pessoa do cliente com quem se falou ao agendar; nulo se não foi informado. */
+  agendadoContato: string | null;
   status: StatusPreSafra;
 }
 
@@ -61,6 +65,7 @@ export function agendamentosDoCalendario(
       responsavel: r.responsavel,
       formato: r.formato,
       agendadoPor: r.agendadoPor,
+      agendadoContato: r.agendadoContato,
       status,
     });
   }

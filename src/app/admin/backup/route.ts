@@ -169,6 +169,7 @@ export async function GET() {
         { cabecalho: "Fechamento da safra realizado", valor: (p) => sim(p.safraFechada), largura: 28 },
         { cabecalho: "Safra nova configurada", valor: (p) => sim(p.safraNovaConfigurada), largura: 22 },
         { cabecalho: "Agendado por", valor: (p) => p.agendadoPor },
+        { cabecalho: "Contato do agendamento", valor: (p) => p.agendadoContato, largura: 24 },
         { cabecalho: "Agendado em", valor: (p) => p.agendadoEm, formato: "dataHora" },
         { cabecalho: "Inativo", valor: (p) => sim(p.inativo), largura: 9 },
         { cabecalho: "Motivo da inativação", valor: (p) => p.motivoInativacao, largura: 30 },

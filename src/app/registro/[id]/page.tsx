@@ -457,6 +457,12 @@ export default async function Registro({
                     <dd className="font-medium tabular-nums">{autorAgendamento.quando}</dd>
                   </div>
                 )}
+                {autorAgendamento.contato && (
+                  <div>
+                    <dt className="text-xs text-muted">Falou com</dt>
+                    <dd className="break-words font-medium">{autorAgendamento.contato}</dd>
+                  </div>
+                )}
               </>
             )}
             <div>

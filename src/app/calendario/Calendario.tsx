@@ -11,7 +11,7 @@ import {
   motivoDataAtividade,
   motivoHorarioAtividade,
 } from "@/lib/calendario";
-import { dicaAutorNoCalendario } from "@/lib/autorAgendamento";
+import { dicaAutorNoCalendario, dicaContatoNoCalendario } from "@/lib/autorAgendamento";
 import { dataMaximaIso, hojeIso, motivoDataForaDoPrazo } from "@/lib/diasUteis";
 import { alternarConclusao, criarAtividade, editarAtividade, excluirAtividade } from "./acoes";
 
@@ -339,7 +339,10 @@ function ChipCliente({ cliente: c }: { cliente: AgendamentoNaTela }) {
   const mes = useSearchParams().get("mes");
   const voltar = mes && /^\d{4}-\d{2}$/.test(mes) ? `/calendario?mes=${mes}` : "/calendario";
   const autor = dicaAutorNoCalendario(c);
-  const detalhe = `${c.nome} — ${c.status}${c.responsavel ? ` · ${c.responsavel}` : ""}${autor ? ` · ${autor}` : ""}`;
+  const contato = dicaContatoNoCalendario(c);
+  const detalhe = `${c.nome} — ${c.status}${c.responsavel ? ` · ${c.responsavel}` : ""}${autor ? ` · ${autor}` : ""}${
+    contato ? ` · ${contato}` : ""
+  }`;
   return (
     <Link
       href={`/registro/${c.id}?voltar=${encodeURIComponent(voltar)}`}

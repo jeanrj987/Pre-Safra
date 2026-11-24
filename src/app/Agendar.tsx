@@ -9,6 +9,7 @@ import type { GrupoEquipe } from "@/lib/equipe";
 import { dataMaximaIso, hojeIso, motivoDataIndisponivel } from "@/lib/diasUteis";
 import { HORARIOS, motivoHorarioPassado } from "@/lib/horarios";
 import { normalizar } from "@/lib/texto";
+import { MAX_CONTATO } from "@/lib/autorAgendamento";
 
 type Status = "" | "Online" | "Presencial";
 
@@ -54,6 +55,7 @@ export default function Agendar({
   data,
   horario,
   previsao,
+  contato = "",
   grupos,
   outros,
   podeTrocarResponsavel,
@@ -74,6 +76,8 @@ export default function Agendar({
   horario: string;
   /** Formato já previsto ("Online"/"Presencial"), ou "" se ainda é A Fazer. */
   previsao: "" | "Online" | "Presencial";
+  /** Nome da pessoa do cliente com quem se falou ao agendar (opcional); "" se não houver. */
+  contato?: string;
   /** "Da região" e depois cada região, com as pessoas e o papel de cada uma. */
   grupos: GrupoEquipe[];
   /** Nomes sem região (ex.: quem já foi escolhido antes), listados no fim. */
@@ -101,6 +105,7 @@ export default function Agendar({
   const [dia, setDia] = useState(data);
   const [hora, setHora] = useState(horario);
   const [status, setStatus] = useState<Status>(statusInicial);
+  const [falouCom, setFalouCom] = useState(contato);
   const [tentou, setTentou] = useState(false);
   const [dataTocada, setDataTocada] = useState(false);
   const escolheNaDupla = !podeTrocarResponsavel && opcoesDaDupla.length > 0;
@@ -132,6 +137,7 @@ export default function Agendar({
     setDia(data);
     setHora(horario);
     setStatus(statusInicial);
+    setFalouCom(contato);
     setTentou(false);
     setDataTocada(false);
     setAberto(true);
@@ -270,6 +276,23 @@ export default function Agendar({
                 />
                 {mostrar("status") && <Erro id="erro-status">{erros.status!}</Erro>}
               </div>
+              {/* Opcional: não entra na validação e não bloqueia o salvar. */}
+              <label className="block">
+                <span className="rotulo">Falou com</span>
+                <input
+                  type="text"
+                  name="contato"
+                  value={falouCom}
+                  onChange={(e) => setFalouCom(e.target.value)}
+                  maxLength={MAX_CONTATO}
+                  autoComplete="off"
+                  aria-describedby="ajuda-contato"
+                  className="campo"
+                />
+                <span id="ajuda-contato" className="mt-1 block text-xs text-muted">
+                  Nome da pessoa do cliente com quem você agendou. Opcional.
+                </span>
+              </label>
             </div>
             <RodapeJanela onCancelar={() => setAberto(false)}>
               {podeRemover && (temAgendamento || soResponsavel) && (

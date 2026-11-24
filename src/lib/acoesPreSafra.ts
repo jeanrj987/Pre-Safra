@@ -117,7 +117,7 @@ export async function reabrirIds({
     // agendado de novo.
     prisma.preSafra.updateMany({
       where: { id: { in: ids }, configuradoSistema: true },
-      data: { configuradoSistema: false, formato: null, horario: null, atualizadoPor: autor },
+      data: { configuradoSistema: false, formato: null, horario: null, agendadoContato: null, atualizadoPor: autor },
     }),
   ]);
   return count;

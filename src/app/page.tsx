@@ -718,6 +718,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
                               nomeUsuario={usuario.nomeResponsavel ?? ""}
                               data={dataParaCampo(l.dataPrevista)}
                               horario={l.horario ?? ""}
+                              contato={l.agendadoContato ?? ""}
                               previsao={
                                 l.formato === "Online" || l.formato === "Presencial" ? l.formato : ""
                               }

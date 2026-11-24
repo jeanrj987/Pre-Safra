@@ -98,6 +98,7 @@ model PreSafra {
   horario               String?
   agendadoEm            DateTime?
   agendadoPor           String?
+  agendadoContato       String?
   atualizadoPor         String?
   motivoPendencia       String?
   observacaoPendencia   String?
