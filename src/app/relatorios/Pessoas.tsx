@@ -1,6 +1,6 @@
 import { agruparPor, resumir, type Dimensao } from "@/lib/relatorios";
 import type { Linha } from "@/lib/dados";
-import { LINHA, NUM, TABELA, TD, TH } from "./tabela";
+import { CARTAO_LONGO, LINHA, NUM, TABELA, TD, TH } from "./tabela";
 
 const TITULO: Record<Dimensao, string> = {
   responsavel: "Responsável",
@@ -45,7 +45,7 @@ export default function Pessoas({ linhas, dimensao }: { linhas: Linha[]; dimensa
   );
 
   return (
-    <section className="card overflow-hidden print:shadow-none">
+    <section className={CARTAO_LONGO}>
       <p className="px-4 pt-3 pb-2 text-[13px] text-muted">
         Só clientes ativos. “Online” e “Presencial” somam finalizados e agendados. A última coluna é a média de dias
         que as finalizações passaram da data prevista (entre parênteses, quantas passaram).

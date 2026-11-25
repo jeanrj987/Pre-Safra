@@ -4,8 +4,8 @@
 import type { Linha } from "./dados";
 import { ITENS_FINALIZACAO, type ChaveItem, type MarcasFinalizacao } from "./finalizacao";
 import { MOTIVOS_PENDENCIA, ROTULO_SEM_MOTIVO, STATUS_COM_PENDENCIA } from "./pendencia";
-import { normalizar } from "./texto";
-import { STATUS_AGENDADOS, type StatusPreSafra } from "./status";
+import { normalizar, plural } from "./texto";
+import { diaHoje, STATUS_AGENDADOS, type StatusPreSafra } from "./status";
 
 export const DIA = 24 * 60 * 60 * 1000;
 
@@ -142,6 +142,125 @@ export function pendenciasPorMotivo(linhas: Linha[]): LinhaMotivo[] {
     pendentes.filter((l) => !MOTIVOS_PENDENCIA.some((m) => m.valor === l.motivoPendencia)),
   );
   return [...linhasMotivo.filter((m) => m.total > 0), ...(semMotivo.total > 0 ? [semMotivo] : [])];
+}
+
+/**
+ * Quando nenhum pendente tem motivo anotado, o quadro teria uma linha só ("Sem motivo definido").
+ * Nesse caso devolve quantos são os pendentes, para trocar o quadro por uma frase; senão, null.
+ */
+export function pendentesSemNenhumMotivo(motivos: LinhaMotivo[]): number | null {
+  return motivos.length === 1 && motivos[0].rotulo === ROTULO_SEM_MOTIVO ? motivos[0].total : null;
+}
+
+/** Frase que substitui o quadro de motivos quando nenhum pendente tem motivo anotado. */
+export function fraseSemMotivo(pendentes: number): string {
+  return pendentes === 1
+    ? "Nenhum motivo de pendência anotado no único cliente pendente."
+    : `Nenhum motivo de pendência anotado nos ${plural(pendentes, "cliente pendente", "clientes pendentes")}.`;
+}
+
+/** Com uma região só no filtro, ela já aparece no resumo do filtro e a coluna seria repetitiva. */
+export const mostrarColunaRegiao = (f: FiltrosRelatorio) => f.regioes.length !== 1;
+
+/**
+ * Posição de cada status nos blocos da lista de clientes: primeiro o que pede ação, por último o que
+ * já saiu da meta. É um Record para o compilador exigir todos os status: um status novo não pode
+ * sumir da lista em silêncio. (Os agendados vêm antes do A Fazer de propósito.)
+ */
+const POSICAO_BLOCO: Record<StatusPreSafra, number> = {
+  Atrasado: 0,
+  "Agendado Online": 1,
+  "Agendado Presencial": 2,
+  "A Fazer": 3,
+  Finalizado: 4,
+  Inativo: 5,
+};
+
+export const ORDEM_BLOCOS: readonly StatusPreSafra[] = (Object.keys(POSICAO_BLOCO) as StatusPreSafra[]).sort(
+  (a, b) => POSICAO_BLOCO[a] - POSICAO_BLOCO[b],
+);
+
+/** Colunas opcionais da lista de clientes (o nome sempre aparece; o status vira o subtítulo do bloco). */
+export type ColunaCliente = "regiao" | "responsavel" | "data" | "formato" | "detalhe";
+
+export interface BlocoStatus {
+  status: StatusPreSafra;
+  linhas: Linha[];
+  /** Colunas com algum valor no bloco, na ordem da tabela. Vazia: só o nome (lista compacta). */
+  colunas: ColunaCliente[];
+}
+
+// Números crescentes com os vazios no fim (nunca subtrai Infinity de Infinity, que daria NaN).
+const crescente = (a: number | null, b: number | null) =>
+  a === null ? (b === null ? 0 : 1) : b === null ? -1 : a - b;
+
+/**
+ * Data da coluna "Data" da lista de clientes, como dia em UTC (ms). Nos finalizados é o dia em que
+ * a finalização foi registrada, no fuso da equipe (finalizar não mexe na data prevista), sem horário:
+ * o horário guardado é o do agendamento, não o da visita. Sem esse registro, vale a data prevista.
+ * Nos demais status, a data prevista e o horário agendado.
+ */
+export function dataNaLista(l: Linha): { dia: number | null; horario: string | null } {
+  if (l.status === "Finalizado") {
+    return { dia: l.concluidoEm ? diaHoje(l.concluidoEm) : (l.dataPrevista?.getTime() ?? null), horario: null };
+  }
+  return { dia: l.dataPrevista?.getTime() ?? null, horario: l.horario?.trim() || null };
+}
+
+const porNome = (a: Linha, b: Linha) => a.nome.localeCompare(b.nome, "pt-BR");
+const porData = (a: Linha, b: Linha) => {
+  const da = dataNaLista(a);
+  const db = dataNaLista(b);
+  return crescente(da.dia, db.dia) || crescente(minutos(da.horario), minutos(db.horario));
+};
+
+function minutos(horario: string | null): number | null {
+  const m = /^(\d{1,2}):(\d{2})/.exec(horario ?? "");
+  return m ? Number(m[1]) * 60 + Number(m[2]) : null;
+}
+
+/**
+ * Ordem dentro de cada bloco: agendados pela data e horário, finalizados pelo dia da conclusão (ver
+ * dataNaLista), atrasados pelo atraso e o resto pelo nome.
+ */
+export function compararNoBloco(status: StatusPreSafra): (a: Linha, b: Linha) => number {
+  // Atrasados: mais dias de atraso primeiro (negativo em ordem crescente, para os sem número irem ao fim).
+  const negativo = (d: number | null) => (d === null ? null : -d);
+  if (status === "Atrasado")
+    return (a, b) => crescente(negativo(a.dias), negativo(b.dias)) || porData(a, b) || porNome(a, b);
+  if (status === "A Fazer" || status === "Inativo") return porNome;
+  return (a, b) => porData(a, b) || porNome(a, b);
+}
+
+const preenchido = (v: string | null | undefined) => Boolean(v?.trim());
+
+/**
+ * Divide a lista de clientes em blocos por status (na ordem de ORDEM_BLOCOS, sem os vazios), ordena
+ * cada bloco e diz quais colunas têm algum valor nele. `detalhe` é o texto da coluna Detalhe (fica no
+ * componente, que formata o atraso).
+ */
+export function blocosPorStatus(
+  lista: Linha[],
+  opcoes: { mostrarRegiao: boolean; detalhe: (l: Linha) => string },
+): BlocoStatus[] {
+  const temValor: Record<ColunaCliente, (l: Linha) => boolean> = {
+    regiao: (l) => preenchido(l.regiao),
+    responsavel: (l) => preenchido(l.responsavel),
+    data: (l) => {
+      const d = dataNaLista(l);
+      return d.dia !== null || d.horario !== null;
+    },
+    formato: (l) => preenchido(l.formato),
+    detalhe: (l) => preenchido(opcoes.detalhe(l)),
+  };
+  const candidatas: ColunaCliente[] = ["regiao", "responsavel", "data", "formato", "detalhe"];
+  return ORDEM_BLOCOS.map((status) => {
+    const linhas = lista.filter((l) => l.status === status).sort(compararNoBloco(status));
+    const colunas = candidatas.filter(
+      (c) => (c !== "regiao" || opcoes.mostrarRegiao) && linhas.some(temValor[c]),
+    );
+    return { status, linhas, colunas };
+  }).filter((b) => b.linhas.length > 0);
 }
 
 // ---- Por pessoa / região / consultor -------------------------------------------------------

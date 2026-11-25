@@ -110,6 +110,7 @@ describe("opções do filtro de responsável da lista", () => {
     status: "A Fazer",
     dias: null,
     atrasoNaConclusao: null,
+    concluidoEm: null,
     mes: null,
     ...p,
   });

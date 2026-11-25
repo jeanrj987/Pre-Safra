@@ -3,18 +3,25 @@ import type { Linha } from "./dados";
 import { marcasVazias } from "./finalizacao";
 import {
   agruparPor,
+  blocosPorStatus,
   conferir,
   contarPorStatus,
+  dataNaLista,
   DIA,
   filtrarLinhas,
+  fraseSemMotivo,
   lerDiaIso,
+  mostrarColunaRegiao,
   opcoesDeFiltro,
+  ORDEM_BLOCOS,
   pendenciasPorMotivo,
+  pendentesSemNenhumMotivo,
   periodoEvolucao,
   resumir,
   ROTULO_SEM_RESPONSAVEL,
   SEM_FILTROS,
   serieEvolucao,
+  STATUS_RELATORIO,
   tipoValido,
 } from "./relatorios";
 
@@ -42,6 +49,7 @@ const linha = (extra: Partial<Linha> = {}): Linha => ({
   status: "A Fazer",
   dias: null,
   atrasoNaConclusao: null,
+  concluidoEm: null,
   mes: null,
   ...extra,
 });
@@ -101,6 +109,137 @@ describe("pendenciasPorMotivo", () => {
       ["Não respondeu", 2, 1, 1],
       ["Sem motivo definido", 1, 0, 1],
     ]);
+  });
+});
+
+describe("pendentesSemNenhumMotivo e fraseSemMotivo", () => {
+  it("só devolve a contagem quando a única linha é a do sem motivo", () => {
+    const soSemMotivo = pendenciasPorMotivo([linha({ status: "A Fazer" }), linha({ status: "Atrasado" })]);
+    expect(pendentesSemNenhumMotivo(soSemMotivo)).toBe(2);
+    const comMotivo = pendenciasPorMotivo([linha({ status: "A Fazer", motivoPendencia: "reagendando" })]);
+    expect(pendentesSemNenhumMotivo(comMotivo)).toBeNull();
+    expect(pendentesSemNenhumMotivo([])).toBeNull();
+  });
+
+  it("monta a frase com o número certo", () => {
+    expect(fraseSemMotivo(72)).toBe("Nenhum motivo de pendência anotado nos 72 clientes pendentes.");
+    expect(fraseSemMotivo(1)).toBe("Nenhum motivo de pendência anotado no único cliente pendente.");
+  });
+});
+
+describe("mostrarColunaRegiao", () => {
+  it("esconde a região só quando o filtro tem exatamente uma", () => {
+    expect(mostrarColunaRegiao(SEM_FILTROS)).toBe(true);
+    expect(mostrarColunaRegiao({ ...SEM_FILTROS, regioes: ["Norte"] })).toBe(false);
+    expect(mostrarColunaRegiao({ ...SEM_FILTROS, regioes: ["Norte", "Sul"] })).toBe(true);
+  });
+});
+
+describe("ORDEM_BLOCOS", () => {
+  it("tem todos os status, uma vez cada, com os agendados antes do A Fazer", () => {
+    expect(ORDEM_BLOCOS).toEqual(["Atrasado", "Agendado Online", "Agendado Presencial", "A Fazer", "Finalizado", "Inativo"]);
+    expect([...ORDEM_BLOCOS].sort()).toEqual([...STATUS_RELATORIO].sort());
+  });
+});
+
+describe("dataNaLista", () => {
+  it("nos finalizados usa o dia da conclusão no fuso da equipe, sem horário", () => {
+    // 21/11 às 2h em UTC ainda é dia 20 em Cuiabá (UTC-4).
+    const l = linha({ status: "Finalizado", dataPrevista: new Date(Date.UTC(2026, 10, 1)), horario: "08:00", concluidoEm: new Date("2026-11-21T02:00:00Z") });
+    expect(dataNaLista(l)).toEqual({ dia: Date.UTC(2026, 10, 20), horario: null });
+  });
+
+  it("sem conclusão registrada, o finalizado cai na data prevista", () => {
+    const l = linha({ status: "Finalizado", dataPrevista: new Date(Date.UTC(2026, 10, 1)), horario: "08:00" });
+    expect(dataNaLista(l)).toEqual({ dia: Date.UTC(2026, 10, 1), horario: null });
+  });
+
+  it("nos demais status, data prevista e horário agendado", () => {
+    const l = linha({ status: "Agendado Online", dataPrevista: new Date(Date.UTC(2026, 11, 3)), horario: "14:30" });
+    expect(dataNaLista(l)).toEqual({ dia: Date.UTC(2026, 11, 3), horario: "14:30" });
+    expect(dataNaLista(linha({ status: "A Fazer" }))).toEqual({ dia: null, horario: null });
+  });
+});
+
+describe("blocosPorStatus", () => {
+  const dia = (d: number) => new Date(Date.UTC(2026, 10, d));
+  const semDetalhe = () => "";
+
+  it("separa por status na ordem dos blocos e pula os vazios", () => {
+    const b = blocosPorStatus(
+      [
+        linha({ status: "Finalizado" }),
+        linha({ status: "A Fazer" }),
+        linha({ status: "Atrasado", dias: 1 }),
+        linha({ status: "Agendado Presencial" }),
+      ],
+      { mostrarRegiao: true, detalhe: semDetalhe },
+    );
+    expect(b.map((x) => x.status)).toEqual(["Atrasado", "Agendado Presencial", "A Fazer", "Finalizado"]);
+  });
+
+  it("ordena cada bloco pela regra do status", () => {
+    const b = blocosPorStatus(
+      [
+        linha({ nome: "Atr sem dias", status: "Atrasado", dias: null }),
+        linha({ nome: "Atr pouco", status: "Atrasado", dias: 2, dataPrevista: dia(20) }),
+        linha({ nome: "Atr muito", status: "Atrasado", dias: 9, dataPrevista: dia(13) }),
+        linha({ nome: "Ag tarde", status: "Agendado Online", dataPrevista: dia(28), horario: "14:00" }),
+        linha({ nome: "Ag cedo", status: "Agendado Online", dataPrevista: dia(28), horario: "8:30" }),
+        linha({ nome: "Ag antes", status: "Agendado Online", dataPrevista: dia(27), horario: "16:00" }),
+        linha({ nome: "Zeca", status: "A Fazer", dataPrevista: dia(30) }),
+        linha({ nome: "Ávila", status: "A Fazer" }),
+        linha({ nome: "Bruno", status: "A Fazer" }),
+        linha({ nome: "Fin sem data", status: "Finalizado" }),
+        linha({ nome: "Fin depois", status: "Finalizado", dataPrevista: dia(10) }),
+        linha({ nome: "Fin antes", status: "Finalizado", dataPrevista: dia(3) }),
+        linha({ nome: "Xavier", status: "Inativo", dataPrevista: dia(1) }),
+        linha({ nome: "Inês", status: "Inativo", dataPrevista: dia(9) }),
+      ],
+      { mostrarRegiao: true, detalhe: semDetalhe },
+    );
+    const nomes = Object.fromEntries(b.map((x) => [x.status, x.linhas.map((l) => l.nome)]));
+    expect(nomes).toEqual({
+      Atrasado: ["Atr muito", "Atr pouco", "Atr sem dias"],
+      "Agendado Online": ["Ag antes", "Ag cedo", "Ag tarde"],
+      "A Fazer": ["Ávila", "Bruno", "Zeca"],
+      Finalizado: ["Fin antes", "Fin depois", "Fin sem data"],
+      Inativo: ["Inês", "Xavier"],
+    });
+  });
+
+  it("ordena os finalizados pelo dia da conclusão, com a data prevista de reserva", () => {
+    const b = blocosPorStatus(
+      [
+        // Previsto para o dia 1, mas feito no dia 20.
+        linha({ nome: "Feito tarde", status: "Finalizado", dataPrevista: dia(1), concluidoEm: new Date("2026-11-20T15:00:00Z") }),
+        linha({ nome: "Feito cedo", status: "Finalizado", dataPrevista: dia(25), concluidoEm: new Date("2026-11-05T15:00:00Z") }),
+        linha({ nome: "Sem registro", status: "Finalizado", dataPrevista: dia(10) }),
+      ],
+      { mostrarRegiao: true, detalhe: semDetalhe },
+    );
+    expect(b[0].linhas.map((l) => l.nome)).toEqual(["Feito cedo", "Sem registro", "Feito tarde"]);
+  });
+
+  it("mostra só as colunas com algum valor no bloco", () => {
+    const [atrasados, aFazer] = blocosPorStatus(
+      [
+        linha({ status: "Atrasado", dias: 3, dataPrevista: dia(5), responsavel: null, formato: null }),
+        linha({ status: "A Fazer", responsavel: null, regiao: "Norte" }),
+        linha({ status: "A Fazer", responsavel: "  ", regiao: "Sul" }),
+      ],
+      { mostrarRegiao: true, detalhe: (l) => (l.status === "Atrasado" ? "3 dias de atraso" : "") },
+    );
+    expect(atrasados.colunas).toEqual(["regiao", "data", "detalhe"]);
+    expect(aFazer.colunas).toEqual(["regiao"]);
+  });
+
+  it("sem a coluna de região, o bloco só com nomes fica sem colunas (lista compacta)", () => {
+    const [aFazer] = blocosPorStatus([linha({ status: "A Fazer", responsavel: null })], {
+      mostrarRegiao: false,
+      detalhe: semDetalhe,
+    });
+    expect(aFazer.colunas).toEqual([]);
   });
 });
 

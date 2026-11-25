@@ -1,7 +1,7 @@
 import type { ChaveItem } from "@/lib/finalizacao";
 import type { Conferencia as DadosConferencia } from "@/lib/relatorios";
 import { plural } from "@/lib/texto";
-import { LINHA, NUM, TABELA, TD, TH } from "./tabela";
+import { CARTAO_LONGO, LINHA, NUM, TABELA, TD, TH } from "./tabela";
 
 // Títulos curtos das colunas; o texto completo de cada item aparece nos cartões.
 const CURTO: Record<ChaveItem, string> = {
@@ -34,7 +34,7 @@ export default function Conferencia({ dados }: { dados: DadosConferencia }) {
         ))}
       </section>
 
-      <section className="card overflow-hidden print:shadow-none">
+      <section className={CARTAO_LONGO}>
         <h2 className="px-4 pt-3 text-base font-semibold">
           Para conferir ({plural(dados.incompletos.length, "cliente", "clientes")})
         </h2>

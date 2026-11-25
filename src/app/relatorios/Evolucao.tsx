@@ -2,7 +2,7 @@ import BotaoEnviar from "../BotaoEnviar";
 import { diaMes, diaMesAno, escalaAgradavel } from "@/lib/painel";
 import type { PontoEvolucao } from "@/lib/relatorios";
 import { plural } from "@/lib/texto";
-import { LINHA, NUM, TABELA, TD, TH } from "./tabela";
+import { CARTAO_LONGO, LINHA, NUM, TABELA, TD, TH } from "./tabela";
 
 const L = 900;
 const A = 260;
@@ -134,7 +134,7 @@ export default function Evolucao({
       </section>
 
       {pontos.length > 0 && (
-        <section className="card overflow-hidden print:shadow-none">
+        <section className={CARTAO_LONGO}>
           <h2 className="px-4 pt-3 pb-2 text-base font-semibold">Números por dia ({plural(pontos.length, "foto", "fotos")})</h2>
           <div className="overflow-x-auto">
             <table className={TABELA}>

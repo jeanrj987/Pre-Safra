@@ -63,6 +63,11 @@ export interface Linha {
   dias: number | null;
   /** Finalizado depois da data prevista: quantos dias depois. */
   atrasoNaConclusao: number | null;
+  /**
+   * Quando a finalização em vigor foi registrada (o dia em que o Pré-Safra foi feito); nulo se o
+   * cliente não está finalizado. Finalizar não mexe em dataPrevista, então a data real é esta.
+   */
+  concluidoEm: Date | null;
   mes: string | null;
 }
 
@@ -131,6 +136,7 @@ export async function listarLinhas(safraId: number): Promise<Linha[]> {
           r.configuradoSistema && !r.inativo
             ? diasAtrasoNaConclusao(r.dataPrevista, r.conclusoes[0]?.criadoEm ?? null)
             : null,
+        concluidoEm: r.configuradoSistema ? (r.conclusoes[0]?.criadoEm ?? null) : null,
         mes: mesPrevisto(r.dataPrevista),
       };
     })

@@ -14,6 +14,7 @@ import { formatarDataHora, listarLinhas } from "@/lib/dados";
 import { limitesDasFotos, listarFotos } from "@/lib/fotos";
 import { prisma } from "@/lib/db";
 import { ITENS_FINALIZACAO, type MarcasFinalizacao } from "@/lib/finalizacao";
+import { estiloImpressao, nomeArquivoRelatorio } from "@/lib/impressaoRelatorio";
 import { diaMesAno } from "@/lib/painel";
 import { pode } from "@/lib/permissoes";
 import {
@@ -22,6 +23,7 @@ import {
   dimensaoValida,
   diaParaIso,
   filtrarLinhas,
+  mostrarColunaRegiao,
   opcoesDeFiltro,
   periodoEvolucao,
   serieEvolucao,
@@ -79,7 +81,14 @@ export default async function PaginaRelatorios({ searchParams }: PageProps<"/rel
   let ate = "";
   if (tipo === "situacao") {
     const clientes = filtros.status.length > 0 ? filtrarLinhas(recorte, filtros) : recorte.filter((l) => l.status !== "Inativo");
-    conteudo = <Situacao base={recorte} lista={clientes} />;
+    conteudo = (
+      <Situacao
+        base={recorte}
+        lista={clientes}
+        mostrarRegiao={mostrarColunaRegiao(filtros)}
+        filtroDeStatus={filtros.status.length > 0}
+      />
+    );
   } else if (tipo === "pessoas") {
     conteudo = <Pessoas linhas={recorte} dimensao={dimensao} />;
   } else if (tipo === "conferencia") {
@@ -132,10 +141,9 @@ export default async function PaginaRelatorios({ searchParams }: PageProps<"/rel
 
   return (
     <Shell ativo="relatorios">
-      {/* O @page vale só para o documento impresso: A4 deitado para as tabelas largas, e as cores
-          (selos, barras, linhas do gráfico) saem como na tela. */}
-      <style>{`@page { size: A4 landscape; margin: 12mm; }
-@media print { * { print-color-adjust: exact; -webkit-print-color-adjust: exact; } body { background: #fff; } }`}</style>
+      {/* O @page vale só para o documento impresso: A4 deitado, rodapé próprio com o título curto e
+          "Página X de Y" no lugar do cabeçalho e do rodapé do navegador (ver estiloImpressao). */}
+      <style>{estiloImpressao(`${rotulo} · ${safra.nome}`)}</style>
 
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
@@ -148,7 +156,16 @@ export default async function PaginaRelatorios({ searchParams }: PageProps<"/rel
           {partesFiltro.length > 0 && <p className="hidden text-sm text-muted print:block">{partesFiltro.join(" · ")}</p>}
         </div>
         <div className="print:hidden">
-          <BotaoImprimir nomeArquivo={`${rotulo} - ${tituloPreSafra(safra)}`} />
+          <BotaoImprimir
+            nomeArquivo={nomeArquivoRelatorio({
+              rotulo,
+              safra: safra.nome,
+              regioes: filtros.regioes,
+              responsaveis: filtros.responsaveis,
+              status: filtros.status,
+              agora,
+            })}
+          />
         </div>
       </div>
 
